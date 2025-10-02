@@ -1,0 +1,100 @@
+{
+  "player": {
+    "position": {
+      "x": 50,
+      "y": 500
+    },
+    "size": {
+      "x": 32,
+      "y": 32
+    }
+  },
+  "enemies": [
+    {
+      "position": {
+        "x": 300,
+        "y": 400
+      },
+      "size": {
+        "x": 24,
+        "y": 24
+      },
+      "health": 50,
+      "damage": 15
+    },
+    {
+      "position": {
+        "x": 500,
+        "y": 350
+      },
+      "size": {
+        "x": 28,
+        "y": 28
+      },
+      "health": 75,
+      "damage": 20
+    },
+    {
+      "position": {
+        "x": 650,
+        "y": 450
+      },
+      "size": {
+        "x": 20,
+        "y": 20
+      },
+      "health": 30,
+      "damage": 10
+    }
+  ],
+  "items": [
+    {
+      "position": {
+        "x": 150,
+        "y": 480
+      },
+      "size": {
+        "x": 16,
+        "y": 16
+      },
+      "type": "coin",
+      "value": 10
+    },
+    {
+      "position": {
+        "x": 250,
+        "y": 450
+      },
+      "size": {
+        "x": 16,
+        "y": 16
+      },
+      "type": "coin",
+      "value": 25
+    },
+    {
+      "position": {
+        "x": 400,
+        "y": 300
+      },
+      "size": {
+        "x": 20,
+        "y": 20
+      },
+      "type": "health_potion",
+      "value": 50
+    },
+    {
+      "position": {
+        "x": 600,
+        "y": 380
+      },
+      "size": {
+        "x": 18,
+        "y": 18
+      },
+      "type": "power_up",
+      "value": 100
+    }
+  ]
+}

@@ -1,254 +1,160 @@
-# SDL2 + Box2D + tinyxml2 Starter Project
+# Project01 - Object Factory
 
-## 📺 Setup Video Tutorial
+A C++ game engine project demonstrating object-oriented design patterns, JSON-based level loading, and SDL2 graphics rendering. This project implements an object factory pattern to dynamically create game objects from JSON configuration files.
 
-**Watch the setup tutorial:**
+## Overview
 
-[![Setup Tutorial](https://img.youtube.com/vi/smN-sd1F7pU/0.jpg)](https://youtu.be/smN-sd1F7pU)
+This project showcases a modular game engine architecture with:
+- **Object Factory Pattern**: Dynamic object creation using a factory registry
+- **JSON Level Loading**: Data-driven level design with JSON configuration
+- **Polymorphic Object System**: Base object class with specialized derived types
+- **SDL2 Integration**: Hardware-accelerated 2D graphics and input handling
 
-*Click the thumbnail above to watch the full tutorial on YouTube*
+## Level Data (JSON)
 
-## 📁 Repository
+The game uses JSON files to define level layouts and object configurations. The level data is stored in `assets/level1.json` and contains:
 
-**GitHub Repository:** [https://github.com/NicholasSeward/CPSI-27703-Intro-to-Game-Programming-Fall-2025-Starter/](https://github.com/NicholasSeward/CPSI-27703-Intro-to-Game-Programming-Fall-2025-Starter/)
-
-## ⚠️ Important Notice
-
-**This code is NOT an example of good programming practices for this class.** This project serves as a minimal demonstration to verify that you can successfully:
-
-- Set up a C++ project with SDL2, Box2D, and tinyxml2 using vcpkg
-- Build and run a basic physics simulation
-- Configure your development environment (VS Code/Cursor) for C++ development
-
-The code itself is not meant to be taken as an exemplar
-
-## What This Project Does
-
-This is a simple falling blocks physics simulation. The following libraries are used:
-
-**Directly demonstrated in the code:**
-- SDL2: window creation and rendering
-- Box2D: 2D physics simulation
-- tinyxml2: XML configuration file loading
-
-**Included and linked for your convenience in CMake (not directly demonstrated):**
-- SDL2_ttf: font rendering
-- SDL2_image: image loading
-- SDL2_mixer: audio playback
-- yaml-cpp: YAML configuration file loading
-- nlohmann-json: JSON data handling
-
-Blocks spawn at configurable intervals with random colors, fall with realistic physics, and bounce off the ground. The spawn rate and box size can be configured in `assets/config.xml`.
-
-## Available Libraries
-
-This starter project includes a comprehensive set of libraries for game development:
-
-### **Graphics & Rendering**
-- **SDL2**: Core window management and 2D rendering
-- **SDL2 TTF**: Text rendering with custom fonts
-- **SDL2 Image**: Load PNG, JPG, BMP, GIF, TGA images
-
-### **Audio**
-- **SDL2 Mixer**: Sound effects and music playback
-
-### **Physics**
-- **Box2D**: Professional 2D physics simulation
-
-### **Data Formats**
-- **tinyxml2**: XML configuration files
-- **yaml-cpp**: YAML configuration files (human-readable)
-- **nlohmann-json**: JSON data exchange (web standard)
-
-### **Development**
-- **vcpkg**: Cross-platform package manager
-- **CMake**: Build system configuration
-
-## Prerequisites for Windows
-
-Before cloning this project, you need to install the following on your Windows machine:
-
-### 1. Git (Required)
-- Download from: https://git-scm.com/download/win
-- Used for cloning the repository and vcpkg submodule management
-
-### 2. VS Code or Cursor (Recommended)
-- VS Code: https://code.visualstudio.com/
-- Cursor: https://cursor.sh/
-- Install the **C/C++ Extension Pack** for IntelliSense support
-- Install the **CMake Tools** extension for building and configuring CMake projects
-
-### 3. Everything Else (Auto-Installed)
-The setup script will automatically install:
-- **MinGW-w64** (GCC, G++, GDB) via Chocolatey
-- **CMake** via Chocolatey
-- **Chocolatey** (if not already installed)
-
-## Setup Instructions
-
-### Option 1: Automated Setup (Recommended)
-1. **Clone the Repository**
-   ```bash
-   git clone https://github.com/NicholasSeward/CPSI-27703-Intro-to-Game-Programming-Fall-2025-Starter.git
-   cd CPSI-27703-Intro-to-Game-Programming-Fall-2025-Starter
-   ```
-
-2. **Run the Setup Script**
-   ```bash
-   setup.bat
-   ```
-   
-   The script will automatically:
-   - Verify all prerequisites are installed
-   - **Auto-install Chocolatey (if missing)**
-   - **Auto-install MinGW-w64 and CMake via Chocolatey (if missing)**
-   - Initialize vcpkg submodule
-   - Bootstrap vcpkg
-   - Configure CMake
-   - Build the project
-   - Provide clear success/error messages
-
-### Option 2: Manual Setup
-If you prefer to run the commands manually:
-
-1. **Clone the Repository**
-   ```bash
-   git clone https://github.com/NicholasSeward/CPSI-27703-Intro-to-Game-Programming-Fall-2025-Starter.git
-   cd CPSI-27703-Intro-to-Game-Programming-Fall-2025-Starter
-   ```
-
-2. **Initialize vcpkg Submodule**
-   ```bash
-   git submodule update --init --recursive
-   ```
-
-3. **Bootstrap vcpkg**
-   ```bash
-   cd external/vcpkg
-   ./bootstrap-vcpkg.bat
-   cd ../..
-   ```
-
-4. **Configure CMake**
-   ```bash
-   cmake --preset windows-mingw-debug
-   ```
-
-5. **Build the Project**
-   ```bash
-   cmake --build build/win-mingw-debug
-   ```
-
-6. **Run the Application**
-   ```bash
-   .\build\win-mingw-debug\demo.exe
-   ```
-
-## VS Code/Cursor Configuration
-
-### Install Extensions
-Install these extensions for the best development experience:
-- **C/C++ Extension Pack** (Microsoft)
-- **CMake Tools** (Microsoft)
-
-### Ready to Use!
-The project includes pre-configured VS Code settings:
-- **IntelliSense** - Configured for MinGW with SDL2, Box2D, and tinyxml2
-- **Build Tasks** - Press `Ctrl+Shift+P` → "Tasks: Run Task" → "build-mingw-debug"
-- **Debug Launch** - Press `F5` to build and run with GDB debugging
-
-All configuration files are already included in the `.vscode/` directory.
-
-## Project Structure
-
-```
-├── assets/
-│   └── config.xml          # Configuration file
-├── build/                  # Build output directory
-├── external/
-│   └── vcpkg/             # vcpkg package manager
-├── src/
-│   ├── Game.h             # Game class header
-│   ├── Game.cpp           # Game class implementation
-│   └── main.cpp           # Entry point
-├── .vscode/               # VS Code configuration
-│   ├── c_cpp_properties.json  # IntelliSense settings (MinGW)
-│   ├── tasks.json         # Build tasks (MinGW only)
-│   ├── launch.json        # Debug configuration (GDB)
-│   └── settings.json      # CMake settings
-├── CMakeLists.txt         # CMake configuration
-├── CMakePresets.json      # CMake presets
-├── vcpkg.json            # Package dependencies
-├── setup.bat             # Automated setup script
-├── .gitignore            # Git ignore rules
-└── README.md             # This file
+### Structure
+```json
+{
+  "player": { ... },
+  "enemies": [ ... ],
+  "items": [ ... ]
+}
 ```
 
-## Package Management
+### Current Level Configuration
+- **Player**: Single player character positioned at (50, 500) with 32x32 size
+- **Enemies**: 3 enemy entities with varying health (30-75), damage (10-20), and sizes (20x20 to 28x28)
+- **Items**: 4 collectible items including:
+  - 2 coins (value: 10, 25)
+  - 1 health potion (value: 50)
+  - 1 power-up (value: 100)
 
-This project uses **vcpkg** to automatically download, compile, and link all dependencies. The `vcpkg.json` file specifies exactly which libraries are needed, and vcpkg handles the rest.
+Each object includes position coordinates, size dimensions, and type-specific properties like health, damage, item type, and value.
 
-## Troubleshooting
+## Object Types
 
-### Common Issues
+The game implements a hierarchical object system with polymorphic behavior:
 
-1. **"vcpkg not found"**
-   - Make sure you've run `git submodule update --init --recursive`
-   - Ensure you've bootstrapped vcpkg with `./bootstrap-vcpkg.bat`
+### Base Object Class (`Object.h/cpp`)
+- **Abstract base class** defining the common interface
+- **Core properties**: position (Vector2), size (Vector2), angle (float)
+- **Virtual methods**: `update()`, `render()`, property getters/setters
+- **Common data structure**: Uses Vector2 from `Common.h` for 2D coordinates
 
-2. **"CMake not found" or "MinGW not found"**
-   - The setup script should have installed these automatically
-   - Try running `setup.bat` again
-   - If still failing, install manually:
-     - CMake: https://cmake.org/download/
-     - MinGW-w64: https://www.mingw-w64.org/downloads/
-   - Restart your terminal/VS Code after installation
+### Player (`Player.h/cpp`)
+- **Inherits from Object**
+- **Additional properties**: velocity (Vector2), speed (int)
+- **Functionality**: Player movement and input handling
+- **JSON constructor**: Initializes from level data
+- **Controls**: WASD/Arrow keys for movement, Space for jump, Escape to quit
 
-3. **Build errors**
-   - Try cleaning: `cmake --build build/win-mingw-debug --target clean`
-   - Reconfigure: `cmake --preset windows-mingw-debug`
+### Enemy (`Enemy.h/cpp`)
+- **Inherits from Object**
+- **Additional properties**: health (int), damage (int)
+- **Functionality**: Enemy behavior and combat stats
+- **JSON constructor**: Loads health and damage from level data
+- **Rendering**: Red rectangles to distinguish from other objects
 
-### Getting Help
+### Item (`Item.h/cpp`)
+- **Inherits from Object**
+- **Additional properties**: itemType (string), value (int)
+- **Functionality**: Collectible items with different types and values
+- **JSON constructor**: Loads type and value from level data
+- **Types supported**: "coin", "health_potion", "power_up"
 
-If you encounter issues:
-1. Check that Git is installed and in your PATH
-2. Try running `setup.bat` again (it should install everything automatically)
-3. Ensure you're running commands from the project root directory
-4. Check the build output for specific error messages
+## Library System (`Library.h`)
 
-## Next Steps
+The Library implements the **Factory Pattern** for dynamic object creation:
 
-Once you have this project building and running successfully, you're ready to:
-- Start your actual game development assignments
-- Use this as a reference for setting up SDL2 + Box2D projects
-- Experiment with different physics behaviors
-- Add images, sounds, and text to your games
-- Create configuration files in XML, YAML, or JSON formats
-- Add your own game features and mechanics
+### Factory Registry
+- **Singleton pattern**: Global instance accessible via `getLibrary()`
+- **Function map**: Maps string keys to factory functions
+- **Lambda factories**: Each object type registered with a lambda function
+- **JSON integration**: Factory functions accept JSON data for object initialization
 
-## Example Usage
-
-With the included libraries, you can easily:
-
+### Registered Types
 ```cpp
-// Load images
-SDL_Surface* image = IMG_Load("assets/sprite.png");
-
-// Render text
-TTF_Font* font = TTF_OpenFont("assets/font.ttf", 24);
-SDL_Surface* text = TTF_RenderText_Solid(font, "Hello World!", color);
-
-// Play sounds
-Mix_Chunk* sound = Mix_LoadWAV("assets/sound.wav");
-Mix_PlayChannel(-1, sound, 0);
-
-// Parse JSON
-nlohmann::json config = nlohmann::json::parse(file_content);
-float spawnRate = config["spawnRate"];
-
-// Parse YAML
-YAML::Node config = YAML::LoadFile("config.yaml");
-float gravity = config["gravity"].as<float>();
+map["player"] = [](const nlohmann::json& data) -> std::unique_ptr<Object>
+map["enemy"] = [](const nlohmann::json& data) -> std::unique_ptr<Object>
+map["item"] = [](const nlohmann::json& data) -> std::unique_ptr<Object>
 ```
 
-Remember: This starter project is just to verify your development environment works. Your actual assignments should follow proper C++ programming practices!
+### Benefits
+- **Extensibility**: Easy to add new object types
+- **Data-driven**: Objects created from JSON without hardcoded logic
+- **Type safety**: Returns polymorphic Object pointers
+- **Memory management**: Uses smart pointers for automatic cleanup
+
+## Engine System (`Engine.h/cpp`)
+
+The Engine serves as the core game loop and system manager:
+
+### Core Responsibilities
+- **SDL2 Management**: Window creation, renderer setup, cleanup
+- **Game Loop**: 60 FPS game loop with event processing, update, and render phases
+- **Object Management**: Container for all game objects with polymorphic operations
+- **Input Handling**: Keyboard state tracking and key mapping
+- **Level Loading**: JSON file parsing and object instantiation via Library
+
+### Key Features
+- **Screen Resolution**: 800x600 window with hardware acceleration
+- **Input System**: Static key state map accessible to all objects
+- **Object Container**: Vector of unique_ptr<Object> for polymorphic storage
+- **Error Handling**: Comprehensive SDL and JSON error checking
+- **Frame Rate**: Consistent 60 FPS with SDL_Delay timing
+
+### Supported Controls
+- **Movement**: A/D or Left/Right arrows (horizontal), W/S or Up/Down arrows (vertical)
+- **Action**: Space bar for jump
+- **System**: Escape key to quit
+
+### Loading Process
+1. Parse JSON file using nlohmann::json library
+2. Clear existing objects from previous levels
+3. Create player object using Library factory
+4. Iterate through enemies array, creating each via factory
+5. Iterate through items array, creating each via factory
+6. Store all objects in polymorphic container for unified processing
+
+## Main Entry Point (`main.cpp`)
+
+The main function demonstrates the engine's simplicity and ease of use:
+
+### Execution Flow
+```cpp
+1. Create Engine instance
+2. Initialize SDL systems and create window/renderer
+3. Load level data from "assets/level1.json"
+4. Run main game loop until quit
+5. Cleanup SDL resources and exit
+```
+
+### Design Philosophy
+- **Minimal main**: All complexity encapsulated in Engine class
+- **Single responsibility**: Main only handles high-level flow
+- **Error handling**: Engine methods handle all error conditions
+- **Resource management**: RAII ensures proper cleanup
+
+## Technical Dependencies
+
+- **SDL2**: Graphics, input, and window management
+- **nlohmann/json**: Modern C++ JSON parsing library
+- **C++14**: Smart pointers, lambda functions, auto keyword
+- **CMake**: Cross-platform build system
+- **vcpkg**: Package management for dependencies
+
+## Build and Run
+
+The project uses CMake with vcpkg for dependency management. The executable loads `assets/level1.json` on startup and creates a game world with the configured objects.
+
+```bash
+# Build (assuming CMake setup)
+cmake --build build
+
+# Run
+./build/demo.exe
+```
+
+The game window will display all objects as colored rectangles: blue for player, red for enemies, and green for items, positioned according to the JSON level data.

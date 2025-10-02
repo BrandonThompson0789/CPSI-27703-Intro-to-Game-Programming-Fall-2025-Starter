@@ -14,8 +14,24 @@ find_package(tinyxml2 CONFIG REQUIRED)
 find_package(yaml-cpp CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 
+# Collect all source files recursively from src directory
+
 # Create executable
-add_executable(demo src/main.cpp src/Game.cpp src/Game.h)
+add_executable(demo 
+    src/main.cpp 
+    src/Common.h 
+    src/Object.h
+    src/Object.cpp
+    src/Engine.h
+    src/Engine.cpp
+    src/Player.h
+    src/Player.cpp
+    src/Enemy.h
+    src/Enemy.cpp
+    src/Item.h
+    src/Item.cpp
+    src/Library.h
+)
 
 # Link libraries
 target_link_libraries(demo PRIVATE
