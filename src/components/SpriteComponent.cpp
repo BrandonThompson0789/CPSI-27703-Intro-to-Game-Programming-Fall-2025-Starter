@@ -3,12 +3,12 @@
 #include "../Object.h"
 #include "../components/BodyComponent.h"
 
-SpriteComponent::SpriteComponent(Object& parent, const std::string& spriteNameParam)
+SpriteComponent::SpriteComponent(Object& parent, const std::string& spriteNameParam, bool animate, bool loop)
     : Component(parent), 
       spriteName(spriteNameParam),
       currentFrame(0),
-      animating(false),
-      looping(false),
+      animating(animate),
+      looping(loop),
       animationSpeed(10.0f),
       animationTimer(0.0f),
       flipFlags(SDL_FLIP_NONE),

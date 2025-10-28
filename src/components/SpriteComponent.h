@@ -5,7 +5,7 @@
 
 class SpriteComponent : public Component {
 public:
-    SpriteComponent(Object& parent, const std::string& spriteName);
+    SpriteComponent(Object& parent, const std::string& spriteName, bool animate = false, bool loop = false);
     ~SpriteComponent() override = default;
 
     void update() override;

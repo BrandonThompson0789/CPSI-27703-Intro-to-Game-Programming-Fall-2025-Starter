@@ -20,7 +20,7 @@ int main(int argc, char* argv[]) {
     Object& player = *objects[0];
     
     player.addComponent<BodyComponent>();
-    player.addComponent<SpriteComponent>("player");
+    player.addComponent<SpriteComponent>("player", true, true);
     player.getComponent<BodyComponent>()->setPosition(400.0f, 300.0f, 0.0f);
 
 
