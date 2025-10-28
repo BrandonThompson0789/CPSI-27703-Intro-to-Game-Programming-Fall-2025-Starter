@@ -5,7 +5,7 @@ class Object;
 
 class Component {
 public:
-    Component(Object& parent) : _parent(parent) {}
+    Component(Object& parent) : parentObject(parent) {}
 
     virtual void update()=0;
     virtual void draw() =0;
@@ -13,8 +13,8 @@ public:
     virtual ~Component() = default;
 
 protected:
-    Object& parent() const { return _parent; }
+    Object& parent() const { return parentObject; }
 
 private:
-    Object& _parent;
+    Object& parentObject;
 };

@@ -1,25 +1,49 @@
 #ifndef OBJECT_H
 #define OBJECT_H
 
-#include "Common.h"
 #include <SDL.h>
+#include <vector>
+#include <memory>
+#include <typeindex>
+#include <unordered_map>
+
+class Component;
 
 class Object {
     public:
-        Object()=default;
-        virtual ~Object()=default;
-        virtual void update()=0;
-        virtual void render(SDL_Renderer* renderer)=0;
-        virtual void setPosition(Vector2 position);
-        virtual void setSize(Vector2 size);
-        virtual void setAngle(float angle);
-        virtual Vector2 getPosition();
-        virtual Vector2 getSize();
-        virtual float getAngle();
-    protected:
-        Vector2 position;
-        Vector2 size;
-        float angle;
+        Object() = default;
+        virtual ~Object();
+        
+        void update();
+        void render(SDL_Renderer* renderer);
+        
+        // Component management
+        template<typename T, typename... Args>
+        T* addComponent(Args&&... args) {
+            auto component = std::make_unique<T>(*this, std::forward<Args>(args)...);
+            T* ptr = component.get();
+            components.push_back(std::move(component));
+            componentMap[std::type_index(typeid(T))] = ptr;
+            return ptr;
+        }
+        
+        template<typename T>
+        T* getComponent() {
+            auto it = componentMap.find(std::type_index(typeid(T)));
+            if (it != componentMap.end()) {
+                return static_cast<T*>(it->second);
+            }
+            return nullptr;
+        }
+        
+        template<typename T>
+        bool hasComponent() const {
+            return componentMap.find(std::type_index(typeid(T))) != componentMap.end();
+        }
+        
+    private:
+        std::vector<std::unique_ptr<Component>> components;
+        std::unordered_map<std::type_index, Component*> componentMap;
 };
 
 #endif // OBJECT_H

@@ -1,4 +1,7 @@
 #include "Engine.h"
+#include "components/BodyComponent.h"
+#include "components/SpriteComponent.h"
+#include "Object.h"
 //#include <cstdio>
 #include <iostream>
 
@@ -10,7 +13,16 @@ int main(int argc, char* argv[]) {
     e.init();
     
     // Load the level from JSON file
-    e.loadFile("assets/level1.json");
+    //e.loadFile("assets/level1.json");
+    
+    auto& objects = e.getObjects();
+    objects.push_back(std::make_unique<Object>());
+    Object& player = *objects[0];
+    
+    player.addComponent<BodyComponent>();
+    player.addComponent<SpriteComponent>("player");
+    player.getComponent<BodyComponent>()->setPosition(400.0f, 300.0f, 0.0f);
+
 
     e.run();
     e.cleanup();

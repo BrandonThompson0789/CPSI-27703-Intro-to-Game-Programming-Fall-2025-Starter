@@ -33,4 +33,3 @@ void BodyComponent::draw() {
     // BodyComponent doesn't render anything itself
     // Rendering is typically handled by other components (e.g., SpriteComponent)
 }
-

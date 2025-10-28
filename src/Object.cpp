@@ -1,25 +1,19 @@
 #include "Object.h"
+#include "components/Component.h"
+#include "components/BodyComponent.h"
 
-void Object::setPosition(Vector2 pos) {
-    position = pos;
+Object::~Object() = default;
+
+void Object::update() {
+    // Update all components
+    for (auto& component : components) {
+        component->update();
+    }
 }
 
-void Object::setSize(Vector2 s) {
-    size = s;
-}
-
-void Object::setAngle(float a) {
-    angle = a;
-}
-
-Vector2 Object::getPosition() {
-    return position;
-}
-
-Vector2 Object::getSize() {
-    return size;
-}
-
-float Object::getAngle() {
-    return angle;
+void Object::render(SDL_Renderer* renderer) {
+    // Draw all components
+    for (auto& component : components) {
+        component->draw();
+    }
 }

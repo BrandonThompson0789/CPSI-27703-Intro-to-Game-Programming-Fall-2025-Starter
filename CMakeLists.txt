@@ -24,13 +24,13 @@ add_executable(demo
     src/Object.cpp
     src/Engine.h
     src/Engine.cpp
-    src/Player.h
-    src/Player.cpp
-    src/Enemy.h
-    src/Enemy.cpp
-    src/Item.h
-    src/Item.cpp
-    src/Library.h
+    src/components/Component.h
+    src/components/BodyComponent.h
+    src/components/BodyComponent.cpp
+    src/components/SpriteComponent.h
+    src/components/SpriteComponent.cpp
+    src/components/SpriteManager.h
+    src/components/SpriteManager.cpp
 )
 
 # Link libraries

@@ -1,8 +1,5 @@
 #include "Engine.h"
-#include "Player.h"
-#include "Enemy.h"
-#include "Item.h"
-#include "Library.h"
+#include "components/SpriteManager.h"
 #include <fstream>
 #include <iostream>
 #include <cstdio>
@@ -35,11 +32,15 @@ void Engine::init() {
         return;
     }
     
+    // Initialize sprite manager
+    SpriteManager::getInstance().init(renderer, "assets/spriteData.json");
+    
     std::cout << "SDL initialized successfully!" << std::endl;
 }
 
 void Engine::run() {
     printf("Engine running\n");
+
     while (running) {
         Uint32 lastTime = SDL_GetTicks();
         
@@ -106,6 +107,7 @@ void Engine::render() {
 }
 
 void Engine::cleanup() {
+    SpriteManager::getInstance().cleanup();
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
@@ -141,41 +143,7 @@ void Engine::loadFile(const std::string& filename) {
     objects.clear();
 
     // Load player using Library
-    if (j.contains("player")) {
-        auto it = Library::getLibrary().map.find("player");
-        if (it != Library::getLibrary().map.end()) {
-            auto player = it->second(j["player"]);
-            objects.push_back(std::move(player));
-        } else {
-            std::cerr << "Error: Player factory not found in library" << std::endl;
-        }
-    }
-
-    // Load enemies using Library
-    if (j.contains("enemies")) {
-        auto it = Library::getLibrary().map.find("enemy");
-        if (it != Library::getLibrary().map.end()) {
-            for (const auto& enemyData : j["enemies"]) {
-                auto enemy = it->second(enemyData);
-                objects.push_back(std::move(enemy));
-            }
-        } else {
-            std::cerr << "Error: Enemy factory not found in library" << std::endl;
-        }
-    }
-
-    // Load items using Library
-    if (j.contains("items")) {
-        auto it = Library::getLibrary().map.find("item");
-        if (it != Library::getLibrary().map.end()) {
-            for (const auto& itemData : j["items"]) {
-                auto item = it->second(itemData);
-                objects.push_back(std::move(item));
-            }
-        } else {
-            std::cerr << "Error: Item factory not found in library" << std::endl;
-        }
-    }
+   
 
     std::cout << "Loaded " << objects.size() << " objects from " << filename << std::endl;
     std::cout << "Objects loaded: " << objects.size() << " (1 player, " << (objects.size() > 1 ? objects.size() - 1 : 0) << " others)" << std::endl;
