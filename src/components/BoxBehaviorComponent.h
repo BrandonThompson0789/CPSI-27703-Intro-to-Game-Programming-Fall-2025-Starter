@@ -20,5 +20,5 @@ public:
     
 private:
     BodyComponent* body;
-    float pushForce{500.0f}; // Force applied when pushed (in pixels per second)
+    float pushForce{100.0f}; // Force applied when pushed (in pixels per second)
 };

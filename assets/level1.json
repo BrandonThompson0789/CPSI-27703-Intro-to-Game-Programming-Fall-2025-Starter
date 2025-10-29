@@ -5,13 +5,8 @@
                 {
                     "type": "SpriteComponent",
                     "spriteName": "player",
-                    "currentFrame": 0,
                     "animating": true,
-                    "looping": true,
-                    "animationSpeed": 10.0,
-                    "animationTimer": 0.0,
-                    "flipFlags": 0,
-                    "alpha": 255
+                    "looping": true
                 },
                 {
                     "type": "InputComponent",
@@ -21,10 +16,6 @@
                     "type": "BodyComponent",
                     "posX": 400.0,
                     "posY": 300.0,
-                    "angle": 0.0,
-                    "velX": 0.0,
-                    "velY": 0.0,
-                    "velAngle": 0.0,
                     "drag": 0.90
                 },
                 {
@@ -38,25 +29,15 @@
                 {
                     "type": "BodyComponent",
                     "posX": 150.0,
-                    "posY": 200.0,
-                    "angle": 0.0,
-                    "velX": 0.0,
-                    "velY": 0.0,
-                    "velAngle": 0.0
+                    "posY": 200.0
                 },
                 {
                     "type": "SpriteComponent",
-                    "spriteName": "crate",
-                    "currentFrame": 0,
-                    "animating": true,
-                    "looping": true,
-                    "animationSpeed": 10.0,
-                    "animationTimer": 0.0,
-                    "flipFlags": 0,
-                    "alpha": 255
+                    "spriteName": "crate"
                 },
                 {
-                    "type": "BoxBehaviorComponent"
+                    "type": "BoxBehaviorComponent",
+                    "pushForce": 100.0
                 }
             ]
         },
@@ -65,25 +46,15 @@
                 {
                     "type": "BodyComponent",
                     "posX": 650.0,
-                    "posY": 200.0,
-                    "angle": 0.0,
-                    "velX": 0.0,
-                    "velY": 0.0,
-                    "velAngle": 0.0
+                    "posY": 200.0
                 },
                 {
                     "type": "SpriteComponent",
-                    "spriteName": "crate",
-                    "currentFrame": 0,
-                    "animating": true,
-                    "looping": true,
-                    "animationSpeed": 10.0,
-                    "animationTimer": 0.0,
-                    "flipFlags": 0,
-                    "alpha": 255
+                    "spriteName": "crate"
                 },
                 {
-                    "type": "BoxBehaviorComponent"
+                    "type": "BoxBehaviorComponent",
+                    "pushForce": 100.0
                 }
             ]
         },
@@ -92,25 +63,15 @@
                 {
                     "type": "BodyComponent",
                     "posX": 150.0,
-                    "posY": 450.0,
-                    "angle": 0.0,
-                    "velX": 0.0,
-                    "velY": 0.0,
-                    "velAngle": 0.0
+                    "posY": 450.0
                 },
                 {
                     "type": "SpriteComponent",
-                    "spriteName": "crate",
-                    "currentFrame": 0,
-                    "animating": true,
-                    "looping": true,
-                    "animationSpeed": 10.0,
-                    "animationTimer": 0.0,
-                    "flipFlags": 0,
-                    "alpha": 255
+                    "spriteName": "crate"
                 },
                 {
-                    "type": "BoxBehaviorComponent"
+                    "type": "BoxBehaviorComponent",
+                    "pushForce": 100.0
                 }
             ]
         },
@@ -119,25 +80,15 @@
                 {
                     "type": "BodyComponent",
                     "posX": 650.0,
-                    "posY": 450.0,
-                    "angle": 0.0,
-                    "velX": 0.0,
-                    "velY": 0.0,
-                    "velAngle": 0.0
+                    "posY": 450.0
                 },
                 {
                     "type": "SpriteComponent",
-                    "spriteName": "crate",
-                    "currentFrame": 0,
-                    "animating": true,
-                    "looping": true,
-                    "animationSpeed": 10.0,
-                    "animationTimer": 0.0,
-                    "flipFlags": 0,
-                    "alpha": 255
+                    "spriteName": "crate"
                 },
                 {
-                    "type": "BoxBehaviorComponent"
+                    "type": "BoxBehaviorComponent",
+                    "pushForce": 100.0
                 }
             ]
         }
