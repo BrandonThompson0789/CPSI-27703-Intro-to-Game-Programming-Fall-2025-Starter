@@ -1,5 +1,5 @@
 {
-  "_comment": "Arrow Keys Layout - For right-handed keyboard-only play",
+  "_comment": "Arrow Keys Layout - Alternative keyboard layout",
   "keyboard": {
     "move_up": ["Up"],
     "move_down": ["Down"],

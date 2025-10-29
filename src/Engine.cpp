@@ -74,12 +74,13 @@ void Engine::processEvents() {
                 break;
                 
             case SDL_CONTROLLERDEVICEADDED:
-                std::cout << "Controller connected: " << event.cdevice.which << std::endl;
-                // InputManager will handle this on next update
+                // Handle hot-plug: controller connected
+                InputManager::getInstance().handleControllerAdded(event.cdevice.which);
                 break;
                 
             case SDL_CONTROLLERDEVICEREMOVED:
-                std::cout << "Controller disconnected: " << event.cdevice.which << std::endl;
+                // Handle hot-plug: controller disconnected
+                InputManager::getInstance().handleControllerRemoved(event.cdevice.which);
                 break;
                 
             default:

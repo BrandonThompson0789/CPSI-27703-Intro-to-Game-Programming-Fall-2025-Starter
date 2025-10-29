@@ -56,8 +56,20 @@ public:
     InputConfig& getConfig();
     const InputConfig& getConfig() const;
     
+    // Get configuration for a specific input source
+    InputConfig& getConfigForSource(int inputSource);
+    const InputConfig& getConfigForSource(int inputSource) const;
+    
+    // Set configuration for a specific input source
+    void setConfigForSource(int inputSource, const std::string& configPath);
+    void setConfigForSource(int inputSource, std::unique_ptr<InputConfig> config);
+    
     // Reload configuration from file
     bool reloadConfig(const std::string& configPath = "assets/input_config.json");
+    
+    // Hot-plug support
+    void handleControllerAdded(int deviceIndex);
+    void handleControllerRemoved(int instanceId);
     
     // Convert string to GameAction enum
     static GameAction stringToAction(const std::string& actionName);
@@ -88,8 +100,12 @@ private:
     // SDL Controller handles (max 4 controllers)
     std::array<SDL_GameController*, 4> controllers;
     
-    // Input configuration
-    std::unique_ptr<InputConfig> config;
+    // Device index to controller slot mapping
+    std::unordered_map<int, int> deviceToSlot;
+    
+    // Input configurations
+    std::unique_ptr<InputConfig> config; // Default config
+    std::unordered_map<int, std::unique_ptr<InputConfig>> sourceConfigs; // Per-source configs
     
     // Helper to convert input source to array index
     int sourceToIndex(int inputSource) const;

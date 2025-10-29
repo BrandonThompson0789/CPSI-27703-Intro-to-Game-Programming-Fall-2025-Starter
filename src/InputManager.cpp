@@ -88,10 +88,13 @@ void InputManager::updateKeyboardInput() {
     const Uint8* state = SDL_GetKeyboardState(nullptr);
     int keyboardIndex = sourceToIndex(INPUT_SOURCE_KEYBOARD);
     
+    // Get configuration for keyboard (per-source or default)
+    const InputConfig& keyboardConfig = getConfigForSource(INPUT_SOURCE_KEYBOARD);
+    
     // Iterate through all game actions and check configured keys
     for (int i = 0; i < static_cast<int>(GameAction::NUM_ACTIONS); ++i) {
         GameAction action = static_cast<GameAction>(i);
-        const KeyboardMapping& mapping = config->getKeyboardMapping(action);
+        const KeyboardMapping& mapping = keyboardConfig.getKeyboardMapping(action);
         
         // Check if any of the mapped keys are pressed
         for (SDL_Scancode key : mapping.keys) {
@@ -110,12 +113,15 @@ void InputManager::updateControllerInput(int controllerIndex) {
     }
     
     int stateIndex = sourceToIndex(controllerIndex);
-    float deadzone = config->getDeadzone();
+    
+    // Get configuration for this controller (per-source or default)
+    const InputConfig& controllerConfig = getConfigForSource(controllerIndex);
+    float deadzone = controllerConfig.getDeadzone();
     
     // Iterate through all game actions and check configured mappings
     for (int i = 0; i < static_cast<int>(GameAction::NUM_ACTIONS); ++i) {
         GameAction action = static_cast<GameAction>(i);
-        const ControllerMapping& mapping = config->getControllerMapping(action);
+        const ControllerMapping& mapping = controllerConfig.getControllerMapping(action);
         
         if (mapping.type == InputMappingType::BUTTON) {
             // Button mapping - check if any mapped button is pressed
@@ -156,7 +162,7 @@ void InputManager::updateControllerInput(int controllerIndex) {
     }
     
     // D-pad buttons (if configured to act as digital buttons, they override axis input)
-    if (config->getDPadAsAxis()) {
+    if (controllerConfig.getDPadAsAxis()) {
         if (SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_UP)) {
             inputStates[stateIndex][static_cast<size_t>(GameAction::MOVE_UP)] = 1.0f;
         }
@@ -271,6 +277,90 @@ const InputConfig& InputManager::getConfig() const {
 
 bool InputManager::reloadConfig(const std::string& configPath) {
     return config->loadFromFile(configPath);
+}
+
+InputConfig& InputManager::getConfigForSource(int inputSource) {
+    // Check if there's a per-source config
+    auto it = sourceConfigs.find(inputSource);
+    if (it != sourceConfigs.end() && it->second) {
+        return *it->second;
+    }
+    // Return default config
+    return *config;
+}
+
+const InputConfig& InputManager::getConfigForSource(int inputSource) const {
+    // Check if there's a per-source config
+    auto it = sourceConfigs.find(inputSource);
+    if (it != sourceConfigs.end() && it->second) {
+        return *it->second;
+    }
+    // Return default config
+    return *config;
+}
+
+void InputManager::setConfigForSource(int inputSource, const std::string& configPath) {
+    auto sourceConfig = std::make_unique<InputConfig>();
+    if (sourceConfig->loadFromFile(configPath)) {
+        sourceConfigs[inputSource] = std::move(sourceConfig);
+        std::cout << "Loaded configuration for input source " << inputSource << " from " << configPath << std::endl;
+    } else {
+        std::cerr << "Failed to load configuration for input source " << inputSource << std::endl;
+    }
+}
+
+void InputManager::setConfigForSource(int inputSource, std::unique_ptr<InputConfig> cfg) {
+    sourceConfigs[inputSource] = std::move(cfg);
+    std::cout << "Set custom configuration for input source " << inputSource << std::endl;
+}
+
+void InputManager::handleControllerAdded(int deviceIndex) {
+    // Find an empty slot for the new controller
+    for (int slot = 0; slot < 4; ++slot) {
+        if (controllers[slot] == nullptr) {
+            if (SDL_IsGameController(deviceIndex)) {
+                SDL_GameController* controller = SDL_GameControllerOpen(deviceIndex);
+                if (controller) {
+                    controllers[slot] = controller;
+                    deviceToSlot[deviceIndex] = slot;
+                    
+                    const char* name = SDL_GameControllerName(controller);
+                    std::cout << "Controller connected in slot " << slot << ": " 
+                              << (name ? name : "Unknown") << std::endl;
+                    return;
+                }
+            }
+        }
+    }
+    
+    std::cout << "No available slot for new controller (max 4)" << std::endl;
+}
+
+void InputManager::handleControllerRemoved(int instanceId) {
+    // Find which slot this controller was in
+    for (int slot = 0; slot < 4; ++slot) {
+        if (controllers[slot] != nullptr) {
+            SDL_JoystickID joyId = SDL_JoystickInstanceID(
+                SDL_GameControllerGetJoystick(controllers[slot])
+            );
+            
+            if (joyId == instanceId) {
+                SDL_GameControllerClose(controllers[slot]);
+                controllers[slot] = nullptr;
+                
+                // Remove from device mapping
+                for (auto it = deviceToSlot.begin(); it != deviceToSlot.end(); ++it) {
+                    if (it->second == slot) {
+                        deviceToSlot.erase(it);
+                        break;
+                    }
+                }
+                
+                std::cout << "Controller disconnected from slot " << slot << std::endl;
+                return;
+            }
+        }
+    }
 }
 
 GameAction InputManager::stringToAction(const std::string& actionName) {
