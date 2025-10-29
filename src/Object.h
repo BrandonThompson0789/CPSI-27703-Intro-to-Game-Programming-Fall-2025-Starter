@@ -6,6 +6,7 @@
 #include <memory>
 #include <typeindex>
 #include <unordered_map>
+#include <nlohmann/json.hpp>
 
 class Component;
 
@@ -40,6 +41,10 @@ class Object {
         bool hasComponent() const {
             return componentMap.find(std::type_index(typeid(T))) != componentMap.end();
         }
+        
+        // Serialization
+        nlohmann::json toJson() const;
+        void fromJson(const nlohmann::json& data);
         
     private:
         std::vector<std::unique_ptr<Component>> components;

@@ -1,6 +1,7 @@
 #include "Engine.h"
 #include "SpriteManager.h"
 #include "InputManager.h"
+#include "components/Component.h"
 #include <fstream>
 #include <iostream>
 #include <cstdio>
@@ -147,9 +148,17 @@ void Engine::loadFile(const std::string& filename) {
     // Clear existing objects
     objects.clear();
 
-    // Load player using Library
-   
+    // Load objects from JSON using the component library
+    if (!j.contains("objects") || !j["objects"].is_array()) {
+        std::cerr << "Error: JSON file must contain an 'objects' array" << std::endl;
+        return;
+    }
+
+    for (const auto& objectData : j["objects"]) {
+        auto object = std::make_unique<Object>();
+        object->fromJson(objectData);
+        objects.push_back(std::move(object));
+    }
 
     std::cout << "Loaded " << objects.size() << " objects from " << filename << std::endl;
-    std::cout << "Objects loaded: " << objects.size() << " (1 player, " << (objects.size() > 1 ? objects.size() - 1 : 0) << " others)" << std::endl;
 }

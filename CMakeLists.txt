@@ -29,7 +29,10 @@ add_executable(demo
     src/InputManager.cpp
     src/InputConfig.h
     src/InputConfig.cpp
+    src/ObjectSerializer.h
     src/components/Component.h
+    src/components/ComponentLibrary.h
+    src/components/ComponentLibrary.cpp
     src/components/BodyComponent.h
     src/components/BodyComponent.cpp
     src/components/SpriteComponent.h

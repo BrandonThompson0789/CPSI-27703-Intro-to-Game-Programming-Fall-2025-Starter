@@ -1,4 +1,5 @@
 #include "InputComponent.h"
+#include "ComponentLibrary.h"
 #include <algorithm>
 
 InputComponent::InputComponent(Object& parent, int inputSource)
@@ -18,6 +19,30 @@ InputComponent::InputComponent(Object& parent, const std::vector<int>& inputSour
         this->inputSources.push_back(INPUT_SOURCE_KEYBOARD);
     }
 }
+
+InputComponent::InputComponent(Object& parent, const nlohmann::json& data)
+    : Component(parent)
+    , inputManager(InputManager::getInstance())
+{
+    if (data.contains("inputSources")) {
+        inputSources = data["inputSources"].get<std::vector<int>>();
+    }
+    
+    // Ensure we have at least one source
+    if (inputSources.empty()) {
+        inputSources.push_back(INPUT_SOURCE_KEYBOARD);
+    }
+}
+
+nlohmann::json InputComponent::toJson() const {
+    nlohmann::json j;
+    j["type"] = getTypeName();
+    j["inputSources"] = inputSources;
+    return j;
+}
+
+// Register this component type with the library
+static ComponentRegistrar<InputComponent> registrar("InputComponent");
 
 void InputComponent::update() {
     // Input is updated by InputManager in Engine

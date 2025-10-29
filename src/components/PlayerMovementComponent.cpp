@@ -1,4 +1,5 @@
 #include "PlayerMovementComponent.h"
+#include "ComponentLibrary.h"
 #include "../Object.h"
 #include <iostream>
 
@@ -18,6 +19,37 @@ PlayerMovementComponent::PlayerMovementComponent(Object& parent, float moveSpeed
         std::cerr << "Warning: PlayerMovementComponent requires BodyComponent!" << std::endl;
     }
 }
+
+PlayerMovementComponent::PlayerMovementComponent(Object& parent, const nlohmann::json& data)
+    : Component(parent)
+    , moveSpeed(200.0f)
+    , deltaTime(1.0f / 60.0f)
+{
+    if (data.contains("moveSpeed")) moveSpeed = data["moveSpeed"].get<float>();
+    if (data.contains("deltaTime")) deltaTime = data["deltaTime"].get<float>();
+    
+    // Get required components (must exist on parent)
+    input = parent.getComponent<InputComponent>();
+    body = parent.getComponent<BodyComponent>();
+    
+    if (!input) {
+        std::cerr << "Warning: PlayerMovementComponent requires InputComponent!" << std::endl;
+    }
+    if (!body) {
+        std::cerr << "Warning: PlayerMovementComponent requires BodyComponent!" << std::endl;
+    }
+}
+
+nlohmann::json PlayerMovementComponent::toJson() const {
+    nlohmann::json j;
+    j["type"] = getTypeName();
+    j["moveSpeed"] = moveSpeed;
+    j["deltaTime"] = deltaTime;
+    return j;
+}
+
+// Register this component type with the library
+static ComponentRegistrar<PlayerMovementComponent> registrar("PlayerMovementComponent");
 
 void PlayerMovementComponent::update() {
     if (!input || !body) return;

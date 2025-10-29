@@ -1,4 +1,5 @@
 #include "SpriteComponent.h"
+#include "ComponentLibrary.h"
 #include "../SpriteManager.h"
 #include "../Object.h"
 #include "../components/BodyComponent.h"
@@ -14,6 +15,44 @@ SpriteComponent::SpriteComponent(Object& parent, const std::string& spriteNamePa
       flipFlags(SDL_FLIP_NONE),
       alpha(255) {
 }
+
+SpriteComponent::SpriteComponent(Object& parent, const nlohmann::json& data)
+    : Component(parent),
+      spriteName(""),
+      currentFrame(0),
+      animating(false),
+      looping(false),
+      animationSpeed(10.0f),
+      animationTimer(0.0f),
+      flipFlags(SDL_FLIP_NONE),
+      alpha(255) {
+    
+    if (data.contains("spriteName")) spriteName = data["spriteName"].get<std::string>();
+    if (data.contains("currentFrame")) currentFrame = data["currentFrame"].get<int>();
+    if (data.contains("animating")) animating = data["animating"].get<bool>();
+    if (data.contains("looping")) looping = data["looping"].get<bool>();
+    if (data.contains("animationSpeed")) animationSpeed = data["animationSpeed"].get<float>();
+    if (data.contains("animationTimer")) animationTimer = data["animationTimer"].get<float>();
+    if (data.contains("flipFlags")) flipFlags = static_cast<SDL_RendererFlip>(data["flipFlags"].get<int>());
+    if (data.contains("alpha")) alpha = data["alpha"].get<uint8_t>();
+}
+
+nlohmann::json SpriteComponent::toJson() const {
+    nlohmann::json j;
+    j["type"] = getTypeName();
+    j["spriteName"] = spriteName;
+    j["currentFrame"] = currentFrame;
+    j["animating"] = animating;
+    j["looping"] = looping;
+    j["animationSpeed"] = animationSpeed;
+    j["animationTimer"] = animationTimer;
+    j["flipFlags"] = static_cast<int>(flipFlags);
+    j["alpha"] = alpha;
+    return j;
+}
+
+// Register this component type with the library
+static ComponentRegistrar<SpriteComponent> registrar("SpriteComponent");
 
 void SpriteComponent::update() {
     if (!animating) {

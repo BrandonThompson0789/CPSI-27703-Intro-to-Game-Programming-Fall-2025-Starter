@@ -1,6 +1,31 @@
 #include "BodyComponent.h"
+#include "ComponentLibrary.h"
 
 BodyComponent::BodyComponent(Object& parent) : Component(parent) {}
+
+BodyComponent::BodyComponent(Object& parent, const nlohmann::json& data) : Component(parent) {
+    if (data.contains("posX")) posX = data["posX"].get<float>();
+    if (data.contains("posY")) posY = data["posY"].get<float>();
+    if (data.contains("angle")) angle = data["angle"].get<float>();
+    if (data.contains("velX")) velX = data["velX"].get<float>();
+    if (data.contains("velY")) velY = data["velY"].get<float>();
+    if (data.contains("velAngle")) velAngle = data["velAngle"].get<float>();
+}
+
+nlohmann::json BodyComponent::toJson() const {
+    nlohmann::json j;
+    j["type"] = getTypeName();
+    j["posX"] = posX;
+    j["posY"] = posY;
+    j["angle"] = angle;
+    j["velX"] = velX;
+    j["velY"] = velY;
+    j["velAngle"] = velAngle;
+    return j;
+}
+
+// Register this component type with the library
+static ComponentRegistrar<BodyComponent> registrar("BodyComponent");
 
 void BodyComponent::setPosition(float x, float y, float angle) {
     posX = x;

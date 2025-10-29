@@ -4,6 +4,7 @@
 #include "Component.h"
 #include "../InputManager.h"
 #include <vector>
+#include <nlohmann/json.hpp>
 
 class InputComponent : public Component {
 public:
@@ -14,10 +15,17 @@ public:
     // Constructor - multiple input sources (listens to all, returns highest value)
     InputComponent(Object& parent, const std::vector<int>& inputSources);
     
+    // Constructor from JSON
+    InputComponent(Object& parent, const nlohmann::json& data);
+    
     virtual ~InputComponent() = default;
     
     void update() override;
     void draw() override {} // Input component doesn't draw
+    
+    // Serialization
+    nlohmann::json toJson() const override;
+    std::string getTypeName() const override { return "InputComponent"; }
     
     // Get input value for a specific action (0.0 to 1.0)
     // When multiple sources are configured, returns the highest value

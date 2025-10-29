@@ -2,14 +2,20 @@
 #include "Component.h"
 #include <string>
 #include <SDL.h>
+#include <nlohmann/json.hpp>
 
 class SpriteComponent : public Component {
 public:
     SpriteComponent(Object& parent, const std::string& spriteName, bool animate = false, bool loop = false);
+    SpriteComponent(Object& parent, const nlohmann::json& data);
     ~SpriteComponent() override = default;
 
     void update() override;
     void draw() override;
+    
+    // Serialization
+    nlohmann::json toJson() const override;
+    std::string getTypeName() const override { return "SpriteComponent"; }
 
     // Animation control
     void setFrame(int frameIndex);
