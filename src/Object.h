@@ -9,6 +9,7 @@
 #include <nlohmann/json.hpp>
 
 class Component;
+class Engine;
 
 class Object {
     public:
@@ -46,9 +47,14 @@ class Object {
         nlohmann::json toJson() const;
         void fromJson(const nlohmann::json& data);
         
+        // Static method to set/get Engine instance
+        static void setEngine(Engine* engine);
+        static Engine* getEngine();
+        
     private:
         std::vector<std::unique_ptr<Component>> components;
         std::unordered_map<std::type_index, Component*> componentMap;
+        static Engine* engineInstance;
 };
 
 #endif // OBJECT_H

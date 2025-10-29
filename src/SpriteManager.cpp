@@ -2,6 +2,7 @@
 #include <SDL_image.h>
 #include <iostream>
 #include <fstream>
+#include <cmath>
 
 SpriteManager& SpriteManager::getInstance() {
     static SpriteManager instance;
@@ -135,7 +136,9 @@ void SpriteManager::renderSprite(const std::string& spriteName, int frame, int x
     SDL_SetTextureAlphaMod(texture, alpha);
 
     // Render with rotation and flip
-    SDL_RenderCopyEx(renderer, texture, &srcRect, &dstRect, angle, nullptr, flip);
+    // Convert angle from radians to degrees for SDL
+    double angleDegrees = angle * 180.0 / M_PI;
+    SDL_RenderCopyEx(renderer, texture, &srcRect, &dstRect, angleDegrees, nullptr, flip);
 }
 
 void SpriteManager::unloadTexture(const std::string& textureName) {

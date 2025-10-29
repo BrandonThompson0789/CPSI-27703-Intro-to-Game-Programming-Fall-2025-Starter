@@ -1,10 +1,21 @@
 #include "Object.h"
+#include "Engine.h"
 #include "components/Component.h"
 #include "components/BodyComponent.h"
 #include "components/ComponentLibrary.h"
 #include <iostream>
 
+Engine* Object::engineInstance = nullptr;
+
 Object::~Object() = default;
+
+void Object::setEngine(Engine* engine) {
+    engineInstance = engine;
+}
+
+Engine* Object::getEngine() {
+    return engineInstance;
+}
 
 void Object::update(float deltaTime) {
     // Update all components

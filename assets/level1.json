@@ -46,7 +46,7 @@
                 },
                 {
                     "type": "SpriteComponent",
-                    "spriteName": "player",
+                    "spriteName": "crate",
                     "currentFrame": 0,
                     "animating": true,
                     "looping": true,
@@ -54,6 +54,9 @@
                     "animationTimer": 0.0,
                     "flipFlags": 0,
                     "alpha": 255
+                },
+                {
+                    "type": "BoxBehaviorComponent"
                 }
             ]
         },
@@ -70,7 +73,7 @@
                 },
                 {
                     "type": "SpriteComponent",
-                    "spriteName": "player",
+                    "spriteName": "crate",
                     "currentFrame": 0,
                     "animating": true,
                     "looping": true,
@@ -78,6 +81,9 @@
                     "animationTimer": 0.0,
                     "flipFlags": 0,
                     "alpha": 255
+                },
+                {
+                    "type": "BoxBehaviorComponent"
                 }
             ]
         },
@@ -94,7 +100,7 @@
                 },
                 {
                     "type": "SpriteComponent",
-                    "spriteName": "player",
+                    "spriteName": "crate",
                     "currentFrame": 0,
                     "animating": true,
                     "looping": true,
@@ -102,6 +108,9 @@
                     "animationTimer": 0.0,
                     "flipFlags": 0,
                     "alpha": 255
+                },
+                {
+                    "type": "BoxBehaviorComponent"
                 }
             ]
         },
@@ -118,7 +127,7 @@
                 },
                 {
                     "type": "SpriteComponent",
-                    "spriteName": "player",
+                    "spriteName": "crate",
                     "currentFrame": 0,
                     "animating": true,
                     "looping": true,
@@ -126,6 +135,9 @@
                     "animationTimer": 0.0,
                     "flipFlags": 0,
                     "alpha": 255
+                },
+                {
+                    "type": "BoxBehaviorComponent"
                 }
             ]
         }

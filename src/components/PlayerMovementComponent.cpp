@@ -2,6 +2,7 @@
 #include "ComponentLibrary.h"
 #include "../Object.h"
 #include <iostream>
+#include <cmath>
 
 PlayerMovementComponent::PlayerMovementComponent(Object& parent, float moveSpeed)
     : Component(parent)
@@ -74,15 +75,52 @@ void PlayerMovementComponent::update(float deltaTime) {
     // When walkModifier is 1.0: half speed
     float currentSpeed = moveSpeed * (1.0f - walkModifier * 0.5f);
     
-    // Calculate velocity in pixels per second
-    // We set the velocity directly rather than modifying, since this is the primary movement source
+    // Apply velocity from input to the body component
     float velocityX = horizontal * currentSpeed;
     float velocityY = vertical * currentSpeed;
-    
-    // Set velocity on the body component
-    // Other components can use modVelocity to add additional forces
-    // BodyComponent will apply drag and handle updating position based on velocity
     body->modVelocity(velocityX, velocityY, 0.0f);
+    
+    // After applying velocity, get the actual current velocity from the body
+    auto [actualVelX, actualVelY, actualVelAngle] = body->getVelocity();
+    
+    // Calculate rotation toward actual movement direction if moving
+    float moveMagnitude = std::sqrt(actualVelX * actualVelX + actualVelY * actualVelY);
+    if (moveMagnitude > 0.01f) { // Only rotate if moving meaningfully
+        // Calculate target angle from actual velocity direction (in radians)
+        // Note: atan2(y, x) gives 0 radians pointing East (right)
+        // We subtract π/2 to rotate the coordinate system so 0 radians points North (up)
+        // Then add π to flip it 180 degrees so it faces forward
+        float targetAngle = std::atan2(actualVelY, actualVelX) - M_PI / 2.0f + M_PI;
+        
+        // Get current angle from body
+        auto [posX, posY, currentAngle] = body->getPosition();
+        
+        // Calculate the shortest angle difference to rotate toward target
+        float angleDiff = targetAngle - currentAngle;
+        
+        // Normalize angle difference to [-PI, PI]
+        while (angleDiff > M_PI) angleDiff -= 2.0f * M_PI;
+        while (angleDiff < -M_PI) angleDiff += 2.0f * M_PI;
+        
+        // Set angular velocity to rotate toward target (radians per second)
+        // The rotation speed scales with the angle difference
+        float rotationSpeed = 8.0f; // Base rotation speed in radians per second
+        float targetAngularVelocity = angleDiff * rotationSpeed;
+        
+        // Clamp angular velocity to prevent overshooting
+        float maxAngularVelocity = rotationSpeed * 2.0f;
+        if (targetAngularVelocity > maxAngularVelocity) targetAngularVelocity = maxAngularVelocity;
+        if (targetAngularVelocity < -maxAngularVelocity) targetAngularVelocity = -maxAngularVelocity;
+        
+        // Apply angular velocity
+        body->modVelocity(0.0f, 0.0f, targetAngularVelocity);
+    } else {
+        // When not moving, reduce angular velocity to zero
+        if (std::abs(actualVelAngle) > 0.01f) {
+            // Apply damping to stop rotation
+            body->modVelocity(0.0f, 0.0f, -actualVelAngle * 0.5f);
+        }
+    }
     
     // Debug output for actions
     if (input->isPressed(GameAction::ACTION_INTERACT)) {

@@ -156,6 +156,9 @@ void Engine::loadFile(const std::string& filename) {
     // Clear existing objects
     objects.clear();
 
+    // Set Engine instance so objects can access it
+    Object::setEngine(this);
+
     // Load objects from JSON using the component library
     if (!j.contains("objects") || !j["objects"].is_array()) {
         std::cerr << "Error: JSON file must contain an 'objects' array" << std::endl;

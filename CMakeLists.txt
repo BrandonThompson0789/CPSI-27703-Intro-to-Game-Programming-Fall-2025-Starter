@@ -41,6 +41,8 @@ add_executable(demo
     src/components/InputComponent.cpp
     src/components/PlayerMovementComponent.h
     src/components/PlayerMovementComponent.cpp
+    src/components/BoxBehaviorComponent.h
+    src/components/BoxBehaviorComponent.cpp
 )
 
 # Link libraries
