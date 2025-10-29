@@ -9,7 +9,7 @@ class Component {
 public:
     Component(Object& parent) : parentObject(parent) {}
 
-    virtual void update()=0;
+    virtual void update(float deltaTime = 1.0f / 60.0f)=0;
     virtual void draw() =0;
 
     virtual ~Component() = default;

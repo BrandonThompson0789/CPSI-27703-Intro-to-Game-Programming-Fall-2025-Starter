@@ -8,6 +8,7 @@
 
 int Engine::screenWidth = 800;
 int Engine::screenHeight = 600;
+int Engine::targetFPS = 60;
 
 void Engine::init() {
     // Initialize SDL
@@ -45,11 +46,14 @@ void Engine::init() {
 void Engine::run() {
     printf("Engine running\n");
 
+    float deltaTime = getDeltaTime();
+    Uint32 frameTime = 1000 / targetFPS;
+
     while (running) {
         Uint32 lastTime = SDL_GetTicks();
         
         processEvents();
-        update();
+        update(deltaTime);
         
         // Clear screen with black background
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
@@ -60,8 +64,8 @@ void Engine::run() {
         SDL_RenderPresent(renderer);
 
         Uint32 currentTime = SDL_GetTicks();
-        if (currentTime - lastTime < 1000/60) {
-            SDL_Delay(1000/60 - (currentTime - lastTime));
+        if (currentTime - lastTime < frameTime) {
+            SDL_Delay(frameTime - (currentTime - lastTime));
         }
     }
 }
@@ -99,10 +103,14 @@ void Engine::processEvents() {
     InputManager::getInstance().update();
 }
 
-void Engine::update() {
+void Engine::update(float deltaTime) {
     for (auto& object : objects) {
-        object->update();
+        object->update(deltaTime);
     }
+}
+
+float Engine::getDeltaTime() {
+    return 1.0f / targetFPS;
 }
 
 void Engine::render() {

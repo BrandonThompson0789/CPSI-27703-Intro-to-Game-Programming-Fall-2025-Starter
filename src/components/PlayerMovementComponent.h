@@ -12,7 +12,7 @@ public:
     PlayerMovementComponent(Object& parent, const nlohmann::json& data);
     virtual ~PlayerMovementComponent() = default;
     
-    void update() override;
+    void update(float deltaTime) override;
     void draw() override {}
     
     // Serialization
@@ -26,7 +26,6 @@ private:
     InputComponent* input;
     BodyComponent* body;
     float moveSpeed;
-    float deltaTime;
 };
 
 #endif // PLAYER_MOVEMENT_COMPONENT_H

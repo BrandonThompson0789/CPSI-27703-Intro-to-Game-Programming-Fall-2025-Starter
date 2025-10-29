@@ -22,10 +22,12 @@ class Engine {
         
         static int screenWidth;
         static int screenHeight;
+        static int targetFPS;
     private:
         void processEvents();
-        void update();
+        void update(float deltaTime);
         void render();
+        static float getDeltaTime();
         SDL_Window* window;
         SDL_Renderer* renderer;
         bool running;

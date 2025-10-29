@@ -10,7 +10,7 @@ public:
     SpriteComponent(Object& parent, const nlohmann::json& data);
     ~SpriteComponent() override = default;
 
-    void update() override;
+    void update(float deltaTime) override;
     void draw() override;
     
     // Serialization

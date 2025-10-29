@@ -20,7 +20,7 @@ public:
     
     virtual ~InputComponent() = default;
     
-    void update() override;
+    void update(float deltaTime) override;
     void draw() override {} // Input component doesn't draw
     
     // Serialization

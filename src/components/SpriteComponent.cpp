@@ -54,7 +54,7 @@ nlohmann::json SpriteComponent::toJson() const {
 // Register this component type with the library
 static ComponentRegistrar<SpriteComponent> registrar("SpriteComponent");
 
-void SpriteComponent::update() {
+void SpriteComponent::update(float deltaTime) {
     if (!animating) {
         return;
     }
@@ -64,8 +64,8 @@ void SpriteComponent::update() {
         return;
     }
 
-    // Update animation timer (assuming 60 FPS, adjust as needed)
-    animationTimer += animationSpeed / 60.0f;
+    // Update animation timer
+    animationTimer += animationSpeed * deltaTime;
 
     // Advance to next frame
     if (animationTimer >= 1.0f) {

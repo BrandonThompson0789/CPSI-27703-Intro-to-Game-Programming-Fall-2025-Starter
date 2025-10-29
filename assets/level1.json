@@ -3,15 +3,6 @@
         {
             "components": [
                 {
-                    "type": "BodyComponent",
-                    "posX": 400.0,
-                    "posY": 300.0,
-                    "angle": 0.0,
-                    "velX": 0.0,
-                    "velY": 0.0,
-                    "velAngle": 0.0
-                },
-                {
                     "type": "SpriteComponent",
                     "spriteName": "player",
                     "currentFrame": 0,
@@ -27,9 +18,18 @@
                     "inputSources": [-1, 0]
                 },
                 {
+                    "type": "BodyComponent",
+                    "posX": 400.0,
+                    "posY": 300.0,
+                    "angle": 0.0,
+                    "velX": 0.0,
+                    "velY": 0.0,
+                    "velAngle": 0.0,
+                    "drag": 0.90
+                },
+                {
                     "type": "PlayerMovementComponent",
-                    "moveSpeed": 200.0,
-                    "deltaTime": 0.016666667
+                    "moveSpeed": 20.0
                 }
             ]
         },

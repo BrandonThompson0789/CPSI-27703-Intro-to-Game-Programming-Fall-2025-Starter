@@ -6,10 +6,10 @@
 
 Object::~Object() = default;
 
-void Object::update() {
+void Object::update(float deltaTime) {
     // Update all components
     for (auto& component : components) {
-        component->update();
+        component->update(deltaTime);
     }
 }
 

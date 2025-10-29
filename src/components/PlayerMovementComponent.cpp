@@ -6,7 +6,6 @@
 PlayerMovementComponent::PlayerMovementComponent(Object& parent, float moveSpeed)
     : Component(parent)
     , moveSpeed(moveSpeed)
-    , deltaTime(1.0f / 60.0f) // 60 FPS
 {
     // Get required components
     input = parent.getComponent<InputComponent>();
@@ -23,10 +22,8 @@ PlayerMovementComponent::PlayerMovementComponent(Object& parent, float moveSpeed
 PlayerMovementComponent::PlayerMovementComponent(Object& parent, const nlohmann::json& data)
     : Component(parent)
     , moveSpeed(200.0f)
-    , deltaTime(1.0f / 60.0f)
 {
     if (data.contains("moveSpeed")) moveSpeed = data["moveSpeed"].get<float>();
-    if (data.contains("deltaTime")) deltaTime = data["deltaTime"].get<float>();
     
     // Get required components (must exist on parent)
     input = parent.getComponent<InputComponent>();
@@ -44,14 +41,13 @@ nlohmann::json PlayerMovementComponent::toJson() const {
     nlohmann::json j;
     j["type"] = getTypeName();
     j["moveSpeed"] = moveSpeed;
-    j["deltaTime"] = deltaTime;
     return j;
 }
 
 // Register this component type with the library
 static ComponentRegistrar<PlayerMovementComponent> registrar("PlayerMovementComponent");
 
-void PlayerMovementComponent::update() {
+void PlayerMovementComponent::update(float deltaTime) {
     if (!input || !body) return;
     
     // Check if input source is active
@@ -78,15 +74,15 @@ void PlayerMovementComponent::update() {
     // When walkModifier is 1.0: half speed
     float currentSpeed = moveSpeed * (1.0f - walkModifier * 0.5f);
     
-    // Calculate velocity
-    float velocityX = horizontal * currentSpeed * deltaTime;
-    float velocityY = vertical * currentSpeed * deltaTime;
+    // Calculate velocity in pixels per second
+    // We set the velocity directly rather than modifying, since this is the primary movement source
+    float velocityX = horizontal * currentSpeed;
+    float velocityY = vertical * currentSpeed;
     
-    // Get current position
-    auto [x, y, angle] = body->getPosition();
-    
-    // Update position
-    body->setPosition(x + velocityX, y + velocityY, angle);
+    // Set velocity on the body component
+    // Other components can use modVelocity to add additional forces
+    // BodyComponent will apply drag and handle updating position based on velocity
+    body->modVelocity(velocityX, velocityY, 0.0f);
     
     // Debug output for actions
     if (input->isPressed(GameAction::ACTION_INTERACT)) {

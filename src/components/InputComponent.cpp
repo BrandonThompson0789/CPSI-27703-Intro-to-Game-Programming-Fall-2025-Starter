@@ -44,9 +44,10 @@ nlohmann::json InputComponent::toJson() const {
 // Register this component type with the library
 static ComponentRegistrar<InputComponent> registrar("InputComponent");
 
-void InputComponent::update() {
+void InputComponent::update(float deltaTime) {
     // Input is updated by InputManager in Engine
     // This component just provides easy access to the data
+    // deltaTime parameter is ignored
 }
 
 float InputComponent::getInput(GameAction action) const {

@@ -15,7 +15,7 @@ class Object {
         Object() = default;
         virtual ~Object();
         
-        void update();
+        void update(float deltaTime = 1.0f / 60.0f);
         void render(SDL_Renderer* renderer);
         
         // Component management
