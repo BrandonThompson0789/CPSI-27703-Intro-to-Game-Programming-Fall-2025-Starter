@@ -1,10 +1,10 @@
 #include "Engine.h"
-#include "components/SpriteManager.h"
+#include "SpriteManager.h"
+#include "InputManager.h"
 #include <fstream>
 #include <iostream>
 #include <cstdio>
 
-std::unordered_map<std::string, bool> Engine::keyStates;
 int Engine::screenWidth = 800;
 int Engine::screenHeight = 600;
 
@@ -34,6 +34,9 @@ void Engine::init() {
     
     // Initialize sprite manager
     SpriteManager::getInstance().init(renderer, "assets/spriteData.json");
+    
+    // Initialize input manager
+    InputManager::getInstance().init();
     
     std::cout << "SDL initialized successfully!" << std::endl;
 }
@@ -65,33 +68,33 @@ void Engine::run() {
 void Engine::processEvents() {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
-        if (event.type == SDL_QUIT) {
-            running = false;
-            break;
+        switch (event.type) {
+            case SDL_QUIT:
+                running = false;
+                break;
+                
+            case SDL_CONTROLLERDEVICEADDED:
+                std::cout << "Controller connected: " << event.cdevice.which << std::endl;
+                // InputManager will handle this on next update
+                break;
+                
+            case SDL_CONTROLLERDEVICEREMOVED:
+                std::cout << "Controller disconnected: " << event.cdevice.which << std::endl;
+                break;
+                
+            default:
+                break;
         }
     }
-    SDL_PumpEvents();
-    const Uint8* state = SDL_GetKeyboardState(NULL);
-    keyStates.clear();
     
-    if (state[SDL_SCANCODE_ESCAPE])
+    // Check for escape key to quit
+    const Uint8* state = SDL_GetKeyboardState(nullptr);
+    if (state[SDL_SCANCODE_ESCAPE]) {
         running = false;
+    }
     
-    if (state[SDL_SCANCODE_A] || state[SDL_SCANCODE_LEFT])
-        keyStates["left"] = true;
-    
-    if (state[SDL_SCANCODE_D] || state[SDL_SCANCODE_RIGHT])
-        keyStates["right"] = true;
-    
-    if (state[SDL_SCANCODE_W] || state[SDL_SCANCODE_UP])
-        keyStates["up"] = true;
-    
-    if (state[SDL_SCANCODE_S] || state[SDL_SCANCODE_DOWN])
-        keyStates["down"] = true;
-    
-    if (state[SDL_SCANCODE_SPACE])
-        keyStates["jump"] = true;
-    
+    // Update input manager to poll all input sources
+    InputManager::getInstance().update();
 }
 
 void Engine::update() {
@@ -107,6 +110,7 @@ void Engine::render() {
 }
 
 void Engine::cleanup() {
+    InputManager::getInstance().cleanup();
     SpriteManager::getInstance().cleanup();
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);

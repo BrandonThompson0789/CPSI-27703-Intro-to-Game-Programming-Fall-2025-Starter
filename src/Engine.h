@@ -20,7 +20,6 @@ class Engine {
         void loadFile(const std::string& filename);
         std::vector<std::unique_ptr<Object>>& getObjects() { return objects; }
         
-        static std::unordered_map<std::string, bool> keyStates;
         static int screenWidth;
         static int screenHeight;
     private:

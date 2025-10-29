@@ -1,5 +1,5 @@
 #include "SpriteComponent.h"
-#include "SpriteManager.h"
+#include "../SpriteManager.h"
 #include "../Object.h"
 #include "../components/BodyComponent.h"
 

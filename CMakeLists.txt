@@ -19,18 +19,25 @@ find_package(nlohmann_json CONFIG REQUIRED)
 # Create executable
 add_executable(demo 
     src/main.cpp 
-    src/Common.h 
     src/Object.h
     src/Object.cpp
     src/Engine.h
     src/Engine.cpp
+    src/SpriteManager.h
+    src/SpriteManager.cpp
+    src/InputManager.h
+    src/InputManager.cpp
+    src/InputConfig.h
+    src/InputConfig.cpp
     src/components/Component.h
     src/components/BodyComponent.h
     src/components/BodyComponent.cpp
     src/components/SpriteComponent.h
     src/components/SpriteComponent.cpp
-    src/components/SpriteManager.h
-    src/components/SpriteManager.cpp
+    src/components/InputComponent.h
+    src/components/InputComponent.cpp
+    src/components/PlayerMovementComponent.h
+    src/components/PlayerMovementComponent.cpp
 )
 
 # Link libraries
