@@ -1,12 +1,19 @@
 # Project02 - Components
 
 At a glance:
+
 This project has removed all child classes of the Object class and has switched them to components.
+
 Input configurations, sprite data, and level data are all being read from a JSON file.
+
 Supports multiple inputs (1 keyboard and up to 4 game controllers, each configurable)
+
 Body component determines object size, position, and velocity (Will be reworked when Box2D gets introduced)
+
 Sprites support animation
+
 "BoxBehavior" component introduces temporary physics collisions applications (physics will be replaced by Box2D)
+
 "PlayerMovement" component introduces an object that reacts to InputComponent. It rotates into the direction of its velocity (wobble is silly, might keep it), and changes sprites from player_still to player_walking when moving.
 
 GIF: 2 players interacting with boxes
