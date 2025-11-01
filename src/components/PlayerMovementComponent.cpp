@@ -11,7 +11,8 @@ PlayerMovementComponent::PlayerMovementComponent(Object& parent, float moveSpeed
     // Get required components
     input = parent.getComponent<InputComponent>();
     body = parent.getComponent<BodyComponent>();
-    
+    sprite = parent.getComponent<SpriteComponent>();
+
     if (!input) {
         std::cerr << "Warning: PlayerMovementComponent requires InputComponent!" << std::endl;
     }
@@ -29,6 +30,7 @@ PlayerMovementComponent::PlayerMovementComponent(Object& parent, const nlohmann:
     // Get required components (must exist on parent)
     input = parent.getComponent<InputComponent>();
     body = parent.getComponent<BodyComponent>();
+    sprite = parent.getComponent<SpriteComponent>();
     
     if (!input) {
         std::cerr << "Warning: PlayerMovementComponent requires InputComponent!" << std::endl;
@@ -74,6 +76,7 @@ void PlayerMovementComponent::update(float deltaTime) {
     // When walkModifier is 0.0: full speed
     // When walkModifier is 1.0: half speed
     float currentSpeed = moveSpeed * (1.0f - walkModifier * 0.5f);
+
     
     // Apply velocity from input to the body component
     float velocityX = horizontal * currentSpeed;
@@ -85,6 +88,13 @@ void PlayerMovementComponent::update(float deltaTime) {
     
     // Calculate rotation toward actual movement direction if moving
     float moveMagnitude = std::sqrt(actualVelX * actualVelX + actualVelY * actualVelY);
+
+    if (moveMagnitude > 1.0f) {
+        sprite->setCurrentSprite("player_walking");
+    } else {
+        sprite->setCurrentSprite("player_standing");
+    }
+
     if (moveMagnitude > 0.01f) { // Only rotate if moving meaningfully
         // Calculate target angle from actual velocity direction (in radians)
         // Note: atan2(y, x) gives 0 radians pointing East (right)

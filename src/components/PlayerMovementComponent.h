@@ -4,6 +4,7 @@
 #include "Component.h"
 #include "InputComponent.h"
 #include "BodyComponent.h"
+#include "SpriteComponent.h"
 #include <nlohmann/json.hpp>
 
 class PlayerMovementComponent : public Component {
@@ -25,6 +26,7 @@ public:
 private:
     InputComponent* input;
     BodyComponent* body;
+    SpriteComponent* sprite;
     float moveSpeed;
 };
 

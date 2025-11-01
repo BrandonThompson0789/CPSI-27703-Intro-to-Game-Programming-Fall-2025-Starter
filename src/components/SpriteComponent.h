@@ -18,6 +18,7 @@ public:
     std::string getTypeName() const override { return "SpriteComponent"; }
 
     // Animation control
+    void setCurrentSprite(const std::string& spriteName);
     void setFrame(int frameIndex);
     void setAnimationSpeed(float framesPerSecond);
     void playAnimation(bool loop = true);

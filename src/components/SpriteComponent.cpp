@@ -108,6 +108,10 @@ void SpriteComponent::draw() {
     );
 }
 
+void SpriteComponent::setCurrentSprite(const std::string& spriteName) {
+    this->spriteName = spriteName;
+}
+
 void SpriteComponent::setFrame(int frameIndex) {
     currentFrame = frameIndex;
     const SpriteData* spriteData = SpriteManager::getInstance().getSpriteData(spriteName);

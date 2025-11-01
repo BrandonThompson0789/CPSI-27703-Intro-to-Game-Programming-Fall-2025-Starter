@@ -2,7 +2,16 @@
   "textures": {
     "player.png": {
       "sprites": {
-        "player": {
+        "player_standing": {
+          "x": 0,
+          "y": 0,
+          "w": 32,
+          "h": 32,
+          "frames": [
+            { "x": 0, "y": 0, "w": 32, "h": 32 }
+          ]
+        },
+        "player_walking": {
           "x": 0,
           "y": 0,
           "w": 32,

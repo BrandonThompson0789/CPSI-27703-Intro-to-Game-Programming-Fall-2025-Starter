@@ -10,11 +10,35 @@
                 },
                 {
                     "type": "InputComponent",
-                    "inputSources": [-1, 0]
+                    "inputSources": [-1]
                 },
                 {
                     "type": "BodyComponent",
                     "posX": 400.0,
+                    "posY": 300.0,
+                    "drag": 0.90
+                },
+                {
+                    "type": "PlayerMovementComponent",
+                    "moveSpeed": 20.0
+                }
+            ]
+        },
+        {
+            "components": [
+                {
+                    "type": "SpriteComponent",
+                    "spriteName": "player",
+                    "animating": true,
+                    "looping": true
+                },
+                {
+                    "type": "InputComponent",
+                    "inputSources": [0]
+                },
+                {
+                    "type": "BodyComponent",
+                    "posX": 440.0,
                     "posY": 300.0,
                     "drag": 0.90
                 },
