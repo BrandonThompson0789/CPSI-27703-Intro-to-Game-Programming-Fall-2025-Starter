@@ -78,29 +78,42 @@ void PlayerMovementComponent::update(float deltaTime) {
     float currentSpeed = moveSpeed * (1.0f - walkModifier * 0.5f);
 
     
-    // Apply velocity from input to the body component
-    float velocityX = horizontal * currentSpeed;
-    float velocityY = vertical * currentSpeed;
+    // Calculate input magnitude to determine if player is trying to move
+    float inputMagnitude = std::sqrt(horizontal * horizontal + vertical * vertical);
+    
+    // Normalize the movement vector to prevent faster diagonal movement
+    float normalizedHorizontal = horizontal;
+    float normalizedVertical = vertical;
+    if (inputMagnitude > 0.0f) {
+        normalizedHorizontal /= inputMagnitude;
+        normalizedVertical /= inputMagnitude;
+    }
+    
+    // Apply movement using Box2D forces
+    // modVelocity adds to current velocity - Box2D will handle damping
+    float velocityX = normalizedHorizontal * currentSpeed * 0.1f; // Scale down for Box2D force application
+    float velocityY = normalizedVertical * currentSpeed * 0.1f;
     body->modVelocity(velocityX, velocityY, 0.0f);
     
-    // After applying velocity, get the actual current velocity from the body
+    // Update sprite based on actual velocity (for animation)
     auto [actualVelX, actualVelY, actualVelAngle] = body->getVelocity();
-    
-    // Calculate rotation toward actual movement direction if moving
     float moveMagnitude = std::sqrt(actualVelX * actualVelX + actualVelY * actualVelY);
-
-    if (moveMagnitude > 1.0f) {
-        sprite->setCurrentSprite("player_walking");
-    } else {
-        sprite->setCurrentSprite("player_standing");
+    
+    if (sprite) {
+        if (moveMagnitude > 1.0f) {
+            sprite->setCurrentSprite("player_walking");
+        } else {
+            sprite->setCurrentSprite("player_standing");
+        }
     }
 
-    if (moveMagnitude > 0.01f) { // Only rotate if moving meaningfully
-        // Calculate target angle from actual velocity direction (in radians)
-        // Note: atan2(y, x) gives 0 radians pointing East (right)
+    // Rotate toward INPUT direction (where player wants to go, not where they're going)
+    if (inputMagnitude > 0.1f) { // Only rotate if player is giving input
+        // Calculate target angle from INPUT direction (in radians)
+        // atan2(y, x) gives 0 radians pointing East (right)
         // We subtract π/2 to rotate the coordinate system so 0 radians points North (up)
-        // Then add π to flip it 180 degrees so it faces forward
-        float targetAngle = std::atan2(actualVelY, actualVelX) - M_PI / 2.0f + M_PI;
+        // Then add π to flip it 180 degrees so the sprite faces forward
+        float targetAngle = std::atan2(vertical, horizontal) - M_PI / 2.0f + M_PI;
         
         // Get current angle from body
         auto [posX, posY, currentAngle] = body->getPosition();
@@ -108,28 +121,25 @@ void PlayerMovementComponent::update(float deltaTime) {
         // Calculate the shortest angle difference to rotate toward target
         float angleDiff = targetAngle - currentAngle;
         
-        // Normalize angle difference to [-PI, PI]
+        // Normalize angle difference to [-PI, PI] range
         while (angleDiff > M_PI) angleDiff -= 2.0f * M_PI;
         while (angleDiff < -M_PI) angleDiff += 2.0f * M_PI;
         
-        // Set angular velocity to rotate toward target (radians per second)
-        // The rotation speed scales with the angle difference
-        float rotationSpeed = 8.0f; // Base rotation speed in radians per second
+        // Set angular velocity to smoothly rotate toward target
+        // The rotation speed scales with the angle difference for smooth turning
+        float rotationSpeed = 0.5f; // Lower = slower, more gradual turning
         float targetAngularVelocity = angleDiff * rotationSpeed;
         
         // Clamp angular velocity to prevent overshooting
-        float maxAngularVelocity = rotationSpeed * 2.0f;
+        float maxAngularVelocity = 0.5f; // Maximum rotation speed in radians/second (lower = slower max turn)
         if (targetAngularVelocity > maxAngularVelocity) targetAngularVelocity = maxAngularVelocity;
         if (targetAngularVelocity < -maxAngularVelocity) targetAngularVelocity = -maxAngularVelocity;
         
         // Apply angular velocity
         body->modVelocity(0.0f, 0.0f, targetAngularVelocity);
     } else {
-        // When not moving, reduce angular velocity to zero
-        if (std::abs(actualVelAngle) > 0.01f) {
-            // Apply damping to stop rotation
-            body->modVelocity(0.0f, 0.0f, -actualVelAngle * 0.5f);
-        }
+        // When no input, let angular damping naturally slow rotation
+        // (Box2D's angularDamping will handle this automatically)
     }
     
     // Debug output for actions

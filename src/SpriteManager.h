@@ -55,6 +55,17 @@ public:
                      float angle = 0.0f, SDL_RendererFlip flip = SDL_FLIP_NONE, 
                      uint8_t alpha = 255);
     
+    // Render a sprite frame with custom width and height
+    void renderSprite(const std::string& spriteName, int frame, int x, int y, 
+                     int width, int height, float angle = 0.0f, 
+                     SDL_RendererFlip flip = SDL_FLIP_NONE, uint8_t alpha = 255);
+    
+    // Render a sprite tiled (repeated) instead of stretched
+    void renderSpriteTiled(const std::string& spriteName, int frame, int x, int y,
+                          int width, int height, int tileWidth, int tileHeight,
+                          float angle = 0.0f, SDL_RendererFlip flip = SDL_FLIP_NONE,
+                          uint8_t alpha = 255);
+    
     // Unload specific texture
     void unloadTexture(const std::string& textureName);
     

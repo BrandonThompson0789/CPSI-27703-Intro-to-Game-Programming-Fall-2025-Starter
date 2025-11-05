@@ -28,6 +28,14 @@ public:
     void setFlipHorizontal(bool flip);
     void setFlipVertical(bool flip);
     void setAlpha(uint8_t alpha);
+    
+    // Position management (for objects without BodyComponent)
+    void setPosition(float x, float y, float angle = 0.0f);
+    std::tuple<float, float, float> getPosition() const;
+    
+    // Tiling options
+    void setTiled(bool tiled, float tileWidth = 0.0f, float tileHeight = 0.0f);
+    void setRenderSize(float width, float height);
 
 private:
     std::string spriteName;
@@ -40,5 +48,17 @@ private:
     // Rendering flags
     SDL_RendererFlip flipFlags;
     uint8_t alpha;
+    
+    // Local position (used when no BodyComponent exists)
+    float localX{0.0f};
+    float localY{0.0f};
+    float localAngle{0.0f};
+    
+    // Tiling support
+    bool tiled{false};
+    float tileWidth{0.0f};   // Source tile size (0 = use sprite size)
+    float tileHeight{0.0f};
+    float renderWidth{0.0f};  // Custom render size (0 = use sprite size)
+    float renderHeight{0.0f};
 };
 

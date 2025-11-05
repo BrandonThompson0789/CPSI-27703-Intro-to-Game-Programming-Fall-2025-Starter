@@ -35,6 +35,18 @@ SpriteComponent::SpriteComponent(Object& parent, const nlohmann::json& data)
     if (data.contains("animationTimer")) animationTimer = data["animationTimer"].get<float>();
     if (data.contains("flipFlags")) flipFlags = static_cast<SDL_RendererFlip>(data["flipFlags"].get<int>());
     if (data.contains("alpha")) alpha = data["alpha"].get<uint8_t>();
+    
+    // Load local position (for objects without BodyComponent)
+    if (data.contains("posX")) localX = data["posX"].get<float>();
+    if (data.contains("posY")) localY = data["posY"].get<float>();
+    if (data.contains("angle")) localAngle = data["angle"].get<float>();
+    
+    // Load tiling options
+    if (data.contains("tiled")) tiled = data["tiled"].get<bool>();
+    if (data.contains("tileWidth")) tileWidth = data["tileWidth"].get<float>();
+    if (data.contains("tileHeight")) tileHeight = data["tileHeight"].get<float>();
+    if (data.contains("renderWidth")) renderWidth = data["renderWidth"].get<float>();
+    if (data.contains("renderHeight")) renderHeight = data["renderHeight"].get<float>();
 }
 
 nlohmann::json SpriteComponent::toJson() const {
@@ -48,6 +60,21 @@ nlohmann::json SpriteComponent::toJson() const {
     j["animationTimer"] = animationTimer;
     j["flipFlags"] = static_cast<int>(flipFlags);
     j["alpha"] = alpha;
+    
+    // Save local position (for objects without BodyComponent)
+    j["posX"] = localX;
+    j["posY"] = localY;
+    j["angle"] = localAngle;
+    
+    // Save tiling options
+    if (tiled) {
+        j["tiled"] = tiled;
+        if (tileWidth > 0) j["tileWidth"] = tileWidth;
+        if (tileHeight > 0) j["tileHeight"] = tileHeight;
+    }
+    if (renderWidth > 0) j["renderWidth"] = renderWidth;
+    if (renderHeight > 0) j["renderHeight"] = renderHeight;
+    
     return j;
 }
 
@@ -89,23 +116,69 @@ void SpriteComponent::draw() {
         return;
     }
 
-    // Get position from parent object
-    // Use "BodyComponent.h" and check if the parent has BodyComponent
+    // Get position and determine render size
     float x = 0.0f, y = 0.0f, angle = 0.0f;
+    float actualRenderWidth = renderWidth;
+    float actualRenderHeight = renderHeight;
+    
     if (auto* body = parent().getComponent<BodyComponent>()) {
+        // Use physics body position
         std::tie(x, y, angle) = body->getPosition();
+        
+        // If renderWidth/Height not specified, use BodyComponent's fixture size
+        if (actualRenderWidth == 0.0f || actualRenderHeight == 0.0f) {
+            auto [fixWidth, fixHeight] = body->getFixtureSize();
+            if (actualRenderWidth == 0.0f) actualRenderWidth = fixWidth;
+            if (actualRenderHeight == 0.0f) actualRenderHeight = fixHeight;
+        }
+    } else {
+        // Use local position (for objects without physics)
+        x = localX;
+        y = localY;
+        angle = localAngle;
     }
 
-    // Render the sprite at the current frame
-    SpriteManager::getInstance().renderSprite(
-        spriteName, 
-        currentFrame, 
-        static_cast<int>(x), 
-        static_cast<int>(y), 
-        angle, 
-        flipFlags, 
-        alpha
-    );
+    // Render the sprite - tiled or normal
+    if (tiled && actualRenderWidth > 0 && actualRenderHeight > 0) {
+        // Tiled rendering - repeat texture instead of stretching
+        SpriteManager::getInstance().renderSpriteTiled(
+            spriteName,
+            currentFrame,
+            static_cast<int>(x),
+            static_cast<int>(y),
+            static_cast<int>(actualRenderWidth),
+            static_cast<int>(actualRenderHeight),
+            static_cast<int>(tileWidth),
+            static_cast<int>(tileHeight),
+            angle,
+            flipFlags,
+            alpha
+        );
+    } else if (actualRenderWidth > 0 && actualRenderHeight > 0) {
+        // Custom size rendering (stretch)
+        SpriteManager::getInstance().renderSprite(
+            spriteName,
+            currentFrame,
+            static_cast<int>(x),
+            static_cast<int>(y),
+            static_cast<int>(actualRenderWidth),
+            static_cast<int>(actualRenderHeight),
+            angle,
+            flipFlags,
+            alpha
+        );
+    } else {
+        // Normal rendering (use sprite's natural size)
+        SpriteManager::getInstance().renderSprite(
+            spriteName, 
+            currentFrame, 
+            static_cast<int>(x), 
+            static_cast<int>(y), 
+            angle, 
+            flipFlags, 
+            alpha
+        );
+    }
 }
 
 void SpriteComponent::setCurrentSprite(const std::string& spriteName) {
@@ -153,5 +226,30 @@ void SpriteComponent::setFlipVertical(bool flip) {
 
 void SpriteComponent::setAlpha(uint8_t alphaValue) {
     alpha = alphaValue;
+}
+
+void SpriteComponent::setPosition(float x, float y, float angle) {
+    localX = x;
+    localY = y;
+    localAngle = angle;
+}
+
+std::tuple<float, float, float> SpriteComponent::getPosition() const {
+    // Prefer BodyComponent position if available
+    if (auto* body = parent().getComponent<BodyComponent>()) {
+        return body->getPosition();
+    }
+    return std::make_tuple(localX, localY, localAngle);
+}
+
+void SpriteComponent::setTiled(bool isTiled, float tWidth, float tHeight) {
+    tiled = isTiled;
+    tileWidth = tWidth;
+    tileHeight = tHeight;
+}
+
+void SpriteComponent::setRenderSize(float width, float height) {
+    renderWidth = width;
+    renderHeight = height;
 }
 

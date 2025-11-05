@@ -4,7 +4,7 @@
             "components": [
                 {
                     "type": "SpriteComponent",
-                    "spriteName": "player",
+                    "spriteName": "player_standing",
                     "animating": true,
                     "looping": true
                 },
@@ -16,11 +16,20 @@
                     "type": "BodyComponent",
                     "posX": 400.0,
                     "posY": 300.0,
-                    "drag": 0.90
+                    "bodyType": "dynamic",
+                    "fixedRotation": false,
+                    "linearDamping": 6.0,
+                    "angularDamping": 8.0,
+                    "fixture": {
+                        "shape": "circle",
+                        "radius": 15.0,
+                        "density": 5.0
+                    }
                 },
                 {
                     "type": "PlayerMovementComponent",
-                    "moveSpeed": 20.0
+                    "moveSpeed": 120.0,
+                    "rotationSpeed": 3.0
                 }
             ]
         },
@@ -28,7 +37,7 @@
             "components": [
                 {
                     "type": "SpriteComponent",
-                    "spriteName": "player",
+                    "spriteName": "player_standing",
                     "animating": true,
                     "looping": true
                 },
@@ -40,11 +49,20 @@
                     "type": "BodyComponent",
                     "posX": 440.0,
                     "posY": 300.0,
-                    "drag": 0.90
+                    "bodyType": "dynamic",
+                    "fixedRotation": false,
+                    "linearDamping": 6.0,
+                    "angularDamping": 8.0,
+                    "fixture": {
+                        "shape": "circle",
+                        "radius": 15.0,
+                        "density": 5.0
+                    }
                 },
                 {
                     "type": "PlayerMovementComponent",
-                    "moveSpeed": 20.0
+                    "moveSpeed": 120.0,
+                    "rotationSpeed": 3.0
                 }
             ]
         },
@@ -53,7 +71,16 @@
                 {
                     "type": "BodyComponent",
                     "posX": 150.0,
-                    "posY": 200.0
+                    "posY": 200.0,
+                    "bodyType": "dynamic",
+                    "linearDamping": 1.5,
+                    "angularDamping": 1.0,
+                    "fixture": {
+                        "shape": "box",
+                        "width": 32.0,
+                        "height": 32.0,
+                        "density": 2.0
+                    }
                 },
                 {
                     "type": "SpriteComponent",
@@ -70,7 +97,16 @@
                 {
                     "type": "BodyComponent",
                     "posX": 650.0,
-                    "posY": 200.0
+                    "posY": 200.0,
+                    "bodyType": "dynamic",
+                    "linearDamping": 1.5,
+                    "angularDamping": 1.0,
+                    "fixture": {
+                        "shape": "box",
+                        "width": 32.0,
+                        "height": 32.0,
+                        "density": 2.0
+                    }
                 },
                 {
                     "type": "SpriteComponent",
@@ -87,7 +123,16 @@
                 {
                     "type": "BodyComponent",
                     "posX": 150.0,
-                    "posY": 450.0
+                    "posY": 450.0,
+                    "bodyType": "dynamic",
+                    "linearDamping": 1.5,
+                    "angularDamping": 1.0,
+                    "fixture": {
+                        "shape": "box",
+                        "width": 32.0,
+                        "height": 32.0,
+                        "density": 2.0
+                    }
                 },
                 {
                     "type": "SpriteComponent",
@@ -104,7 +149,16 @@
                 {
                     "type": "BodyComponent",
                     "posX": 650.0,
-                    "posY": 450.0
+                    "posY": 450.0,
+                    "bodyType": "dynamic",
+                    "linearDamping": 1.5,
+                    "angularDamping": 1.0,
+                    "fixture": {
+                        "shape": "box",
+                        "width": 32.0,
+                        "height": 32.0,
+                        "density": 2.0
+                    }
                 },
                 {
                     "type": "SpriteComponent",
@@ -113,6 +167,130 @@
                 {
                     "type": "BoxBehaviorComponent",
                     "pushForce": 100.0
+                }
+            ]
+        },
+        {
+            "components": [
+                {
+                    "type": "SpriteComponent",
+                    "spriteName": "tree",
+                    "posX": 100.0,
+                    "posY": 100.0,
+                    "angle": 0.0
+                }
+            ]
+        },
+        {
+            "components": [
+                {
+                    "type": "SpriteComponent",
+                    "spriteName": "tree",
+                    "posX": 700.0,
+                    "posY": 100.0,
+                    "angle": 0.0
+                }
+            ]
+        },
+        {
+            "components": [
+                {
+                    "type": "SpriteComponent",
+                    "spriteName": "tree",
+                    "posX": 100.0,
+                    "posY": 500.0,
+                    "angle": 0.0
+                }
+            ]
+        },
+        {
+            "components": [
+                {
+                    "type": "SpriteComponent",
+                    "spriteName": "tree",
+                    "posX": 700.0,
+                    "posY": 500.0,
+                    "angle": 0.0
+                }
+            ]
+        },
+        {
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 400.0,
+                    "posY": 16.0,
+                    "bodyType": "static",
+                    "fixture": {
+                        "shape": "box",
+                        "width": 800.0,
+                        "height": 32.0
+                    }
+                },
+                {
+                    "type": "SpriteComponent",
+                    "spriteName": "brick",
+                    "tiled": true
+                }
+            ]
+        },
+        {
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 400.0,
+                    "posY": 584.5,
+                    "bodyType": "static",
+                    "fixture": {
+                        "shape": "box",
+                        "width": 800.0,
+                        "height": 32.0
+                    }
+                },
+                {
+                    "type": "SpriteComponent",
+                    "spriteName": "brick",
+                    "tiled": true
+                }
+            ]
+        },
+        {
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 16.0,
+                    "posY": 300.0,
+                    "bodyType": "static",
+                    "fixture": {
+                        "shape": "box",
+                        "width": 32.0,
+                        "height": 608.0
+                    }
+                },
+                {
+                    "type": "SpriteComponent",
+                    "spriteName": "brick",
+                    "tiled": true
+                }
+            ]
+        },
+        {
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 784.5,
+                    "posY": 300.0,
+                    "bodyType": "static",
+                    "fixture": {
+                        "shape": "box",
+                        "width": 32.0,
+                        "height": 608.0
+                    }
+                },
+                {
+                    "type": "SpriteComponent",
+                    "spriteName": "brick",
+                    "tiled": true
                 }
             ]
         }

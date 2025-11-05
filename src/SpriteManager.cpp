@@ -130,7 +130,8 @@ void SpriteManager::renderSprite(const std::string& spriteName, int frame, int x
     SpriteFrame frameData = spriteData->getFrame(frame);
     
     SDL_Rect srcRect = { frameData.x, frameData.y, frameData.w, frameData.h };
-    SDL_Rect dstRect = { x, y, frameData.w, frameData.h };
+    // Position sprite centered at (x, y) to match Box2D's center-based positioning
+    SDL_Rect dstRect = { x - frameData.w/2, y - frameData.h/2, frameData.w, frameData.h };
 
     // Set texture alpha
     SDL_SetTextureAlphaMod(texture, alpha);
@@ -139,6 +140,110 @@ void SpriteManager::renderSprite(const std::string& spriteName, int frame, int x
     // Convert angle from radians to degrees for SDL
     double angleDegrees = angle * 180.0 / M_PI;
     SDL_RenderCopyEx(renderer, texture, &srcRect, &dstRect, angleDegrees, nullptr, flip);
+}
+
+void SpriteManager::renderSprite(const std::string& spriteName, int frame, int x, int y, 
+                                 int width, int height, float angle, 
+                                 SDL_RendererFlip flip, uint8_t alpha) {
+    if (!renderer) {
+        std::cerr << "SpriteManager: Renderer not initialized" << std::endl;
+        return;
+    }
+
+    const SpriteData* spriteData = getSpriteData(spriteName);
+    if (!spriteData) {
+        std::cerr << "SpriteManager: Sprite not found: " << spriteName << std::endl;
+        return;
+    }
+
+    SDL_Texture* texture = getTexture(spriteData->textureName);
+    if (!texture) {
+        std::cerr << "SpriteManager: Texture not found: " << spriteData->textureName << std::endl;
+        return;
+    }
+
+    SpriteFrame frameData = spriteData->getFrame(frame);
+    
+    SDL_Rect srcRect = { frameData.x, frameData.y, frameData.w, frameData.h };
+    // Position sprite centered at (x, y) to match Box2D's center-based positioning
+    SDL_Rect dstRect = { x - width/2, y - height/2, width, height }; // Use custom width and height
+
+    // Set texture alpha
+    SDL_SetTextureAlphaMod(texture, alpha);
+
+    // Render with rotation and flip
+    // Convert angle from radians to degrees for SDL
+    double angleDegrees = angle * 180.0 / M_PI;
+    SDL_RenderCopyEx(renderer, texture, &srcRect, &dstRect, angleDegrees, nullptr, flip);
+}
+
+void SpriteManager::renderSpriteTiled(const std::string& spriteName, int frame, int x, int y,
+                                     int width, int height, int tileWidth, int tileHeight,
+                                     float angle, SDL_RendererFlip flip, uint8_t alpha) {
+    if (!renderer) {
+        std::cerr << "SpriteManager: Renderer not initialized" << std::endl;
+        return;
+    }
+
+    const SpriteData* spriteData = getSpriteData(spriteName);
+    if (!spriteData) {
+        std::cerr << "SpriteManager: Sprite not found: " << spriteName << std::endl;
+        return;
+    }
+
+    SDL_Texture* texture = getTexture(spriteData->textureName);
+    if (!texture) {
+        std::cerr << "SpriteManager: Texture not found: " << spriteData->textureName << std::endl;
+        return;
+    }
+
+    SpriteFrame frameData = spriteData->getFrame(frame);
+    
+    // Use provided tile size, or default to frame size
+    int actualTileWidth = (tileWidth > 0) ? tileWidth : frameData.w;
+    int actualTileHeight = (tileHeight > 0) ? tileHeight : frameData.h;
+    
+    // Set texture alpha
+    SDL_SetTextureAlphaMod(texture, alpha);
+    
+    // Calculate how many tiles we need
+    int tilesX = (width + actualTileWidth - 1) / actualTileWidth;  // Ceiling division
+    int tilesY = (height + actualTileHeight - 1) / actualTileHeight;
+    
+    // Calculate top-left corner to center the entire tiled area
+    int startX = x - width / 2;
+    int startY = y - height / 2;
+    
+    SDL_Rect srcRect = { frameData.x, frameData.y, frameData.w, frameData.h };
+    
+    // Render each tile
+    for (int tileY = 0; tileY < tilesY; ++tileY) {
+        for (int tileX = 0; tileX < tilesX; ++tileX) {
+            int dstX = startX + (tileX * actualTileWidth);
+            int dstY = startY + (tileY * actualTileHeight);
+            
+            // Clip the last tile if it goes beyond the desired size
+            int dstW = actualTileWidth;
+            int dstH = actualTileHeight;
+            
+            if (dstX + dstW > startX + width) {
+                dstW = (startX + width) - dstX;
+            }
+            if (dstY + dstH > startY + height) {
+                dstH = (startY + height) - dstY;
+            }
+            
+            SDL_Rect dstRect = { dstX, dstY, dstW, dstH };
+            
+            // For rotation, we'd need to rotate the entire tiled area as one
+            // For now, tiled sprites don't support rotation (can be added if needed)
+            if (angle != 0.0f) {
+                std::cerr << "Warning: Tiled sprites don't currently support rotation" << std::endl;
+            }
+            
+            SDL_RenderCopyEx(renderer, texture, &srcRect, &dstRect, 0, nullptr, flip);
+        }
+    }
 }
 
 void SpriteManager::unloadTexture(const std::string& textureName) {

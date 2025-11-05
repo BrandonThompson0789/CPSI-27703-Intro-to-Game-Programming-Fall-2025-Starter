@@ -27,7 +27,7 @@ BoxBehaviorComponent::BoxBehaviorComponent(Object& parent, const nlohmann::json&
         std::cerr << "Warning: BoxBehaviorComponent requires BodyComponent!" << std::endl;
     }
     
-    // Allow configurable push force from JSON
+    // Allow configurable push force from JSON (kept for future use)
     if (data.contains("pushForce")) {
         pushForce = data["pushForce"].get<float>();
     }
@@ -46,59 +46,18 @@ static ComponentRegistrar<BoxBehaviorComponent> registrar("BoxBehaviorComponent"
 void BoxBehaviorComponent::update(float deltaTime) {
     if (!body) return;
     
-    // Get the Engine instance to access other objects
-    Engine* engine = Object::getEngine();
-    if (!engine) return;
+    // Box2D now handles all collision detection and resolution automatically!
+    // The physics engine will prevent objects from overlapping and apply realistic forces.
     
-    auto& objects = engine->getObjects();
+    // This component can now be used for custom box-specific behavior
+    // For example:
+    // - Special effects when hit
+    // - Sound effects on collision
+    // - Breaking when hit too hard
+    // - etc.
     
-    auto [posX, posY, angle] = body->getPosition();
-    auto [velX, velY, velAngle] = body->getVelocity();
+    // To detect collisions, you would implement a b2ContactListener in the Engine
+    // and register callbacks for specific objects.
     
-    // Simple size estimation (assuming 32x32 sprite for now)
-    float halfWidth = 16.0f;
-    float halfHeight = 16.0f;
-    
-    for (auto& obj : objects) {
-        // Don't collide with self
-        if (obj.get() == &parent()) continue;
-        
-        // Get the other object's BodyComponent
-        BodyComponent* other = obj->getComponent<BodyComponent>();
-        if (!other) continue;
-        
-        auto [otherX, otherY, otherAngle] = other->getPosition();
-        auto [otherVelX, otherVelY, otherVelAngle] = other->getVelocity();
-        
-        // Simple AABB collision detection
-        // Check if rectangles overlap
-        if (std::abs(posX - otherX) < (halfWidth + halfHeight) && 
-            std::abs(posY - otherY) < (halfWidth + halfHeight)) {
-            
-            // Calculate direction from other object to this box
-            float dx = posX - otherX;
-            float dy = posY - otherY;
-            float distance = std::sqrt(dx * dx + dy * dy);
-            
-            if (distance > 0.0f) {
-                // Normalize direction
-                dx /= distance;
-                dy /= distance;
-                
-                // Apply push force in the direction away from the other object
-                // Only apply if the other object is moving
-                float otherSpeed = std::sqrt(otherVelX * otherVelX + otherVelY * otherVelY);
-                if (otherSpeed > 10.0f) { // Only push if other object is moving meaningfully
-                    // Scale push force based on other object's speed
-                    float forceScale = std::min(otherSpeed / 200.0f, 1.0f); // Scale 0-1 based on speed
-                    
-                    // Apply velocity in the push direction
-                    float pushVelX = dx * pushForce * forceScale;
-                    float pushVelY = dy * pushForce * forceScale;
-                    
-                    body->modVelocity(pushVelX, pushVelY, 0.0f);
-                }
-            }
-        }
-    }
+    // For now, this component is just a placeholder for future box-specific logic.
 }

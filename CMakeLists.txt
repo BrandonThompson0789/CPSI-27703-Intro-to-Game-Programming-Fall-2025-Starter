@@ -61,8 +61,21 @@ target_link_libraries(demo PRIVATE
 target_compile_definitions(demo PRIVATE SDL_MAIN_HANDLED)
 
 # Copy assets and DLLs
-add_custom_command(TARGET demo POST_BUILD
+# Glob all asset files to track changes
+file(GLOB_RECURSE ASSET_FILES "${CMAKE_SOURCE_DIR}/assets/*")
+
+# Create a custom target that always copies assets
+add_custom_target(copy_assets ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/assets $<TARGET_FILE_DIR:demo>/assets
+    COMMENT "Copying assets to build directory..."
+    DEPENDS ${ASSET_FILES}
+)
+
+# Make demo depend on copy_assets so assets are copied before running
+add_dependencies(demo copy_assets)
+
+# Copy DLLs after building demo
+add_custom_command(TARGET demo POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_RUNTIME_DLLS:demo> $<TARGET_FILE_DIR:demo>
     COMMAND_EXPAND_LISTS
 )

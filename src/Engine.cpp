@@ -34,13 +34,19 @@ void Engine::init() {
         return;
     }
     
+    // Initialize Box2D physics world (v3.x API)
+    // Gravity: (0, 0) for top-down game, use (0, 9.8) for side-scrollers
+    b2WorldDef worldDef = b2DefaultWorldDef();
+    worldDef.gravity = {0.0f, 0.0f};
+    physicsWorldId = b2CreateWorld(&worldDef);
+    
     // Initialize sprite manager
     SpriteManager::getInstance().init(renderer, "assets/spriteData.json");
     
     // Initialize input manager
     InputManager::getInstance().init();
     
-    std::cout << "SDL initialized successfully!" << std::endl;
+    std::cout << "SDL and Box2D initialized successfully!" << std::endl;
 }
 
 void Engine::run() {
@@ -104,6 +110,13 @@ void Engine::processEvents() {
 }
 
 void Engine::update(float deltaTime) {
+    // Step the Box2D physics simulation (v3.x API)
+    // subStepCount controls accuracy (4 is default, higher = more accurate but slower)
+    if (B2_IS_NON_NULL(physicsWorldId)) {
+        b2World_Step(physicsWorldId, deltaTime, 4);
+    }
+    
+    // Update all game objects
     for (auto& object : objects) {
         object->update(deltaTime);
     }
@@ -120,6 +133,15 @@ void Engine::render() {
 }
 
 void Engine::cleanup() {
+    // Clean up objects before destroying physics world
+    objects.clear();
+    
+    // Destroy physics world (v3.x API)
+    if (B2_IS_NON_NULL(physicsWorldId)) {
+        b2DestroyWorld(physicsWorldId);
+        physicsWorldId = b2_nullWorldId;
+    }
+    
     InputManager::getInstance().cleanup();
     SpriteManager::getInstance().cleanup();
     SDL_DestroyRenderer(renderer);
@@ -129,6 +151,7 @@ void Engine::cleanup() {
 
 Engine::Engine() {
     running = true;
+    physicsWorldId = b2_nullWorldId;
 }
 
 Engine::~Engine() {
