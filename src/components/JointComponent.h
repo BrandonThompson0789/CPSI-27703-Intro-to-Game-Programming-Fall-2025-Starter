@@ -83,6 +83,9 @@ public:
     // Get the joint ID (for advanced usage)
     b2JointId getJointId() const { return jointId; }
     
+    // Manually destroy the joint (useful for releasing grabbed objects)
+    void destroyJoint();
+    
 private:
     b2JointId jointId;
     Object* connectedBody; // The object this joint connects to
@@ -98,7 +101,6 @@ private:
     // Helper methods
     void createJointFromJson(const nlohmann::json& data);
     void checkBreakingLimits();
-    void destroyJoint();
     Object* findObjectByName(const std::string& name);
     std::string jointTypeToString(b2JointType type) const;
     

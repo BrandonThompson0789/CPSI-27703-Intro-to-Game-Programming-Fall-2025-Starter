@@ -38,6 +38,9 @@ void JointComponent::destroyJoint() {
         b2DestroyJoint(jointId);
         jointId = b2_nullJointId;
     }
+    // Reset broken flag so joint can be recreated
+    jointBroken = false;
+    connectedBody = nullptr;
 }
 
 nlohmann::json JointComponent::toJson() const {
@@ -201,7 +204,6 @@ void JointComponent::checkBreakingLimits() {
         b2Vec2 force = b2Joint_GetConstraintForce(jointId);
         float forceMagnitude = std::sqrt(force.x * force.x + force.y * force.y);
         if (forceMagnitude > maxBreakForce) {
-            std::cout << "Joint breaking due to force: " << forceMagnitude << " > " << maxBreakForce << std::endl;
             shouldBreak = true;
         }
     }
@@ -210,7 +212,6 @@ void JointComponent::checkBreakingLimits() {
     if (maxBreakTorque != INFINITY) {
         float torque = std::abs(b2Joint_GetConstraintTorque(jointId));
         if (torque > maxBreakTorque) {
-            std::cout << "Joint breaking due to torque: " << torque << " > " << maxBreakTorque << std::endl;
             shouldBreak = true;
         }
     }
@@ -219,7 +220,6 @@ void JointComponent::checkBreakingLimits() {
     if (maxBreakSeparation != INFINITY) {
         float separation = std::abs(b2Joint_GetLinearSeparation(jointId));
         if (separation > maxBreakSeparation) {
-            std::cout << "Joint breaking due to separation: " << separation << " > " << maxBreakSeparation << std::endl;
             shouldBreak = true;
         }
     }
@@ -582,10 +582,13 @@ void JointComponent::createWheelJoint(Object* bodyB, const b2Vec2& anchorA, cons
 
 void JointComponent::createMotorJoint(Object* bodyB, const b2Vec2& linearOffset,
                                      float angularOffset, float maxForce, float maxTorque) {
-    if (jointBroken || B2_IS_NON_NULL(jointId)) {
-        std::cerr << "Warning: Joint already exists or is broken" << std::endl;
-        return;
+    // Destroy any existing joint first
+    if (B2_IS_NON_NULL(jointId)) {
+        destroyJoint();
     }
+    
+    // Reset broken flag to allow creation
+    jointBroken = false;
     
     Engine* engine = Object::getEngine();
     if (!engine) return;
