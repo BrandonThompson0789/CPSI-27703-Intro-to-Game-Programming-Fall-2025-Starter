@@ -293,6 +293,64 @@
                     "tiled": true
                 }
             ]
+        },
+        {
+            "name": "door_anchor",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 300.0,
+                    "posY": 300.0,
+                    "bodyType": "static",
+                    "fixture": {
+                        "shape": "box",
+                        "width": 32.0,
+                        "height": 32.0
+                    }
+                },
+                {
+                    "type": "SpriteComponent",
+                    "spriteName": "brick"
+                }
+            ]
+        },
+        {
+            "name": "door",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 300.0,
+                    "posY": 300.0,
+                    "bodyType": "dynamic",
+                    "fixture": {
+                        "shape": "box",
+                        "width": 16.0,
+                        "height": 64.0,
+                        "density": 1.0
+                    },
+                    "linearDamping": 2.0,
+                    "angularDamping": 3.0
+                },
+                {
+                    "type": "SpriteComponent",
+                    "spriteName": "crate"
+                },
+                {
+                    "type": "JointComponent",
+                    "jointType": "revolute",
+                    "connectedBody": "door_anchor",
+                    "anchorA": [0, -32],
+                    "anchorB": [0, 16],
+                    "enableLimit": true,
+                    "lowerAngle": -1.57,
+                    "upperAngle": 1.57,
+                    "enableSpring": true,
+                    "targetAngle": 0.0,
+                    "hertz": 2.0,
+                    "dampingRatio": 0.7,
+                    "comment": "Door with spring that returns to closed position (0 degrees)"
+                }
+            ]
         }
     ]
 }

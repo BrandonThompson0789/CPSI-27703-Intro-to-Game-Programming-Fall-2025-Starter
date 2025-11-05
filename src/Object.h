@@ -19,6 +19,10 @@ class Object {
         void update(float deltaTime = 1.0f / 60.0f);
         void render(SDL_Renderer* renderer);
         
+        // Name management
+        void setName(const std::string& n) { name = n; }
+        const std::string& getName() const { return name; }
+        
         // Component management
         template<typename T, typename... Args>
         T* addComponent(Args&&... args) {
@@ -52,6 +56,7 @@ class Object {
         static Engine* getEngine();
         
     private:
+        std::string name;
         std::vector<std::unique_ptr<Component>> components;
         std::unordered_map<std::type_index, Component*> componentMap;
         static Engine* engineInstance;

@@ -43,6 +43,8 @@ add_executable(demo
     src/components/PlayerMovementComponent.cpp
     src/components/BoxBehaviorComponent.h
     src/components/BoxBehaviorComponent.cpp
+    src/components/JointComponent.h
+    src/components/JointComponent.cpp
 )
 
 # Link libraries

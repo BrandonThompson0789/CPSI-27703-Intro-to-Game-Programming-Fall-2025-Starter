@@ -33,6 +33,12 @@ void Object::render(SDL_Renderer* renderer) {
 
 nlohmann::json Object::toJson() const {
     nlohmann::json j;
+    
+    // Serialize name if it exists
+    if (!name.empty()) {
+        j["name"] = name;
+    }
+    
     nlohmann::json componentsArray = nlohmann::json::array();
     
     // Serialize all components
@@ -45,6 +51,11 @@ nlohmann::json Object::toJson() const {
 }
 
 void Object::fromJson(const nlohmann::json& data) {
+    // Load name if it exists
+    if (data.contains("name")) {
+        name = data["name"].get<std::string>();
+    }
+    
     // Clear existing components
     components.clear();
     componentMap.clear();
