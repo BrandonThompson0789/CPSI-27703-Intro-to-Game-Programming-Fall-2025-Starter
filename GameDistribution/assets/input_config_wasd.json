@@ -1,0 +1,53 @@
+{
+  "_comment": "WASD Layout - Standard keyboard layout",
+  "keyboard": {
+    "move_up": ["W", "Up"],
+    "move_down": ["S", "Down"],
+    "move_left": ["A", "Left"],
+    "move_right": ["D", "Right"],
+    "action_walk": ["LShift", "RShift"],
+    "action_interact": ["Space", "E"],
+    "action_throw": ["F", "Q"]
+  },
+  "controller": {
+    "move_up": {
+      "type": "axis",
+      "axis": "LeftY",
+      "direction": "negative"
+    },
+    "move_down": {
+      "type": "axis",
+      "axis": "LeftY",
+      "direction": "positive"
+    },
+    "move_left": {
+      "type": "axis",
+      "axis": "LeftX",
+      "direction": "negative"
+    },
+    "move_right": {
+      "type": "axis",
+      "axis": "LeftX",
+      "direction": "positive"
+    },
+    "action_walk": {
+      "type": "axis",
+      "axis": "TriggerLeft",
+      "direction": "positive",
+      "range": "full"
+    },
+    "action_interact": {
+      "type": "button",
+      "buttons": ["A"]
+    },
+    "action_throw": {
+      "type": "button",
+      "buttons": ["X", "B"]
+    }
+  },
+  "settings": {
+    "deadzone": 0.15,
+    "dpad_as_axis": true
+  }
+}
+

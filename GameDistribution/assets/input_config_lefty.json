@@ -1,0 +1,53 @@
+{
+  "_comment": "Left-Handed Layout - Controller uses right stick for movement",
+  "keyboard": {
+    "move_up": ["I", "Up"],
+    "move_down": ["K", "Down"],
+    "move_left": ["J", "Left"],
+    "move_right": ["L", "Right"],
+    "action_walk": ["RShift"],
+    "action_interact": ["Enter", "O"],
+    "action_throw": ["P", "U"]
+  },
+  "controller": {
+    "move_up": {
+      "type": "axis",
+      "axis": "RightY",
+      "direction": "negative"
+    },
+    "move_down": {
+      "type": "axis",
+      "axis": "RightY",
+      "direction": "positive"
+    },
+    "move_left": {
+      "type": "axis",
+      "axis": "RightX",
+      "direction": "negative"
+    },
+    "move_right": {
+      "type": "axis",
+      "axis": "RightX",
+      "direction": "positive"
+    },
+    "action_walk": {
+      "type": "axis",
+      "axis": "TriggerRight",
+      "direction": "positive",
+      "range": "full"
+    },
+    "action_interact": {
+      "type": "button",
+      "buttons": ["A"]
+    },
+    "action_throw": {
+      "type": "button",
+      "buttons": ["X", "B"]
+    }
+  },
+  "settings": {
+    "deadzone": 0.15,
+    "dpad_as_axis": true
+  }
+}
+
