@@ -44,6 +44,11 @@ class Engine {
         static inline float radiansToDegrees(float radians) { return radians * RAD_TO_DEG; }
         
     private:
+        void loadObjectTemplates(const std::string& filename);
+        nlohmann::json buildObjectDefinition(const nlohmann::json& objectData) const;
+        static void mergeJsonObjects(nlohmann::json& target, const nlohmann::json& overrides);
+        static void mergeComponentData(nlohmann::json& baseComponent, const nlohmann::json& overrideComponent);
+        static nlohmann::json mergeObjectDefinitions(const nlohmann::json& baseObject, const nlohmann::json& overrides);
         void processEvents();
         void update(float deltaTime);
         void render();
@@ -58,6 +63,7 @@ class Engine {
         // Box2D physics world (v3.x uses handles/IDs instead of pointers)
         b2WorldId physicsWorldId;
         Box2DDebugDraw debugDraw;
+        std::unordered_map<std::string, nlohmann::json> objectTemplates;
 };
 
 #endif // ENGINE_H

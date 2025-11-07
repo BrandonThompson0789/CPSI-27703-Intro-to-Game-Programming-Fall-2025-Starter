@@ -8,6 +8,7 @@
 #include <cstdio>
 #include <algorithm>
 
+
 int Engine::screenWidth = 800;
 int Engine::screenHeight = 600;
 int Engine::targetFPS = 60;
@@ -225,6 +226,8 @@ void Engine::loadFile(const std::string& filename) {
         return;
     }
 
+    loadObjectTemplates("assets/objectData.json");
+
     // Clear existing objects
     objects.clear();
     pendingObjects.clear();
@@ -243,7 +246,7 @@ void Engine::loadFile(const std::string& filename) {
 
     for (const auto& objectData : j["objects"]) {
         auto object = std::make_unique<Object>();
-        object->fromJson(objectData);
+        object->fromJson(buildObjectDefinition(objectData));
         objects.push_back(std::move(object));
     }
 
@@ -254,4 +257,163 @@ void Engine::queueObject(std::unique_ptr<Object> object) {
     if (object) {
         pendingObjects.push_back(std::move(object));
     }
+}
+
+void Engine::mergeComponentData(nlohmann::json& baseComponent, const nlohmann::json& overrideComponent) {
+    if (!overrideComponent.is_object()) {
+        baseComponent = overrideComponent;
+        return;
+    }
+
+    if (!baseComponent.is_object()) {
+        baseComponent = overrideComponent;
+        return;
+    }
+
+    for (const auto& [key, value] : overrideComponent.items()) {
+        if (key == "type") {
+            continue;
+        }
+
+        if (value.is_object() && baseComponent.contains(key) && baseComponent[key].is_object()) {
+            Engine::mergeJsonObjects(baseComponent[key], value);
+        } else {
+            baseComponent[key] = value;
+        }
+    }
+}
+
+void Engine::mergeJsonObjects(nlohmann::json& target, const nlohmann::json& overrides) {
+    if (!overrides.is_object()) {
+        target = overrides;
+        return;
+    }
+
+    if (!target.is_object()) {
+        target = overrides;
+        return;
+    }
+
+    for (const auto& [key, value] : overrides.items()) {
+        if (value.is_object() && target.contains(key) && target[key].is_object()) {
+            Engine::mergeJsonObjects(target[key], value);
+        } else {
+            target[key] = value;
+        }
+    }
+}
+
+nlohmann::json Engine::mergeObjectDefinitions(const nlohmann::json& baseObject, const nlohmann::json& overrides) {
+    if (!overrides.is_object()) {
+        return baseObject;
+    }
+
+    nlohmann::json result = baseObject.is_null() ? nlohmann::json::object() : baseObject;
+
+    for (const auto& [key, value] : overrides.items()) {
+        if (key == "components" || key == "template") {
+            continue;
+        }
+
+        if (value.is_object() && result.contains(key) && result[key].is_object()) {
+            Engine::mergeJsonObjects(result[key], value);
+        } else {
+            result[key] = value;
+        }
+    }
+
+    if (overrides.contains("components") && overrides["components"].is_array()) {
+        if (!result.contains("components") || !result["components"].is_array()) {
+            result["components"] = nlohmann::json::array();
+        }
+
+        auto& resultComponents = result["components"];
+        std::unordered_map<std::string, std::size_t> componentIndex;
+        for (std::size_t i = 0; i < resultComponents.size(); ++i) {
+            if (resultComponents[i].is_object() && resultComponents[i].contains("type")) {
+                try {
+                    componentIndex[resultComponents[i]["type"].get<std::string>()] = i;
+                } catch (const std::exception&) {
+                    // Skip components with non-string type
+                }
+            }
+        }
+
+        for (const auto& componentOverride : overrides["components"]) {
+            if (!componentOverride.is_object() || !componentOverride.contains("type")) {
+                resultComponents.push_back(componentOverride);
+                continue;
+            }
+
+            const auto typeIt = componentOverride.find("type");
+            if (!typeIt->is_string()) {
+                resultComponents.push_back(componentOverride);
+                continue;
+            }
+
+            const std::string typeName = typeIt->get<std::string>();
+            const auto existing = componentIndex.find(typeName);
+            if (existing != componentIndex.end()) {
+                Engine::mergeComponentData(resultComponents[existing->second], componentOverride);
+            } else {
+                resultComponents.push_back(componentOverride);
+                componentIndex[typeName] = resultComponents.size() - 1;
+            }
+        }
+    }
+
+    return result;
+}
+
+void Engine::loadObjectTemplates(const std::string& filename) {
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        std::cerr << "Warning: Could not open object template file " << filename << std::endl;
+        return;
+    }
+
+    try {
+        nlohmann::json data;
+        file >> data;
+        const nlohmann::json* templatesSection = &data;
+        if (data.contains("templates") && data["templates"].is_object()) {
+            templatesSection = &data["templates"];
+        }
+
+        if (!templatesSection->is_object()) {
+            std::cerr << "Warning: Template file '" << filename << "' must contain an object of templates" << std::endl;
+            return;
+        }
+
+        objectTemplates.clear();
+        for (const auto& [name, templateData] : templatesSection->items()) {
+            objectTemplates[name] = templateData;
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "Warning: Failed to parse object template file '" << filename << "': " << e.what() << std::endl;
+    }
+}
+
+nlohmann::json Engine::buildObjectDefinition(const nlohmann::json& objectData) const {
+    if (!objectData.is_object()) {
+        return objectData;
+    }
+
+    auto templateIt = objectData.find("template");
+    if (templateIt == objectData.end() || !templateIt->is_string()) {
+        return objectData;
+    }
+
+    const std::string templateName = templateIt->get<std::string>();
+    auto found = objectTemplates.find(templateName);
+    if (found == objectTemplates.end()) {
+        std::cerr << "Warning: Object template '" << templateName << "' not found" << std::endl;
+        nlohmann::json fallback = objectData;
+        fallback.erase("template");
+        return fallback;
+    }
+
+    nlohmann::json merged = mergeObjectDefinitions(found->second, objectData);
+    merged.erase("template");
+    return merged;
 }

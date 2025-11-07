@@ -1,52 +1,20 @@
-{
+﻿{
     "objects": [
         {
             "name": "player1",
+            "template": "player_default",
             "components": [
-                {
-                    "type": "SpriteComponent",
-                    "spriteName": "player_standing",
-                    "animating": true,
-                    "looping": true
-                },
-                {
-                    "type": "InputComponent",
-                    "inputSources": [-1]
-                },
                 {
                     "type": "BodyComponent",
                     "posX": 400.0,
-                    "posY": 300.0,
-                    "bodyType": "dynamic",
-                    "fixedRotation": false,
-                    "linearDamping": 6.0,
-                    "angularDamping": 8.0,
-                    "fixture": {
-                        "shape": "circle",
-                        "radius": 15.0,
-                        "density": 5.0
-                    }
-                },
-                {
-                    "type": "PlayerMovementComponent",
-                    "moveSpeed": 120.0,
-                    "rotationSpeed": 180.0
-                },
-                {
-                    "type": "CollisionDamageComponent",
-                    "baseDamage": 1.0,
-                    "kineticScale": 6.0
+                    "posY": 300.0
                 }
             ]
         },
         {
+            "name": "player2",
+            "template": "player_default",
             "components": [
-                {
-                    "type": "SpriteComponent",
-                    "spriteName": "player_standing",
-                    "animating": true,
-                    "looping": true
-                },
                 {
                     "type": "InputComponent",
                     "inputSources": [0]
@@ -54,479 +22,217 @@
                 {
                     "type": "BodyComponent",
                     "posX": 440.0,
-                    "posY": 300.0,
-                    "bodyType": "dynamic",
-                    "fixedRotation": false,
-                    "linearDamping": 6.0,
-                    "angularDamping": 8.0,
-                    "fixture": {
-                        "shape": "circle",
-                        "radius": 15.0,
-                        "density": 5.0
-                    }
-                },
-                {
-                    "type": "PlayerMovementComponent",
-                    "moveSpeed": 120.0,
-                    "rotationSpeed": 180.0
-                },
-                {
-                    "type": "CollisionDamageComponent",
-                    "baseDamage": 1.0,
-                    "kineticScale": 6.0
+                    "posY": 300.0
                 }
             ]
         },
         {
+            "template": "crate_basic_no_damage_given",
             "components": [
                 {
                     "type": "BodyComponent",
                     "posX": 150.0,
-                    "posY": 200.0,
-                    "bodyType": "dynamic",
-                    "linearDamping": 1.5,
-                    "angularDamping": 1.0,
-                    "fixture": {
-                        "shape": "box",
-                        "width": 32.0,
-                        "height": 32.0,
-                        "density": 2.0
-                    }
-                },
-                {
-                    "type": "HealthComponent",
-                    "maxHP": 60.0,
-                    "currentHP": 60.0,
-                    "impactResistance": 0.2
-                },
-                {
-                    "type": "CollisionDamageComponent",
-                    "baseDamage": 1.0,
-                    "kineticScale": 6.0
-                },
-                {
-                    "type": "SpriteComponent",
-                    "spriteName": "crate"
-                },
-                {
-                    "type": "BoxBehaviorComponent",
-                    "pushForce": 100.0
+                    "posY": 200.0
                 }
             ]
         },
         {
+            "template": "crate_basic_no_damage_received",
             "components": [
                 {
                     "type": "BodyComponent",
                     "posX": 650.0,
-                    "posY": 200.0,
-                    "bodyType": "dynamic",
-                    "linearDamping": 1.5,
-                    "angularDamping": 1.0,
-                    "fixture": {
-                        "shape": "box",
-                        "width": 32.0,
-                        "height": 32.0,
-                        "density": 2.0
-                    }
-                },
-                {
-                    "type": "HealthComponent",
-                    "maxHP": 60.0,
-                    "currentHP": 60.0,
-                    "impactResistance": 0.2
-                },
-                {
-                    "type": "CollisionDamageComponent",
-                    "baseDamage": 1.0,
-                    "kineticScale": 6.0
-                },
-                {
-                    "type": "SpriteComponent",
-                    "spriteName": "crate"
-                },
-                {
-                    "type": "BoxBehaviorComponent",
-                    "pushForce": 100.0
+                    "posY": 200.0
                 }
             ]
         },
         {
+            "template": "crate_basic",
             "components": [
                 {
                     "type": "BodyComponent",
                     "posX": 150.0,
-                    "posY": 450.0,
-                    "bodyType": "dynamic",
-                    "linearDamping": 1.5,
-                    "angularDamping": 1.0,
-                    "fixture": {
-                        "shape": "box",
-                        "width": 32.0,
-                        "height": 32.0,
-                        "density": 2.0
-                    }
-                },
+                    "posY": 450.0
+                }
+            ]
+        },
+        {
+            "template": "crate_basic",
+            "components": [
                 {
-                    "type": "HealthComponent",
-                    "maxHP": 60.0,
-                    "currentHP": 60.0,
-                    "impactResistance": 0.2
-                },
-                {
-                    "type": "CollisionDamageComponent",
-                    "baseDamage": 1.0,
-                    "kineticScale": 6.0
-                },
-                {
-                    "type": "SpriteComponent",
-                    "spriteName": "crate"
-                },
-                {
-                    "type": "BoxBehaviorComponent",
-                    "pushForce": 100.0
+                    "type": "BodyComponent",
+                    "posX": 650.0,
+                    "posY": 450.0
                 }
             ]
         },
         {
             "name": "test crate",
+            "template": "crate_basic",
             "components": [
                 {
                     "type": "BodyComponent",
                     "posX": 650.0,
-                    "posY": 450.0,
-                    "bodyType": "dynamic",
-                    "linearDamping": 1.5,
-                    "angularDamping": 1.0,
-                    "fixture": {
-                        "shape": "box",
-                        "width": 32.0,
-                        "height": 32.0,
-                        "density": 2.0
-                    }
-                },
-                {
-                    "type": "HealthComponent",
-                    "maxHP": 60.0,
-                    "currentHP": 60.0,
-                    "impactResistance": 0.2
-                },
-                {
-                    "type": "SpriteComponent",
-                    "spriteName": "crate"
-                },
-                {
-                    "type": "BoxBehaviorComponent",
-                    "pushForce": 100.0
+                    "posY": 450.0
                 }
             ]
         },
         {
+            "template": "tree",
             "components": [
                 {
                     "type": "SpriteComponent",
-                    "spriteName": "tree",
                     "posX": 100.0,
-                    "posY": 100.0,
-                    "angle": 0.0
+                    "posY": 100.0
                 }
             ]
         },
         {
+            "template": "tree",
             "components": [
                 {
                     "type": "SpriteComponent",
-                    "spriteName": "tree",
                     "posX": 700.0,
-                    "posY": 100.0,
-                    "angle": 0.0
+                    "posY": 100.0
                 }
             ]
         },
         {
+            "template": "tree",
             "components": [
                 {
                     "type": "SpriteComponent",
-                    "spriteName": "tree",
                     "posX": 100.0,
-                    "posY": 500.0,
-                    "angle": 0.0
+                    "posY": 500.0
                 }
             ]
         },
         {
+            "template": "tree",
             "components": [
                 {
                     "type": "SpriteComponent",
-                    "spriteName": "tree",
                     "posX": 700.0,
-                    "posY": 500.0,
-                    "angle": 0.0
+                    "posY": 500.0
                 }
             ]
         },
         {
+            "template": "brick_wall",
             "components": [
                 {
                     "type": "BodyComponent",
                     "posX": 400.0,
                     "posY": 16.0,
-                    "bodyType": "static",
                     "fixture": {
-                        "shape": "box",
                         "width": 800.0,
                         "height": 32.0
                     }
-                },
-                {
-                    "type": "CollisionDamageComponent",
-                    "baseDamage": 15.0,
-                    "kineticScale": 0.0,
-                    "affectStatic": false,
-                    "affectKinematic": true
-                },
-                {
-                    "type": "SpriteComponent",
-                    "spriteName": "brick",
-                    "tiled": true
                 }
             ]
         },
         {
+            "template": "brick_wall",
             "components": [
                 {
                     "type": "BodyComponent",
                     "posX": 400.0,
                     "posY": 584.5,
-                    "bodyType": "static",
                     "fixture": {
-                        "shape": "box",
                         "width": 800.0,
                         "height": 32.0
                     }
-                },
-                {
-                    "type": "CollisionDamageComponent",
-                    "baseDamage": 15.0,
-                    "kineticScale": 0.0,
-                    "affectStatic": false,
-                    "affectKinematic": true
-                },
-                {
-                    "type": "SpriteComponent",
-                    "spriteName": "brick",
-                    "tiled": true
                 }
             ]
         },
         {
+            "template": "brick_wall",
             "components": [
                 {
                     "type": "BodyComponent",
                     "posX": 16.0,
                     "posY": 300.0,
-                    "bodyType": "static",
                     "fixture": {
-                        "shape": "box",
                         "width": 32.0,
                         "height": 608.0
                     }
-                },
-                {
-                    "type": "CollisionDamageComponent",
-                    "baseDamage": 15.0,
-                    "kineticScale": 0.0,
-                    "affectStatic": false,
-                    "affectKinematic": true
-                },
-                {
-                    "type": "SpriteComponent",
-                    "spriteName": "brick",
-                    "tiled": true
                 }
             ]
         },
         {
+            "template": "brick_wall",
             "components": [
                 {
                     "type": "BodyComponent",
                     "posX": 784.5,
                     "posY": 300.0,
-                    "bodyType": "static",
                     "fixture": {
-                        "shape": "box",
                         "width": 32.0,
                         "height": 608.0
                     }
-                },
-                {
-                    "type": "CollisionDamageComponent",
-                    "baseDamage": 15.0,
-                    "kineticScale": 0.0,
-                    "affectStatic": false,
-                    "affectKinematic": true
-                },
-                {
-                    "type": "SpriteComponent",
-                    "spriteName": "brick",
-                    "tiled": true
                 }
             ]
         },
         {
             "name": "door_anchor",
+            "template": "door_anchor",
             "components": [
                 {
                     "type": "BodyComponent",
                     "posX": 300.0,
-                    "posY": 300.0,
-                    "bodyType": "static",
-                    "fixture": {
-                        "shape": "box",
-                        "width": 32.0,
-                        "height": 32.0
-                    }
-                },
-                {
-                    "type": "SpriteComponent",
-                    "spriteName": "brick"
+                    "posY": 300.0
                 }
             ]
         },
         {
             "name": "door",
+            "template": "door",
             "components": [
                 {
                     "type": "BodyComponent",
                     "posX": 300.0,
-                    "posY": 300.0,
-                    "bodyType": "dynamic",
-                    "fixture": {
-                        "shape": "box",
-                        "width": 16.0,
-                        "height": 64.0,
-                        "density": 1.0
-                    },
-                    "linearDamping": 2.0,
-                    "angularDamping": 3.0
-                },
-                {
-                    "type": "HealthComponent",
-                    "maxHP": 200.0,
-                    "currentHP": 200.0,
-                    "impactResistance": 1.0
-                },
-                {
-                    "type": "CollisionDamageComponent",
-                    "baseDamage": 5.0,
-                    "kineticScale": 3.0,
-                    "affectStatic": false
-                },
-                {
-                    "type": "SpriteComponent",
-                    "spriteName": "crate"
-                },
-                {
-                    "type": "JointComponent",
-                    "jointType": "revolute",
-                    "connectedBody": "door_anchor",
-                    "anchorA": [0, -32],
-                    "anchorB": [0, 16],
-                    "enableLimit": true,
-                    "lowerAngle": -90.0,
-                    "upperAngle": 90.0,
-                    "enableSpring": true,
-                    "targetAngle": 0.0,
-                    "hertz": 2.0,
-                    "dampingRatio": 0.7,
-                    "comment": "Door with spring that returns to closed position (0 degrees)"
+                    "posY": 300.0
                 }
             ]
         },
         {
             "name": "crate1",
+            "template": "crate_basic",
             "components": [
                 {
                     "type": "BodyComponent",
                     "posX": 400.0,
-                    "posY": 200.0,
-                    "bodyType": "dynamic",
-                    "fixture": {
-                        "shape": "box",
-                        "width": 32.0,
-                        "height": 32.0,
-                        "density": 1.0
-                    },
-                    "linearDamping": 2.0,
-                    "angularDamping": 2.0
-                },
-                {
-                    "type": "HealthComponent",
-                    "maxHP": 60.0,
-                    "currentHP": 60.0,
-                    "impactResistance": 0.2
-                },
-                {
-                    "type": "CollisionDamageComponent",
-                    "baseDamage": 1.0,
-                    "kineticScale": 6.0
-                },
-                {
-                    "type": "SpriteComponent",
-                    "spriteName": "crate"
+                    "posY": 200.0
                 }
             ]
         },
         {
             "name": "crate2",
+            "template": "crate_basic",
             "components": [
                 {
                     "type": "BodyComponent",
                     "posX": 500.0,
                     "posY": 250.0,
-                    "bodyType": "dynamic",
                     "fixture": {
-                        "shape": "box",
-                        "width": 32.0,
-                        "height": 32.0,
                         "density": 0.5
-                    },
-                    "linearDamping": 2.0,
-                    "angularDamping": 2.0
-                },
-                {
-                    "type": "HealthComponent",
-                    "maxHP": 45.0,
-                    "currentHP": 45.0,
-                    "impactResistance": 0.1
-                },
-                {
-                    "type": "CollisionDamageComponent",
-                    "baseDamage": 0.8,
-                    "kineticScale": 5.0
-                },
-                {
-                    "type": "SpriteComponent",
-                    "spriteName": "crate"
+                    }
                 }
             ]
         },
         {
             "name": "heavy_crate",
+            "template": "crate_basic",
             "components": [
                 {
                     "type": "BodyComponent",
                     "posX": 450.0,
                     "posY": 300.0,
-                    "bodyType": "dynamic",
                     "fixture": {
-                        "shape": "box",
                         "width": 48.0,
                         "height": 48.0,
                         "density": 3.0
-                    },
-                    "linearDamping": 2.0,
-                    "angularDamping": 2.0
+                    }
                 },
                 {
                     "type": "HealthComponent",
@@ -541,35 +247,18 @@
                 },
                 {
                     "type": "SpriteComponent",
-                    "spriteName": "crate",
                     "width": 48,
                     "height": 48
                 }
             ]
         },
         {
+            "template": "brick_pillar",
             "components": [
                 {
                     "type": "BodyComponent",
-                    "posX": 400,
-                    "posY": 160.0,
-                    "bodyType": "static",
-                    "fixture": {
-                        "shape": "box",
-                        "width": 16.0,
-                        "height": 128.0
-                    }
-                },
-                {
-                    "type": "HealthComponent",
-                    "maxHP": 10.0,
-                    "currentHP": 10.0,
-                    "impactResistance": 0.5
-                },
-                {
-                    "type": "SpriteComponent",
-                    "spriteName": "brick",
-                    "tiled": true
+                    "posX": 400.0,
+                    "posY": 160.0
                 }
             ]
         }
