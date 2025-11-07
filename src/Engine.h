@@ -31,6 +31,11 @@ class Engine {
         // Conversion constants
         static constexpr float PIXELS_TO_METERS = 0.01f;
         static constexpr float METERS_TO_PIXELS = 100.0f;
+        static constexpr float DEG_TO_RAD = 0.01745329251994329577f;
+        static constexpr float RAD_TO_DEG = 57.295779513082320876f;
+
+        static inline float degreesToRadians(float degrees) { return degrees * DEG_TO_RAD; }
+        static inline float radiansToDegrees(float radians) { return radians * RAD_TO_DEG; }
         
     private:
         void processEvents();

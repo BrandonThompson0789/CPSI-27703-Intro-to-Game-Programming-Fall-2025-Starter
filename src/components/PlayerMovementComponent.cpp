@@ -151,13 +151,14 @@ void PlayerMovementComponent::update(float deltaTime) {
         // atan2(y, x) gives 0 radians pointing East (right)
         // We subtract π/2 to rotate the coordinate system so 0 radians points North (up)
         // Then add π to flip it 180 degrees so the sprite faces forward
-        float targetAngle = std::atan2(vertical, horizontal) - M_PI / 2.0f + M_PI;
+        float targetAngleRad = std::atan2(vertical, horizontal) - M_PI / 2.0f + M_PI;
         
-        // Get current angle from body
-        auto [posX, posY, currentAngle] = body->getPosition();
+        // Get current angle from body (stored as degrees)
+        auto [posX, posY, currentAngleDeg] = body->getPosition();
+        float currentAngleRad = Engine::degreesToRadians(currentAngleDeg);
         
         // Calculate the shortest angle difference to rotate toward target
-        float angleDiff = targetAngle - currentAngle;
+        float angleDiff = targetAngleRad - currentAngleRad;
         
         // Normalize angle difference to [-PI, PI] range
         while (angleDiff > M_PI) angleDiff -= 2.0f * M_PI;
@@ -165,16 +166,16 @@ void PlayerMovementComponent::update(float deltaTime) {
         
         // Set angular velocity to smoothly rotate toward target
         // The rotation speed scales with the angle difference for smooth turning
-        float rotationSpeed = 0.5f; // Lower = slower, more gradual turning
-        float targetAngularVelocity = angleDiff * rotationSpeed;
+        float rotationSpeed = 0.5f; // Radians per second scaling; lower = slower, more gradual turning
+        float targetAngularVelocityRad = angleDiff * rotationSpeed;
         
         // Clamp angular velocity to prevent overshooting
-        float maxAngularVelocity = 0.5f; // Maximum rotation speed in radians/second (lower = slower max turn)
-        if (targetAngularVelocity > maxAngularVelocity) targetAngularVelocity = maxAngularVelocity;
-        if (targetAngularVelocity < -maxAngularVelocity) targetAngularVelocity = -maxAngularVelocity;
+        float maxAngularVelocityRad = 0.5f; // Maximum rotation speed in radians/second (lower = slower max turn)
+        if (targetAngularVelocityRad > maxAngularVelocityRad) targetAngularVelocityRad = maxAngularVelocityRad;
+        if (targetAngularVelocityRad < -maxAngularVelocityRad) targetAngularVelocityRad = -maxAngularVelocityRad;
         
         // Apply angular velocity
-        body->modVelocity(0.0f, 0.0f, targetAngularVelocity);
+        body->modVelocity(0.0f, 0.0f, Engine::radiansToDegrees(targetAngularVelocityRad));
     } else {
         // When no input, let angular damping naturally slow rotation
         // (Box2D's angularDamping will handle this automatically)
@@ -201,7 +202,8 @@ void PlayerMovementComponent::updateGrab(float deltaTime) {
         // Only update motor joints
         if (b2Joint_IsValid(jointId) && b2Joint_GetType(jointId) == b2_motorJoint) {
             // Get player's current angle
-            auto [playerX, playerY, playerAngle] = body->getPosition();
+            auto [playerX, playerY, playerAngleDeg] = body->getPosition();
+            float playerAngleRad = Engine::degreesToRadians(playerAngleDeg);
             
             // Get object's current position
             BodyComponent* objBody = grabbedObject->getComponent<BodyComponent>();
@@ -214,8 +216,8 @@ void PlayerMovementComponent::updateGrab(float deltaTime) {
                 float holdDistance = std::sqrt(dx * dx + dy * dy);
                 
                 // Calculate direction player is facing
-                float dirX = std::sin(playerAngle);
-                float dirY = -std::cos(playerAngle);
+                float dirX = std::sin(playerAngleRad);
+                float dirY = -std::cos(playerAngleRad);
                 
                 // Set offset to be in front at the current distance
                 b2Vec2 newOffset = {
@@ -295,11 +297,12 @@ Object* PlayerMovementComponent::findGrabbableObject() {
     if (!engine) return nullptr;
     
     // Get player position and facing direction
-    auto [playerX, playerY, playerAngle] = body->getPosition();
+    auto [playerX, playerY, playerAngleDeg] = body->getPosition();
+    float playerAngleRad = Engine::degreesToRadians(playerAngleDeg);
     
     // Calculate direction vector from player's angle
-    float dirX = std::sin(playerAngle);
-    float dirY = -std::cos(playerAngle);
+    float dirX = std::sin(playerAngleRad);
+    float dirY = -std::cos(playerAngleRad);
     
     // Raycast start point (slightly in front of player to avoid self-collision)
     float startOffset = 10.0f;
@@ -365,12 +368,14 @@ void PlayerMovementComponent::grabObject(Object* obj) {
     grabbedObject = obj;
     
     // Get player and object positions
-    auto [playerX, playerY, playerAngle] = body->getPosition();
+    auto [playerX, playerY, playerAngleDeg] = body->getPosition();
+    float playerAngleRad = Engine::degreesToRadians(playerAngleDeg);
     
     BodyComponent* objBody = obj->getComponent<BodyComponent>();
     if (!objBody) return;
     
-    auto [objX, objY, objAngle] = objBody->getPosition();
+    auto [objX, objY, objAngleDeg] = objBody->getPosition();
+    float objAngleRad = Engine::degreesToRadians(objAngleDeg);
     
     // Calculate current offset and distance
     float dx = objX - playerX;
@@ -378,8 +383,8 @@ void PlayerMovementComponent::grabObject(Object* obj) {
     float holdDistance = std::sqrt(dx * dx + dy * dy);
     
     // Calculate direction player is facing
-    float dirX = std::sin(playerAngle);
-    float dirY = -std::cos(playerAngle);
+    float dirX = std::sin(playerAngleRad);
+    float dirY = -std::cos(playerAngleRad);
     
     // Create offset in the facing direction at the current distance
     b2Vec2 grabOffset = {
@@ -388,10 +393,11 @@ void PlayerMovementComponent::grabObject(Object* obj) {
     };
     
     // Calculate relative rotation (preserve object's current rotation relative to player)
-    float angularOffset = objAngle - playerAngle;
+    float angularOffsetRad = objAngleRad - playerAngleRad;
     // Normalize to [-π, π]
-    while (angularOffset > M_PI) angularOffset -= 2.0f * M_PI;
-    while (angularOffset < -M_PI) angularOffset += 2.0f * M_PI;
+    while (angularOffsetRad > M_PI) angularOffsetRad -= 2.0f * M_PI;
+    while (angularOffsetRad < -M_PI) angularOffsetRad += 2.0f * M_PI;
+    float angularOffsetDeg = Engine::radiansToDegrees(angularOffsetRad);
     
     // Reuse existing JointComponent or create a new one
     if (!grabJoint) {
@@ -402,7 +408,7 @@ void PlayerMovementComponent::grabObject(Object* obj) {
     grabJoint->createMotorJoint(
         grabbedObject,
         grabOffset,      // Offset in facing direction
-        angularOffset,   // Preserve current rotation difference
+        angularOffsetDeg,   // Preserve current rotation difference
         grabForce * 3.0f,  // Higher force to overcome player movement
         50.0f           // Max torque
     );
@@ -430,10 +436,11 @@ void PlayerMovementComponent::throwObject(float chargeRatio) {
     Object* objectToThrow = grabbedObject;
     
     // Get player facing direction
-    auto [playerX, playerY, playerAngle] = body->getPosition();
-    // Player angle system: 0 = North, π/2 = East, π = South, -π/2 = West
-    float dirX = std::sin(playerAngle);
-    float dirY = -std::cos(playerAngle);
+    auto [playerX, playerY, playerAngleDeg] = body->getPosition();
+    // Player angle system: 0° = North, 90° = East, 180° = South, -90° = West
+    float playerAngleRad = Engine::degreesToRadians(playerAngleDeg);
+    float dirX = std::sin(playerAngleRad);
+    float dirY = -std::cos(playerAngleRad);
     
     // Calculate throw force based on charge
     float throwForce = throwForceMultiplier * (0.3f + chargeRatio * 0.7f); // Min 30%, max 100%

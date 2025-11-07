@@ -36,7 +36,7 @@ nlohmann::json BodyComponent::toJson() const {
     // Get position from Box2D body (convert back to pixels)
     b2Vec2 pos = b2Body_GetPosition(bodyId);
     b2Rot rot = b2Body_GetRotation(bodyId);
-    float angle = b2Rot_GetAngle(rot);
+    float angle = Engine::radiansToDegrees(b2Rot_GetAngle(rot));
     
     j["posX"] = pos.x * Engine::METERS_TO_PIXELS;
     j["posY"] = pos.y * Engine::METERS_TO_PIXELS;
@@ -54,7 +54,7 @@ nlohmann::json BodyComponent::toJson() const {
     b2Vec2 vel = b2Body_GetLinearVelocity(bodyId);
     j["velX"] = vel.x * Engine::METERS_TO_PIXELS;
     j["velY"] = vel.y * Engine::METERS_TO_PIXELS;
-    j["velAngle"] = b2Body_GetAngularVelocity(bodyId);
+    j["velAngle"] = Engine::radiansToDegrees(b2Body_GetAngularVelocity(bodyId));
     
     return j;
 }
@@ -67,7 +67,7 @@ void BodyComponent::setPosition(float x, float y, float angle) {
     
     // Convert pixels to meters
     b2Vec2 position = {x * Engine::PIXELS_TO_METERS, y * Engine::PIXELS_TO_METERS};
-    b2Rot rotation = b2MakeRot(angle);
+    b2Rot rotation = b2MakeRot(Engine::degreesToRadians(angle));
     b2Body_SetTransform(bodyId, position, rotation);
 }
 
@@ -77,7 +77,7 @@ void BodyComponent::setVelocity(float x, float y, float angle) {
     // Convert pixels/second to meters/second
     b2Vec2 velocity = {x * Engine::PIXELS_TO_METERS, y * Engine::PIXELS_TO_METERS};
     b2Body_SetLinearVelocity(bodyId, velocity);
-    b2Body_SetAngularVelocity(bodyId, angle);
+    b2Body_SetAngularVelocity(bodyId, Engine::degreesToRadians(angle));
 }
 
 void BodyComponent::modVelocity(float x, float y, float angle) {
@@ -89,7 +89,7 @@ void BodyComponent::modVelocity(float x, float y, float angle) {
     
     b2Vec2 newVel = b2Add(currentVel, deltaVel);
     b2Body_SetLinearVelocity(bodyId, newVel);
-    b2Body_SetAngularVelocity(bodyId, b2Body_GetAngularVelocity(bodyId) + angle);
+    b2Body_SetAngularVelocity(bodyId, b2Body_GetAngularVelocity(bodyId) + Engine::degreesToRadians(angle));
 }
 
 std::tuple<float, float, float> BodyComponent::getPosition() {
@@ -98,7 +98,7 @@ std::tuple<float, float, float> BodyComponent::getPosition() {
     // Convert meters to pixels
     b2Vec2 pos = b2Body_GetPosition(bodyId);
     b2Rot rot = b2Body_GetRotation(bodyId);
-    float angle = b2Rot_GetAngle(rot);
+    float angle = Engine::radiansToDegrees(b2Rot_GetAngle(rot));
     
     return std::make_tuple(
         pos.x * Engine::METERS_TO_PIXELS, 
@@ -115,7 +115,7 @@ std::tuple<float, float, float> BodyComponent::getVelocity() {
     return std::make_tuple(
         vel.x * Engine::METERS_TO_PIXELS, 
         vel.y * Engine::METERS_TO_PIXELS, 
-        b2Body_GetAngularVelocity(bodyId)
+        Engine::radiansToDegrees(b2Body_GetAngularVelocity(bodyId))
     );
 }
 
@@ -182,7 +182,7 @@ void BodyComponent::createBodyFromJson(const nlohmann::json& data) {
         b2BodyDef bodyDef = b2DefaultBodyDef();
         bodyDef.type = bodyType;
         bodyDef.position = {posX * Engine::PIXELS_TO_METERS, posY * Engine::PIXELS_TO_METERS};
-        bodyDef.rotation = b2MakeRot(angle);
+        bodyDef.rotation = b2MakeRot(Engine::degreesToRadians(angle));
         bodyDef.fixedRotation = fixedRotation;
         bodyDef.isBullet = bullet;
         bodyDef.linearDamping = linearDamping;
@@ -230,7 +230,7 @@ void BodyComponent::createDefaultBody(float posX, float posY, float angle) {
     b2BodyDef bodyDef = b2DefaultBodyDef();
     bodyDef.type = b2_dynamicBody;
     bodyDef.position = {posX * Engine::PIXELS_TO_METERS, posY * Engine::PIXELS_TO_METERS};
-    bodyDef.rotation = b2MakeRot(angle);
+    bodyDef.rotation = b2MakeRot(Engine::degreesToRadians(angle));
     bodyDef.linearDamping = 0.5f;
     bodyDef.angularDamping = 0.3f;
     

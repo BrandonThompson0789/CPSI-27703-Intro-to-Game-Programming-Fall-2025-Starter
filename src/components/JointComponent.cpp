@@ -33,6 +33,11 @@ JointComponent::~JointComponent() {
     destroyJoint();
 }
 
+void JointComponent::setBreakSeparation(float separation) {
+    maxBreakSeparation = separation * Engine::PIXELS_TO_METERS;
+    enableBreaking = true;
+}
+
 void JointComponent::destroyJoint() {
     if (B2_IS_NON_NULL(jointId)) {
         b2DestroyJoint(jointId);
@@ -77,7 +82,7 @@ nlohmann::json JointComponent::toJson() const {
             j["maxBreakTorque"] = maxBreakTorque;
         }
         if (maxBreakSeparation != INFINITY) {
-            j["maxBreakSeparation"] = maxBreakSeparation;
+            j["maxBreakSeparation"] = maxBreakSeparation * Engine::METERS_TO_PIXELS;
         }
     }
     
@@ -93,20 +98,20 @@ nlohmann::json JointComponent::toJson() const {
             break;
         }
         case b2_revoluteJoint: {
-            j["referenceAngle"] = b2Joint_GetReferenceAngle(jointId);
+            j["referenceAngle"] = Engine::radiansToDegrees(b2Joint_GetReferenceAngle(jointId));
             j["enableLimit"] = b2RevoluteJoint_IsLimitEnabled(jointId);
             if (b2RevoluteJoint_IsLimitEnabled(jointId)) {
-                j["lowerAngle"] = b2RevoluteJoint_GetLowerLimit(jointId);
-                j["upperAngle"] = b2RevoluteJoint_GetUpperLimit(jointId);
+                j["lowerAngle"] = Engine::radiansToDegrees(b2RevoluteJoint_GetLowerLimit(jointId));
+                j["upperAngle"] = Engine::radiansToDegrees(b2RevoluteJoint_GetUpperLimit(jointId));
             }
             j["enableMotor"] = b2RevoluteJoint_IsMotorEnabled(jointId);
             if (b2RevoluteJoint_IsMotorEnabled(jointId)) {
-                j["motorSpeed"] = b2RevoluteJoint_GetMotorSpeed(jointId);
+                j["motorSpeed"] = Engine::radiansToDegrees(b2RevoluteJoint_GetMotorSpeed(jointId));
                 j["maxMotorTorque"] = b2RevoluteJoint_GetMaxMotorTorque(jointId);
             }
             j["enableSpring"] = b2RevoluteJoint_IsSpringEnabled(jointId);
             if (b2RevoluteJoint_IsSpringEnabled(jointId)) {
-                j["targetAngle"] = b2RevoluteJoint_GetTargetAngle(jointId);
+                j["targetAngle"] = Engine::radiansToDegrees(b2RevoluteJoint_GetTargetAngle(jointId));
                 j["hertz"] = b2RevoluteJoint_GetSpringHertz(jointId);
                 j["dampingRatio"] = b2RevoluteJoint_GetSpringDampingRatio(jointId);
             }
@@ -129,7 +134,7 @@ nlohmann::json JointComponent::toJson() const {
             break;
         }
         case b2_weldJoint: {
-            j["referenceAngle"] = b2Joint_GetReferenceAngle(jointId);
+            j["referenceAngle"] = Engine::radiansToDegrees(b2Joint_GetReferenceAngle(jointId));
             float hertz, dampingRatio;
             b2Joint_GetConstraintTuning(jointId, &hertz, &dampingRatio);
             j["hertz"] = hertz;
@@ -146,7 +151,7 @@ nlohmann::json JointComponent::toJson() const {
             }
             j["enableMotor"] = b2WheelJoint_IsMotorEnabled(jointId);
             if (b2WheelJoint_IsMotorEnabled(jointId)) {
-                j["motorSpeed"] = b2WheelJoint_GetMotorSpeed(jointId);
+                j["motorSpeed"] = Engine::radiansToDegrees(b2WheelJoint_GetMotorSpeed(jointId));
                 j["maxMotorTorque"] = b2WheelJoint_GetMaxMotorTorque(jointId);
             }
             break;
@@ -154,7 +159,7 @@ nlohmann::json JointComponent::toJson() const {
         case b2_motorJoint: {
             b2Vec2 offset = b2MotorJoint_GetLinearOffset(jointId);
             j["linearOffset"] = {metersToPixels(offset).x, metersToPixels(offset).y};
-            j["angularOffset"] = b2MotorJoint_GetAngularOffset(jointId);
+            j["angularOffset"] = Engine::radiansToDegrees(b2MotorJoint_GetAngularOffset(jointId));
             j["maxForce"] = b2MotorJoint_GetMaxForce(jointId);
             j["maxTorque"] = b2MotorJoint_GetMaxTorque(jointId);
             break;
@@ -283,6 +288,9 @@ void JointComponent::createJointFromJson(const nlohmann::json& data) {
         maxBreakForce = data.value("maxBreakForce", INFINITY);
         maxBreakTorque = data.value("maxBreakTorque", INFINITY);
         maxBreakSeparation = data.value("maxBreakSeparation", INFINITY);
+        if (maxBreakSeparation != INFINITY) {
+            maxBreakSeparation *= Engine::PIXELS_TO_METERS;
+        }
     }
     
     // Create joint based on type
@@ -440,19 +448,19 @@ void JointComponent::createRevoluteJoint(Object* bodyB, const b2Vec2& anchorA, c
     
     if (enableLimits) {
         def.enableLimit = true;
-        def.lowerAngle = lowerAngle;
-        def.upperAngle = upperAngle;
+        def.lowerAngle = Engine::degreesToRadians(lowerAngle);
+        def.upperAngle = Engine::degreesToRadians(upperAngle);
     }
     
     if (enableMotor) {
         def.enableMotor = true;
-        def.motorSpeed = motorSpeed;
+        def.motorSpeed = Engine::degreesToRadians(motorSpeed);
         def.maxMotorTorque = maxMotorTorque;
     }
     
     if (enableSpring) {
         def.enableSpring = true;
-        def.targetAngle = targetAngle;
+        def.targetAngle = Engine::degreesToRadians(targetAngle);
         def.hertz = hertz;
         def.dampingRatio = dampingRatio;
     }
@@ -572,7 +580,7 @@ void JointComponent::createWheelJoint(Object* bodyB, const b2Vec2& anchorA, cons
     
     if (enableMotor) {
         def.enableMotor = true;
-        def.motorSpeed = motorSpeed;
+        def.motorSpeed = Engine::degreesToRadians(motorSpeed);
         def.maxMotorTorque = maxMotorTorque;
     }
     
@@ -605,7 +613,7 @@ void JointComponent::createMotorJoint(Object* bodyB, const b2Vec2& linearOffset,
     def.bodyIdA = bodyCompA->getBodyId();
     def.bodyIdB = bodyCompB->getBodyId();
     def.linearOffset = linearOffset;
-    def.angularOffset = angularOffset;
+    def.angularOffset = Engine::degreesToRadians(angularOffset);
     def.maxForce = maxForce;
     def.maxTorque = maxTorque;
     
@@ -686,12 +694,12 @@ float JointComponent::getConstraintTorque() const {
 
 float JointComponent::getLinearSeparation() const {
     if (B2_IS_NULL(jointId)) return 0.0f;
-    return b2Joint_GetLinearSeparation(jointId);
+    return b2Joint_GetLinearSeparation(jointId) * Engine::METERS_TO_PIXELS;
 }
 
 float JointComponent::getAngularSeparation() const {
     if (B2_IS_NULL(jointId)) return 0.0f;
-    return b2Joint_GetAngularSeparation(jointId);
+    return Engine::radiansToDegrees(b2Joint_GetAngularSeparation(jointId));
 }
 
 // Helper methods

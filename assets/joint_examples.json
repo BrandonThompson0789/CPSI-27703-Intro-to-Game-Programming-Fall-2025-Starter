@@ -55,10 +55,10 @@
           "anchorA": [-32, 0],
           "anchorB": [0, 0],
           "enableLimit": true,
-          "lowerAngle": -1.57,
-          "upperAngle": 1.57,
+          "lowerAngle": -90.0,
+          "upperAngle": 90.0,
           "enableMotor": true,
-          "motorSpeed": 2.0,
+          "motorSpeed": 114.6,
           "maxMotorTorque": 100.0,
           "enableBreaking": true,
           "maxBreakTorque": 500.0,
@@ -155,7 +155,7 @@
           "hertz": 4.0,
           "dampingRatio": 0.7,
           "enableMotor": true,
-          "motorSpeed": 5.0,
+          "motorSpeed": 286.5,
           "maxMotorTorque": 200.0,
           "comment": "Wheel with suspension spring and motor for driving"
         }
@@ -182,7 +182,7 @@
           "jointType": "motor",
           "connectedBody": "MotorTarget",
           "linearOffset": [50, 0],
-          "angularOffset": 0.785,
+          "angularOffset": 45.0,
           "maxForce": 100.0,
           "maxTorque": 50.0,
           "comment": "Motor joint maintains relative position and angle offset"
@@ -267,8 +267,8 @@
           "enableBreaking": true,
           "maxBreakForce": 500.0,
           "maxBreakTorque": 200.0,
-          "maxBreakSeparation": 0.5,
-          "comment": "Breaks if force > 500N, torque > 200Nm, or separation > 0.5m"
+          "maxBreakSeparation": 50.0,
+          "comment": "Breaks if force > 500N, torque > 200Nm, or separation > 50px"
         }
       ]
     },

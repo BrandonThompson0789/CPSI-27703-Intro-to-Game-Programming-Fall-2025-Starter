@@ -50,12 +50,12 @@ public:
     // Get texture by name
     SDL_Texture* getTexture(const std::string& textureName);
     
-    // Render a sprite frame
+    // Render a sprite frame (angle in degrees, centered on position)
     void renderSprite(const std::string& spriteName, int frame, int x, int y, 
                      float angle = 0.0f, SDL_RendererFlip flip = SDL_FLIP_NONE, 
                      uint8_t alpha = 255);
     
-    // Render a sprite frame with custom width and height
+    // Render a sprite frame with custom width and height (angle in degrees)
     void renderSprite(const std::string& spriteName, int frame, int x, int y, 
                      int width, int height, float angle = 0.0f, 
                      SDL_RendererFlip flip = SDL_FLIP_NONE, uint8_t alpha = 255);

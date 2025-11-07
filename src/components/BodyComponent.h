@@ -21,10 +21,12 @@ public:
     std::string getTypeName() const override { return "BodyComponent"; }
     
     // Interface methods (maintain compatibility)
-    void setPosition(float x, float y, float angle);
-    void setVelocity(float x, float y, float angle);
-    void modVelocity(float x, float y, float angle);
+    void setPosition(float x, float y, float angleDegrees);
+    void setVelocity(float x, float y, float angularVelocityDegreesPerSecond);
+    void modVelocity(float x, float y, float angularVelocityDegreesPerSecond);
+    // Returns (x, y, angleDegrees)
     std::tuple<float,float,float> getPosition();
+    // Returns (velX, velY, angularVelocityDegreesPerSecond)
     std::tuple<float,float,float> getVelocity();
     
     // Get fixture dimensions in pixels (width, height)

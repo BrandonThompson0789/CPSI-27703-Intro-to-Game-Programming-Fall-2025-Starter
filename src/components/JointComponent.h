@@ -70,7 +70,7 @@ public:
     // Breaking limits
     void setBreakForce(float force) { maxBreakForce = force; enableBreaking = true; }
     void setBreakTorque(float torque) { maxBreakTorque = torque; enableBreaking = true; }
-    void setBreakSeparation(float separation) { maxBreakSeparation = separation; enableBreaking = true; }
+    void setBreakSeparation(float separation);
     
     // Query methods
     bool isJointBroken() const { return jointBroken; }

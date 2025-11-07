@@ -136,10 +136,8 @@ void SpriteManager::renderSprite(const std::string& spriteName, int frame, int x
     // Set texture alpha
     SDL_SetTextureAlphaMod(texture, alpha);
 
-    // Render with rotation and flip
-    // Convert angle from radians to degrees for SDL
-    double angleDegrees = angle * 180.0 / M_PI;
-    SDL_RenderCopyEx(renderer, texture, &srcRect, &dstRect, angleDegrees, nullptr, flip);
+    // Render with rotation and flip (angle provided in degrees)
+    SDL_RenderCopyEx(renderer, texture, &srcRect, &dstRect, angle, nullptr, flip);
 }
 
 void SpriteManager::renderSprite(const std::string& spriteName, int frame, int x, int y, 
@@ -171,10 +169,8 @@ void SpriteManager::renderSprite(const std::string& spriteName, int frame, int x
     // Set texture alpha
     SDL_SetTextureAlphaMod(texture, alpha);
 
-    // Render with rotation and flip
-    // Convert angle from radians to degrees for SDL
-    double angleDegrees = angle * 180.0 / M_PI;
-    SDL_RenderCopyEx(renderer, texture, &srcRect, &dstRect, angleDegrees, nullptr, flip);
+    // Render with rotation and flip (angle provided in degrees)
+    SDL_RenderCopyEx(renderer, texture, &srcRect, &dstRect, angle, nullptr, flip);
 }
 
 void SpriteManager::renderSpriteTiled(const std::string& spriteName, int frame, int x, int y,

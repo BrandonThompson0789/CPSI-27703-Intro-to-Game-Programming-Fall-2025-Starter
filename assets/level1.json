@@ -30,7 +30,7 @@
                 {
                     "type": "PlayerMovementComponent",
                     "moveSpeed": 120.0,
-                    "rotationSpeed": 3.0
+                    "rotationSpeed": 180.0
                 }
             ]
         },
@@ -63,7 +63,7 @@
                 {
                     "type": "PlayerMovementComponent",
                     "moveSpeed": 120.0,
-                    "rotationSpeed": 3.0
+                    "rotationSpeed": 180.0
                 }
             ]
         },
@@ -343,8 +343,8 @@
                     "anchorA": [0, -32],
                     "anchorB": [0, 16],
                     "enableLimit": true,
-                    "lowerAngle": -1.57,
-                    "upperAngle": 1.57,
+                    "lowerAngle": -90.0,
+                    "upperAngle": 90.0,
                     "enableSpring": true,
                     "targetAngle": 0.0,
                     "hertz": 2.0,
