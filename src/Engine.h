@@ -10,6 +10,7 @@
 #include <string>
 #include <nlohmann/json.hpp>
 #include "Object.h"
+#include "Box2DDebugDraw.h"
 
 class Engine {
     public:
@@ -20,6 +21,8 @@ class Engine {
         void cleanup();
         void loadFile(const std::string& filename);
         std::vector<std::unique_ptr<Object>>& getObjects() { return objects; }
+        void queueObject(std::unique_ptr<Object> object);
+        std::vector<std::unique_ptr<Object>>& getQueuedObjects() { return pendingObjects; }
         
         // Physics world access
         b2WorldId getPhysicsWorld() { return physicsWorldId; }
@@ -46,9 +49,11 @@ class Engine {
         SDL_Renderer* renderer;
         bool running;
         std::vector<std::unique_ptr<Object>> objects;
+        std::vector<std::unique_ptr<Object>> pendingObjects;
         
         // Box2D physics world (v3.x uses handles/IDs instead of pointers)
         b2WorldId physicsWorldId;
+        Box2DDebugDraw debugDraw;
 };
 
 #endif // ENGINE_H

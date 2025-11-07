@@ -54,12 +54,17 @@ class Object {
         // Static method to set/get Engine instance
         static void setEngine(Engine* engine);
         static Engine* getEngine();
+
+        // Lifecycle management
+        void markForDeath();
+        bool isMarkedForDeath() const;
         
     private:
         std::string name;
         std::vector<std::unique_ptr<Component>> components;
         std::unordered_map<std::type_index, Component*> componentMap;
         static Engine* engineInstance;
+        bool markedForDeath = false;
 };
 
 #endif // OBJECT_H

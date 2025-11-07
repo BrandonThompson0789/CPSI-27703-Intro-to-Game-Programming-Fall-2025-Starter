@@ -23,6 +23,8 @@ add_executable(demo
     src/Object.cpp
     src/Engine.h
     src/Engine.cpp
+    src/Box2DDebugDraw.h
+    src/Box2DDebugDraw.cpp
     src/SpriteManager.h
     src/SpriteManager.cpp
     src/InputManager.h

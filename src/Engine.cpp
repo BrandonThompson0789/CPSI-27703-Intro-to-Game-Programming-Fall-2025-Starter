@@ -5,6 +5,7 @@
 #include <fstream>
 #include <iostream>
 #include <cstdio>
+#include <algorithm>
 
 int Engine::screenWidth = 800;
 int Engine::screenHeight = 600;
@@ -34,6 +35,8 @@ void Engine::init() {
         return;
     }
     
+    debugDraw.init(renderer, METERS_TO_PIXELS);
+
     // Initialize Box2D physics world (v3.x API)
     // Gravity: (0, 0) for top-down game, use (0, 9.8) for side-scrollers
     b2WorldDef worldDef = b2DefaultWorldDef();
@@ -83,6 +86,13 @@ void Engine::processEvents() {
             case SDL_QUIT:
                 running = false;
                 break;
+
+            case SDL_KEYDOWN:
+                if (event.key.repeat == 0 && event.key.keysym.scancode == SDL_SCANCODE_F1) {
+                    debugDraw.toggle();
+                    std::cout << "Box2D debug draw " << (debugDraw.isEnabled() ? "enabled" : "disabled") << std::endl;
+                }
+                break;
                 
             case SDL_CONTROLLERDEVICEADDED:
                 // Handle hot-plug: controller connected
@@ -118,7 +128,27 @@ void Engine::update(float deltaTime) {
     
     // Update all game objects
     for (auto& object : objects) {
-        object->update(deltaTime);
+        if (!object->isMarkedForDeath()) {
+            object->update(deltaTime);
+        }
+    }
+
+    // Remove objects that have been marked for death
+    objects.erase(
+        std::remove_if(
+            objects.begin(),
+            objects.end(),
+            [](const std::unique_ptr<Object>& object) {
+                return object->isMarkedForDeath();
+            }),
+        objects.end());
+
+    // Add any queued objects after removals
+    if (!pendingObjects.empty()) {
+        for (auto& pending : pendingObjects) {
+            objects.push_back(std::move(pending));
+        }
+        pendingObjects.clear();
     }
 }
 
@@ -128,7 +158,13 @@ float Engine::getDeltaTime() {
 
 void Engine::render() {
     for (auto& object : objects) {
-        object->render(renderer);
+        if (!object->isMarkedForDeath()) {
+            object->render(renderer);
+        }
+    }
+
+    if (debugDraw.isEnabled() && B2_IS_NON_NULL(physicsWorldId)) {
+        b2World_Draw(physicsWorldId, debugDraw.getInterface());
     }
 }
 
@@ -178,6 +214,7 @@ void Engine::loadFile(const std::string& filename) {
 
     // Clear existing objects
     objects.clear();
+    pendingObjects.clear();
 
     // Set Engine instance so objects can access it
     Object::setEngine(this);
@@ -195,4 +232,10 @@ void Engine::loadFile(const std::string& filename) {
     }
 
     std::cout << "Loaded " << objects.size() << " objects from " << filename << std::endl;
+}
+
+void Engine::queueObject(std::unique_ptr<Object> object) {
+    if (object) {
+        pendingObjects.push_back(std::move(object));
+    }
 }

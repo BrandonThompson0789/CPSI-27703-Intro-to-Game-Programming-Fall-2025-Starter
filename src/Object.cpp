@@ -18,6 +18,10 @@ Engine* Object::getEngine() {
 }
 
 void Object::update(float deltaTime) {
+    if (markedForDeath) {
+        return;
+    }
+
     // Update all components
     for (auto& component : components) {
         component->update(deltaTime);
@@ -25,6 +29,10 @@ void Object::update(float deltaTime) {
 }
 
 void Object::render(SDL_Renderer* renderer) {
+    if (markedForDeath) {
+        return;
+    }
+
     // Draw all components
     for (auto& component : components) {
         component->draw();
@@ -91,4 +99,12 @@ void Object::fromJson(const nlohmann::json& data) {
             std::cerr << "Warning: Failed to create component '" << typeName << "': " << e.what() << std::endl;
         }
     }
+}
+
+void Object::markForDeath() {
+    markedForDeath = true;
+}
+
+bool Object::isMarkedForDeath() const {
+    return markedForDeath;
 }
