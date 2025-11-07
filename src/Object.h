@@ -43,6 +43,15 @@ class Object {
         }
         
         template<typename T>
+        const T* getComponent() const {
+            auto it = componentMap.find(std::type_index(typeid(T)));
+            if (it != componentMap.end()) {
+                return static_cast<T*>(it->second);
+            }
+            return nullptr;
+        }
+
+        template<typename T>
         bool hasComponent() const {
             return componentMap.find(std::type_index(typeid(T))) != componentMap.end();
         }

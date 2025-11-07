@@ -12,6 +12,8 @@
 #include "Object.h"
 #include "Box2DDebugDraw.h"
 
+class CollisionManager;
+
 class Engine {
     public:
         Engine();
@@ -23,6 +25,7 @@ class Engine {
         std::vector<std::unique_ptr<Object>>& getObjects() { return objects; }
         void queueObject(std::unique_ptr<Object> object);
         std::vector<std::unique_ptr<Object>>& getQueuedObjects() { return pendingObjects; }
+        CollisionManager* getCollisionManager() { return collisionManager.get(); }
         
         // Physics world access
         b2WorldId getPhysicsWorld() { return physicsWorldId; }
@@ -50,6 +53,7 @@ class Engine {
         bool running;
         std::vector<std::unique_ptr<Object>> objects;
         std::vector<std::unique_ptr<Object>> pendingObjects;
+        std::unique_ptr<CollisionManager> collisionManager;
         
         // Box2D physics world (v3.x uses handles/IDs instead of pointers)
         b2WorldId physicsWorldId;

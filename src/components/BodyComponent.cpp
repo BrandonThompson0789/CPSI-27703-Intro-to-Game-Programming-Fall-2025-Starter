@@ -2,6 +2,7 @@
 #include "ComponentLibrary.h"
 #include "../Engine.h"
 #include "../Object.h"
+#include "../PhysicsMaterial.h"
 #include <iostream>
 
 BodyComponent::BodyComponent(Object& parent) : Component(parent), bodyId(b2_nullBodyId) {
@@ -191,9 +192,11 @@ void BodyComponent::createBodyFromJson(const nlohmann::json& data) {
         
         // Create body in the physics world
         bodyId = b2CreateBody(worldId, &bodyDef);
-        
-        // Store pointer to parent object in user data
+
+        // Store pointer to parent object in user data and enable contact events
         b2Body_SetUserData(bodyId, &parent());
+        b2Body_EnableContactEvents(bodyId, true);
+        b2Body_EnableHitEvents(bodyId, true);
         
         // Create fixture if specified
         if (data.contains("fixture")) {
@@ -201,13 +204,16 @@ void BodyComponent::createBodyFromJson(const nlohmann::json& data) {
         } else {
             // Create default fixture (32x32 box)
             b2Polygon boxShape = b2MakeBox(16.0f * Engine::PIXELS_TO_METERS, 16.0f * Engine::PIXELS_TO_METERS);
-            
+
+            int materialId = PhysicsMaterialLibrary::getMaterialId("default");
             b2ShapeDef shapeDef = b2DefaultShapeDef();
             shapeDef.density = 1.0f;
-            // Note: Box2D v3.x uses different friction/restitution API
-            // These are set per-shape after creation if needed
-            
-            b2CreatePolygonShape(bodyId, &shapeDef, &boxShape);
+            shapeDef.material.friction = 0.3f;
+            shapeDef.material.restitution = 0.0f;
+            configureShapeDef(shapeDef, materialId);
+
+            b2ShapeId shapeId = b2CreatePolygonShape(bodyId, &shapeDef, &boxShape);
+            applyShapeConfiguration(shapeId, materialId);
         }
     }
 }
@@ -236,16 +242,21 @@ void BodyComponent::createDefaultBody(float posX, float posY, float angle) {
     
     bodyId = b2CreateBody(worldId, &bodyDef);
     b2Body_SetUserData(bodyId, &parent());
+    b2Body_EnableContactEvents(bodyId, true);
+    b2Body_EnableHitEvents(bodyId, true);
     
     // Create default 32x32 box fixture
     b2Polygon boxShape = b2MakeBox(16.0f * Engine::PIXELS_TO_METERS, 16.0f * Engine::PIXELS_TO_METERS);
-    
+
+    int materialId = PhysicsMaterialLibrary::getMaterialId("default");
     b2ShapeDef shapeDef = b2DefaultShapeDef();
     shapeDef.density = 1.0f;
-    // Note: Box2D v3.x uses different friction/restitution API
-    // These are set per-shape after creation if needed
-    
-    b2CreatePolygonShape(bodyId, &shapeDef, &boxShape);
+    shapeDef.material.friction = 0.3f;
+    shapeDef.material.restitution = 0.0f;
+    configureShapeDef(shapeDef, materialId);
+
+    b2ShapeId shapeId = b2CreatePolygonShape(bodyId, &shapeDef, &boxShape);
+    applyShapeConfiguration(shapeId, materialId);
 }
 
 // Helper method to create fixture from JSON
@@ -257,12 +268,15 @@ void BodyComponent::createFixtureFromJson(const nlohmann::json& fixtureData) {
     float friction = fixtureData.value("friction", 0.3f);
     float restitution = fixtureData.value("restitution", 0.0f);
     bool isSensor = fixtureData.value("isSensor", false);
+    std::string materialName = fixtureData.value("material", "default");
+    int materialId = PhysicsMaterialLibrary::getMaterialId(materialName);
     
     b2ShapeDef shapeDef = b2DefaultShapeDef();
     shapeDef.density = density;
-    // Note: In Box2D v3.x, friction and restitution are set differently
-    // For now, we'll just use density and isSensor
     shapeDef.isSensor = isSensor;
+    shapeDef.material.friction = friction;
+    shapeDef.material.restitution = restitution;
+    configureShapeDef(shapeDef, materialId);
     
     // Create shape based on type (v3.x API)
     if (shapeType == "box") {
@@ -274,7 +288,8 @@ void BodyComponent::createFixtureFromJson(const nlohmann::json& fixtureData) {
             (height / 2.0f) * Engine::PIXELS_TO_METERS
         );
         
-        b2CreatePolygonShape(bodyId, &shapeDef, &boxShape);
+        b2ShapeId shapeId = b2CreatePolygonShape(bodyId, &shapeDef, &boxShape);
+        applyShapeConfiguration(shapeId, materialId);
     } 
     else if (shapeType == "circle") {
         float radius = fixtureData.value("radius", 16.0f);
@@ -283,13 +298,15 @@ void BodyComponent::createFixtureFromJson(const nlohmann::json& fixtureData) {
         circleShape.center = {0.0f, 0.0f};
         circleShape.radius = radius * Engine::PIXELS_TO_METERS;
         
-        b2CreateCircleShape(bodyId, &shapeDef, &circleShape);
+        b2ShapeId shapeId = b2CreateCircleShape(bodyId, &shapeDef, &circleShape);
+        applyShapeConfiguration(shapeId, materialId);
     }
     else {
         std::cerr << "Warning: Unknown shape type '" << shapeType << "', using default box" << std::endl;
         
         b2Polygon boxShape = b2MakeBox(16.0f * Engine::PIXELS_TO_METERS, 16.0f * Engine::PIXELS_TO_METERS);
-        b2CreatePolygonShape(bodyId, &shapeDef, &boxShape);
+        b2ShapeId shapeId = b2CreatePolygonShape(bodyId, &shapeDef, &boxShape);
+        applyShapeConfiguration(shapeId, materialId);
     }
 }
 
@@ -307,6 +324,35 @@ std::string BodyComponent::bodyTypeToString(b2BodyType type) const {
         case b2_kinematicBody: return "kinematic";
         case b2_dynamicBody: return "dynamic";
         default: return "dynamic";
+    }
+}
+
+void BodyComponent::configureShapeDef(b2ShapeDef& shapeDef, int materialId) const {
+    shapeDef.userData = &parent();
+    shapeDef.enableContactEvents = true;
+    shapeDef.enableHitEvents = true;
+    shapeDef.material.userMaterialId = materialId;
+    if (shapeDef.isSensor) {
+        shapeDef.enableSensorEvents = true;
+    }
+}
+
+void BodyComponent::applyShapeConfiguration(b2ShapeId shapeId, int materialId) {
+    if (B2_IS_NULL(shapeId)) {
+        return;
+    }
+
+    b2Shape_SetUserData(shapeId, &parent());
+    b2Shape_SetMaterial(shapeId, materialId);
+    b2Shape_EnableContactEvents(shapeId, true);
+    b2Shape_EnableHitEvents(shapeId, true);
+
+    const int defaultMaterialId = PhysicsMaterialLibrary::getMaterialId("default");
+    if (materialId != defaultMaterialId) {
+        dominantMaterialId = materialId;
+        hasExplicitMaterial = true;
+    } else if (!hasExplicitMaterial) {
+        dominantMaterialId = materialId;
     }
 }
 

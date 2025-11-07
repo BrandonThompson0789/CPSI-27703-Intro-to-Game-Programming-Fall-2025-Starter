@@ -32,17 +32,25 @@ add_executable(demo
     src/InputConfig.h
     src/InputConfig.cpp
     src/ObjectSerializer.h
+    src/CollisionManager.h
+    src/CollisionManager.cpp
+    src/PhysicsMaterial.h
+    src/PhysicsMaterial.cpp
     src/components/Component.h
     src/components/ComponentLibrary.h
     src/components/ComponentLibrary.cpp
     src/components/BodyComponent.h
     src/components/BodyComponent.cpp
+    src/components/HealthComponent.h
+    src/components/HealthComponent.cpp
     src/components/SpriteComponent.h
     src/components/SpriteComponent.cpp
     src/components/InputComponent.h
     src/components/InputComponent.cpp
     src/components/PlayerMovementComponent.h
     src/components/PlayerMovementComponent.cpp
+    src/components/CollisionDamageComponent.h
+    src/components/CollisionDamageComponent.cpp
     src/components/BoxBehaviorComponent.h
     src/components/BoxBehaviorComponent.cpp
     src/components/JointComponent.h

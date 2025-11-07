@@ -1,6 +1,7 @@
 #include "Engine.h"
 #include "SpriteManager.h"
 #include "InputManager.h"
+#include "CollisionManager.h"
 #include "components/Component.h"
 #include <fstream>
 #include <iostream>
@@ -42,6 +43,9 @@ void Engine::init() {
     b2WorldDef worldDef = b2DefaultWorldDef();
     worldDef.gravity = {0.0f, 0.0f};
     physicsWorldId = b2CreateWorld(&worldDef);
+    if (collisionManager) {
+        collisionManager->setWorld(physicsWorldId);
+    }
     
     // Initialize sprite manager
     SpriteManager::getInstance().init(renderer, "assets/spriteData.json");
@@ -124,6 +128,10 @@ void Engine::update(float deltaTime) {
     // subStepCount controls accuracy (4 is default, higher = more accurate but slower)
     if (B2_IS_NON_NULL(physicsWorldId)) {
         b2World_Step(physicsWorldId, deltaTime, 4);
+        if (collisionManager) {
+            collisionManager->gatherCollisions();
+            collisionManager->processCollisions(deltaTime);
+        }
     }
     
     // Update all game objects
@@ -176,6 +184,10 @@ void Engine::cleanup() {
     if (B2_IS_NON_NULL(physicsWorldId)) {
         b2DestroyWorld(physicsWorldId);
         physicsWorldId = b2_nullWorldId;
+        if (collisionManager) {
+            collisionManager->setWorld(b2_nullWorldId);
+            collisionManager->clearImpacts();
+        }
     }
     
     InputManager::getInstance().cleanup();
@@ -188,6 +200,7 @@ void Engine::cleanup() {
 Engine::Engine() {
     running = true;
     physicsWorldId = b2_nullWorldId;
+    collisionManager = std::make_unique<CollisionManager>(*this);
 }
 
 Engine::~Engine() {
@@ -215,6 +228,9 @@ void Engine::loadFile(const std::string& filename) {
     // Clear existing objects
     objects.clear();
     pendingObjects.clear();
+    if (collisionManager) {
+        collisionManager->clearImpacts();
+    }
 
     // Set Engine instance so objects can access it
     Object::setEngine(this);

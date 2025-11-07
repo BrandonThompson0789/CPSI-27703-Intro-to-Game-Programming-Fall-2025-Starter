@@ -31,17 +31,23 @@ public:
     
     // Get fixture dimensions in pixels (width, height)
     std::tuple<float, float> getFixtureSize() const;
+
+    int getMaterialId() const { return dominantMaterialId; }
     
     // Box2D access (v3.x uses handles/IDs)
-    b2BodyId getBodyId() { return bodyId; }
+    b2BodyId getBodyId() const { return bodyId; }
 
 private:
     b2BodyId bodyId;
+    int dominantMaterialId = 0;
+    bool hasExplicitMaterial = false;
     
     // Helper methods
     void createBodyFromJson(const nlohmann::json& data);
     void createDefaultBody(float posX = 0.0f, float posY = 0.0f, float angle = 0.0f);
     void createFixtureFromJson(const nlohmann::json& fixtureData);
+    void configureShapeDef(b2ShapeDef& shapeDef, int materialId) const;
+    void applyShapeConfiguration(b2ShapeId shapeId, int materialId);
     b2BodyType parseBodyType(const std::string& typeStr);
     std::string bodyTypeToString(b2BodyType type) const;
 };

@@ -39,10 +39,39 @@ void JointComponent::setBreakSeparation(float separation) {
 }
 
 void JointComponent::destroyJoint() {
-    if (B2_IS_NON_NULL(jointId)) {
-        b2DestroyJoint(jointId);
-        jointId = b2_nullJointId;
+    if (B2_IS_NULL(jointId)) {
+        connectedBody = nullptr;
+        jointBroken = false;
+        return;
     }
+
+    bool canDestroy = true;
+
+    if (auto* bodyCompA = parent().getComponent<BodyComponent>()) {
+        if (B2_IS_NULL(bodyCompA->getBodyId())) {
+            canDestroy = false;
+        }
+    } else {
+        canDestroy = false;
+    }
+
+    if (connectedBody) {
+        if (auto* bodyCompB = connectedBody->getComponent<BodyComponent>()) {
+            if (B2_IS_NULL(bodyCompB->getBodyId())) {
+                canDestroy = false;
+            }
+        } else {
+            canDestroy = false;
+        }
+    } else {
+        canDestroy = false;
+    }
+
+    if (canDestroy) {
+        b2DestroyJoint(jointId);
+    }
+
+    jointId = b2_nullJointId;
     // Reset broken flag so joint can be recreated
     jointBroken = false;
     connectedBody = nullptr;

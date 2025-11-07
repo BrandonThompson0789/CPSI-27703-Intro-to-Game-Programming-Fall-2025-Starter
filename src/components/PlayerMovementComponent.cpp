@@ -187,6 +187,23 @@ void PlayerMovementComponent::updateGrab(float deltaTime) {
     
     bool interactPressed = input->isPressed(GameAction::ACTION_INTERACT);
     
+    // Automatically release if the grabbed object is going away
+    if (grabbedObject) {
+        bool shouldRelease = grabbedObject->isMarkedForDeath();
+
+        if (!shouldRelease) {
+            if (auto* objBody = grabbedObject->getComponent<BodyComponent>()) {
+                shouldRelease = B2_IS_NULL(objBody->getBodyId());
+            } else {
+                shouldRelease = true;
+            }
+        }
+
+        if (shouldRelease) {
+            releaseObject();
+        }
+    }
+
     // Check if grab joint broke
     if (grabbedObject && grabJoint) {
         if (grabJoint->isJointBroken()) {
