@@ -15,6 +15,7 @@
 int Engine::screenWidth = 800;
 int Engine::screenHeight = 600;
 int Engine::targetFPS = 60;
+float Engine::deltaTime = 1.0f / Engine::targetFPS;
 
 void Engine::init() {
     // Initialize SDL
@@ -73,11 +74,17 @@ void Engine::init() {
 void Engine::run() {
     printf("Engine running\n");
 
-    float deltaTime = getDeltaTime();
     Uint32 frameTime = 1000 / targetFPS;
+    Uint32 previousTicks = SDL_GetTicks();
 
     while (running) {
-        Uint32 lastTime = SDL_GetTicks();
+        Uint32 frameStartTicks = SDL_GetTicks();
+        Uint32 elapsedSinceLastFrame = frameStartTicks - previousTicks;
+        previousTicks = frameStartTicks;
+        float frameDeltaSeconds = elapsedSinceLastFrame > 0
+                                      ? static_cast<float>(elapsedSinceLastFrame) / 1000.0f
+                                      : 1.0f / static_cast<float>(targetFPS);
+        deltaTime = frameDeltaSeconds;
         
         processEvents();
         update(deltaTime);
@@ -90,9 +97,10 @@ void Engine::run() {
         
         SDL_RenderPresent(renderer);
 
-        Uint32 currentTime = SDL_GetTicks();
-        if (currentTime - lastTime < frameTime) {
-            SDL_Delay(frameTime - (currentTime - lastTime));
+        Uint32 frameEndTicks = SDL_GetTicks();
+        Uint32 frameDuration = frameEndTicks - frameStartTicks;
+        if (frameDuration < frameTime) {
+            SDL_Delay(frameTime - frameDuration);
         }
     }
 }
@@ -187,7 +195,7 @@ void Engine::update(float deltaTime) {
 }
 
 float Engine::getDeltaTime() {
-    return 1.0f / targetFPS;
+    return deltaTime;
 }
 
 void Engine::render() {

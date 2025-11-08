@@ -33,6 +33,7 @@ class Engine {
         static int screenWidth;
         static int screenHeight;
         static int targetFPS;
+        static float deltaTime;
         
         // Conversion constants
         static constexpr float PIXELS_TO_METERS = 0.01f;
