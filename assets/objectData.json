@@ -1,6 +1,7 @@
 {
     "templates": {
         "player_default": {
+            "name": "player",
             "components": [
                 {
                     "type": "SpriteComponent",
@@ -39,6 +40,7 @@
             ]
         },
         "crate_basic": {
+            "name": "crate",
             "components": [
                 {
                     "type": "BodyComponent",
@@ -72,6 +74,7 @@
             ]
         },
         "crate_basic_no_damage_given": {
+            "name": "crate_no_damage_given",
             "components": [
                 {
                     "type": "BodyComponent",
@@ -100,6 +103,7 @@
             ]
         },
         "crate_basic_no_damage_received": {
+            "name": "crate_no_damage_received",
             "components": [
                 {
                     "type": "BodyComponent",
@@ -127,6 +131,7 @@
             ]
         },
         "brick_wall": {
+            "name": "brick_wall",
             "components": [
                 {
                     "type": "BodyComponent",
@@ -154,6 +159,7 @@
             ]
         },
         "brick_pillar": {
+            "name": "brick_pillar",
             "components": [
                 {
                     "type": "BodyComponent",
@@ -180,6 +186,7 @@
             ]
         },
         "tree": {
+            "name": "tree",
             "components": [
                 {
                     "type": "SpriteComponent",
@@ -191,6 +198,7 @@
             ]
         },
         "door_anchor": {
+            "name": "door_anchor",
             "components": [
                 {
                     "type": "BodyComponent",
@@ -210,6 +218,7 @@
             ]
         },
         "door": {
+            "name": "door",
             "components": [
                 {
                     "type": "BodyComponent",

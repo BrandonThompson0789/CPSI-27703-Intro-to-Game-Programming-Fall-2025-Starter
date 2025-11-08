@@ -2,11 +2,19 @@
 #define BOX2DDEBUGDRAW_H
 
 #include <SDL.h>
+#include <SDL_ttf.h>
 #include <box2d/box2d.h>
+
+#include <memory>
+#include <string>
+#include <vector>
+
+class Object;
 
 class Box2DDebugDraw {
 public:
     Box2DDebugDraw();
+    ~Box2DDebugDraw();
 
     void init(SDL_Renderer* renderer, float pixelsPerMeter);
     void setEnabled(bool enabled);
@@ -14,6 +22,8 @@ public:
     void toggle();
 
     b2DebugDraw* getInterface();
+    bool setLabelFont(const std::string& path, int pointSize);
+    void renderLabels(const std::vector<std::unique_ptr<Object>>& objects);
 
 private:
     static void DrawPolygon(const b2Vec2* vertices, int vertexCount, b2HexColor color, void* context);
@@ -34,12 +44,17 @@ private:
 
     SDL_FPoint toScreen(b2Vec2 position) const;
     void useColor(b2HexColor color);
+    bool ensureFontLoaded();
+    void drawTextCentered(const std::string& text, float centerX, float y, const SDL_Color& color, int* textHeight = nullptr);
 
     SDL_Renderer* renderer;
     float pixelsPerMeter;
     bool enabled;
     bool initialized;
     b2DebugDraw debugDraw;
+    std::string fontPath;
+    int fontSize;
+    TTF_Font* labelFont;
 };
 
 #endif // BOX2DDEBUGDRAW_H

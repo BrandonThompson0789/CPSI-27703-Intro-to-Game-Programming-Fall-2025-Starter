@@ -3,6 +3,7 @@
 #include "InputManager.h"
 #include "CollisionManager.h"
 #include "components/Component.h"
+#include <SDL_ttf.h>
 #include <fstream>
 #include <iostream>
 #include <cstdio>
@@ -36,8 +37,17 @@ void Engine::init() {
         running = false;
         return;
     }
+
+    if (TTF_Init() == -1) {
+        std::cerr << "SDL_ttf could not initialize! TTF_Error: " << TTF_GetError() << std::endl;
+    }
     
     debugDraw.init(renderer, METERS_TO_PIXELS);
+    if (TTF_WasInit()) {
+        if (!debugDraw.setLabelFont("assets/fonts/ARIAL.TTF", 14)) {
+            std::cerr << "Warning: Failed to configure debug draw font." << std::endl;
+        }
+    }
 
     // Initialize Box2D physics world (v3.x API)
     // Gravity: (0, 0) for top-down game, use (0, 9.8) for side-scrollers
@@ -174,6 +184,7 @@ void Engine::render() {
 
     if (debugDraw.isEnabled() && B2_IS_NON_NULL(physicsWorldId)) {
         b2World_Draw(physicsWorldId, debugDraw.getInterface());
+        debugDraw.renderLabels(objects);
     }
 }
 
@@ -195,6 +206,9 @@ void Engine::cleanup() {
     SpriteManager::getInstance().cleanup();
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
+    if (TTF_WasInit()) {
+        TTF_Quit();
+    }
     SDL_Quit();
 }
 
