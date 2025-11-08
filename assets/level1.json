@@ -150,7 +150,7 @@
             "components": [
                 {
                     "type": "BodyComponent",
-                    "posX": 16.0,
+                    "posX": -96.0,
                     "posY": 300.0,
                     "fixture": {
                         "width": 32.0,
