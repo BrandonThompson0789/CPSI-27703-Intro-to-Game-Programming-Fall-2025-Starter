@@ -118,6 +118,7 @@
             ]
         },
         {
+            "name": "brick_wall_north",
             "template": "brick_wall",
             "components": [
                 {
@@ -132,6 +133,7 @@
             ]
         },
         {
+            "name": "brick_wall_south",
             "template": "brick_wall",
             "components": [
                 {
@@ -146,6 +148,7 @@
             ]
         },
         {
+            "name": "brick_wall_west",
             "template": "brick_wall",
             "components": [
                 {
@@ -160,6 +163,7 @@
             ]
         },
         {
+            "name": "brick_wall_east",
             "template": "brick_wall",
             "components": [
                 {
@@ -192,6 +196,70 @@
                     "type": "BodyComponent",
                     "posX": 300.0,
                     "posY": 300.0
+                }
+            ]
+        },
+        {
+            "name": "door_north",
+            "template": "door",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 0.0,
+                    "posY": 0.0,
+                    "fixture": {
+                        "shape": "box",
+                        "width": 90.0,
+                        "height": 16.0,
+                        "density": 1.0
+                    }
+                },
+                {
+                    "type": "JointComponent",
+                    "jointType": "revolute",
+                    "connectedBody": "brick_wall_north",
+                    "anchorA": [32, 0],
+                    "anchorB": [-400, 0],
+                    "enableLimit": true,
+                    "lowerAngle": -90.0,
+                    "upperAngle": 90.0,
+                    "enableSpring": true,
+                    "targetAngle": 0.0,
+                    "hertz": 1.0,
+                    "dampingRatio": 0.7,
+                    "comment": "Door with spring that returns to closed position (0 degrees)"
+                }
+            ]
+        },
+        {
+            "name": "door_south",
+            "template": "door",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 0.0,
+                    "posY": 600.0,
+                    "fixture": {
+                        "shape": "box",
+                        "width": 90.0,
+                        "height": 16.0,
+                        "density": 1.0
+                    }
+                },
+                {
+                    "type": "JointComponent",
+                    "jointType": "revolute",
+                    "connectedBody": "brick_wall_south",
+                    "anchorA": [32, 0],
+                    "anchorB": [-400, 0],
+                    "enableLimit": true,
+                    "lowerAngle": -90.0,
+                    "upperAngle": 90.0,
+                    "enableSpring": true,
+                    "targetAngle": 0.0,
+                    "hertz": 1.0,
+                    "dampingRatio": 0.7,
+                    "comment": "Door with spring that returns to closed position (0 degrees)"
                 }
             ]
         },
