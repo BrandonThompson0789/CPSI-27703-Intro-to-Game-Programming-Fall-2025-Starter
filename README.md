@@ -8,6 +8,9 @@ The screen follows and ensures capture of objects with the `ViewGrabComponent`.
 
 Frame Rate is regulated and `deltaTime` is measured for use with other functions.
 
+GIF featuring screen movement as well as debugView with text:
+![hippo](https://i.imgur.com/Rv4PHRS.gif)
+
 At a longer glance:
 
 # Project03 - SDL2
