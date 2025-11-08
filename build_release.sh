@@ -103,6 +103,28 @@ find "$BUILD_DIR" -maxdepth 1 -type f \( -name "*.dll" -o -name "*.so*" -o -name
 if [[ "$DIST_SUBDIR" == "windows" ]]; then
   find "$BUILD_DIR" -maxdepth 1 -type f -name "*.pdb" \
     -exec cmake -E copy_if_different {} "$PACKAGE_STAGE" \;
+  for mingw_lib in libgcc_s_seh-1.dll libstdc++-6.dll libwinpthread-1.dll; do
+    mingw_path=""
+    if candidate="$(g++ -print-file-name="$mingw_lib" 2>/dev/null)" && [[ -n "$candidate" && "$candidate" != "$mingw_lib" && -f "$candidate" ]]; then
+      mingw_path="$candidate"
+    fi
+    if [[ -z "$mingw_path" ]]; then
+      gxx_dir="$(dirname "$(command -v g++ 2>/dev/null)")"
+      if [[ -n "$gxx_dir" && -f "$gxx_dir/$mingw_lib" ]]; then
+        mingw_path="$gxx_dir/$mingw_lib"
+      fi
+    fi
+    if [[ -z "$mingw_path" ]]; then
+      if candidate="$(command -v "$mingw_lib" 2>/dev/null)" && [[ -f "$candidate" ]]; then
+        mingw_path="$candidate"
+      fi
+    fi
+    if [[ -n "$mingw_path" ]]; then
+      cmake -E copy_if_different "$mingw_path" "$PACKAGE_STAGE"
+    else
+      echo "WARNING: Could not locate $mingw_lib; ensure MinGW runtime DLLs are available." >&2
+    fi
+  done
 fi
 
 if [[ -f "$PACKAGE_ARCHIVE" ]]; then

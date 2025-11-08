@@ -89,6 +89,25 @@ for %%F in ("%BUILD_DIR%\*.pdb") do (
     if exist "%%~fF" cmake -E copy_if_different "%%~fF" "%PACKAGE_STAGE%"
 )
 
+for %%L in (libgcc_s_seh-1.dll libstdc++-6.dll libwinpthread-1.dll) do (
+    set "FOUND_DLL="
+    for /f "delims=" %%P in ('g++ -print-file-name=%%L 2^>nul') do (
+        if exist "%%~fP" (
+            set "FOUND_DLL=%%~fP"
+        )
+    )
+    if not defined FOUND_DLL (
+        for /f "delims=" %%P in ('where %%L 2^>nul') do (
+            if exist "%%~fP" if not defined FOUND_DLL set "FOUND_DLL=%%~fP"
+        )
+    )
+    if defined FOUND_DLL (
+        cmake -E copy_if_different "!FOUND_DLL!" "%PACKAGE_STAGE%"
+    ) else (
+        echo [WARN] Required runtime %%L not found in PATH.
+    )
+)
+
 if exist "%PACKAGE_ARCHIVE%" del "%PACKAGE_ARCHIVE%" >nul 2>&1
 powershell -NoLogo -NoProfile -Command "Compress-Archive -Path '%PACKAGE_STAGE%\*' -DestinationPath '%PACKAGE_ARCHIVE%' -Force"
 if errorlevel 1 goto :error
