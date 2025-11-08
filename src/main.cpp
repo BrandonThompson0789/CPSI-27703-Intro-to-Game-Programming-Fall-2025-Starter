@@ -2,7 +2,6 @@
 #include "InputManager.h"
 #include "components/BodyComponent.h"
 #include "components/InputComponent.h"
-#include "components/PlayerMovementComponent.h"
 #include <iostream>
 
 int main(int argc, char* argv[]) {

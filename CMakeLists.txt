@@ -49,8 +49,12 @@ add_executable(demo
     src/components/ExplodeOnDeathComponent.cpp
     src/components/InputComponent.h
     src/components/InputComponent.cpp
-    src/components/PlayerMovementComponent.h
-    src/components/PlayerMovementComponent.cpp
+    src/components/behaviors/StandardMovementBehaviorComponent.h
+    src/components/behaviors/StandardMovementBehaviorComponent.cpp
+    src/components/behaviors/GrabBehaviorComponent.h
+    src/components/behaviors/GrabBehaviorComponent.cpp
+    src/components/behaviors/ThrowBehaviorComponent.h
+    src/components/behaviors/ThrowBehaviorComponent.cpp
     src/components/CollisionDamageComponent.h
     src/components/CollisionDamageComponent.cpp
     src/components/BoxBehaviorComponent.h

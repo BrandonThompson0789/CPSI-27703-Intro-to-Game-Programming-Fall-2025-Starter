@@ -28,9 +28,21 @@
                     }
                 },
                 {
-                    "type": "PlayerMovementComponent",
+                    "type": "StandardMovementBehaviorComponent",
                     "moveSpeed": 120.0,
                     "rotationSpeed": 180.0
+                },
+                {
+                    "type": "GrabBehaviorComponent",
+                    "grabDistance": 32.0,
+                    "grabForce": 200.0,
+                    "breakForce": 500.0
+                },
+                {
+                    "type": "ThrowBehaviorComponent",
+                    "maxThrowCharge": 1.0,
+                    "throwForceMultiplier": 1000.0,
+                    "minThrowForceRatio": 0.3
                 },
                 {
                     "type": "ViewGrabComponent",
@@ -153,8 +165,8 @@
                     "bodyType": "static",
                     "fixture": {
                         "shape": "box",
-                        "width": 32.0,
-                        "height": 32.0
+                        "width": 64.0,
+                        "height": 64.0
                     }
                 },
                 {

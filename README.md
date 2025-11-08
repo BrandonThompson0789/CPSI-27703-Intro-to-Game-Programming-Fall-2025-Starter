@@ -44,7 +44,7 @@ cd build/win-mingw-debug      # or another configured build folder
 
 ## Gameplay Layer
 - **Sprites on screen**: `SpriteComponent` pulls frame data from `SpriteManager` and renders animated sprites. Body-driven sprites rotate and scale based on Box2D fixture data or explicit render dimensions.
-- **Input-driven actions**: `PlayerMovementComponent` queries `InputComponent` for directional movement, interaction, and throw actions. Keyboard and controller bindings are defined in `assets/input_config.json`.
+- **Input-driven actions**: Player behaviour components (`StandardMovementBehaviorComponent`, `GrabBehaviorComponent`, and `ThrowBehaviorComponent`) query `InputComponent` for directional movement, interaction, and throw actions. Keyboard and controller bindings are defined in `assets/input_config.json`.
 - **View updates with game state**: Objects containing `ViewGrabComponent` expand the camera’s focus area. The camera follows players/targets smoothly while respecting minimum extents to avoid extreme zoom.
 
 ## Asset & Data Pipeline

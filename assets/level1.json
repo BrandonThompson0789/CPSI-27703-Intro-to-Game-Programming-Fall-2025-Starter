@@ -124,10 +124,10 @@
                 {
                     "type": "BodyComponent",
                     "posX": 400.0,
-                    "posY": 16.0,
+                    "posY": 32.0,
                     "fixture": {
                         "width": 800.0,
-                        "height": 32.0
+                        "height": 64.0
                     }
                 }
             ]
@@ -139,10 +139,10 @@
                 {
                     "type": "BodyComponent",
                     "posX": 400.0,
-                    "posY": 584.5,
+                    "posY": 568.5,
                     "fixture": {
                         "width": 800.0,
-                        "height": 32.0
+                        "height": 64.0
                     }
                 }
             ]
@@ -153,10 +153,10 @@
             "components": [
                 {
                     "type": "BodyComponent",
-                    "posX": -96.0,
+                    "posX": -112.0,
                     "posY": 300.0,
                     "fixture": {
-                        "width": 32.0,
+                        "width": 64.0,
                         "height": 600.0
                     }
                 }
@@ -168,10 +168,10 @@
             "components": [
                 {
                     "type": "BodyComponent",
-                    "posX": 784.5,
+                    "posX": 768.5,
                     "posY": 300.0,
                     "fixture": {
-                        "width": 32.0,
+                        "width": 64.0,
                         "height": 600.0
                     }
                 }

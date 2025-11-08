@@ -1,0 +1,148 @@
+#include "StandardMovementBehaviorComponent.h"
+#include "../ComponentLibrary.h"
+#include "../../Engine.h"
+#include "../../Object.h"
+#include <cmath>
+#include <iostream>
+
+StandardMovementBehaviorComponent::StandardMovementBehaviorComponent(Object& parent, float moveSpeed)
+    : Component(parent)
+    , input(nullptr)
+    , body(nullptr)
+    , sprite(nullptr)
+    , moveSpeed(moveSpeed)
+    , walkSlowdownFactor(0.5f)
+    , rotationResponsiveness(0.5f)
+    , maxAngularVelocity(0.5f) {
+    resolveDependencies();
+}
+
+StandardMovementBehaviorComponent::StandardMovementBehaviorComponent(Object& parent, const nlohmann::json& data)
+    : Component(parent)
+    , input(nullptr)
+    , body(nullptr)
+    , sprite(nullptr)
+    , moveSpeed(data.value("moveSpeed", 200.0f))
+    , walkSlowdownFactor(data.value("walkSlowdownFactor", 0.5f))
+    , rotationResponsiveness(data.value("rotationResponsiveness", 0.5f))
+    , maxAngularVelocity(data.value("maxAngularVelocity", 0.5f)) {
+
+    // Support legacy configuration name
+    if (data.contains("rotationSpeed")) {
+        float degreesPerSecond = data["rotationSpeed"].get<float>();
+        maxAngularVelocity = Engine::degreesToRadians(degreesPerSecond);
+    }
+
+    resolveDependencies();
+}
+
+void StandardMovementBehaviorComponent::resolveDependencies() {
+    input = parent().getComponent<InputComponent>();
+    body = parent().getComponent<BodyComponent>();
+    sprite = parent().getComponent<SpriteComponent>();
+
+    if (!input) {
+        std::cerr << "Warning: StandardMovementBehaviorComponent requires InputComponent!\n";
+    }
+    if (!body) {
+        std::cerr << "Warning: StandardMovementBehaviorComponent requires BodyComponent!\n";
+    }
+}
+
+nlohmann::json StandardMovementBehaviorComponent::toJson() const {
+    nlohmann::json j;
+    j["type"] = getTypeName();
+    j["moveSpeed"] = moveSpeed;
+    j["walkSlowdownFactor"] = walkSlowdownFactor;
+    j["rotationResponsiveness"] = rotationResponsiveness;
+    j["maxAngularVelocity"] = maxAngularVelocity;
+    return j;
+}
+
+void StandardMovementBehaviorComponent::update(float deltaTime) {
+    (void)deltaTime;
+
+    if (!input || !body) {
+        return;
+    }
+
+    if (!input->isActive()) {
+        std::cerr << "Warning: Input source not active!\n";
+        return;
+    }
+
+    float moveUp = input->getMoveUp();
+    float moveDown = input->getMoveDown();
+    float moveLeft = input->getMoveLeft();
+    float moveRight = input->getMoveRight();
+
+    float horizontal = moveRight - moveLeft;
+    float vertical = moveDown - moveUp;
+
+    float walkModifier = input->getActionWalk();
+    float currentSpeed = moveSpeed * (1.0f - walkModifier * walkSlowdownFactor);
+
+    float inputMagnitude = std::sqrt(horizontal * horizontal + vertical * vertical);
+    float normalizedHorizontal = horizontal;
+    float normalizedVertical = vertical;
+    if (inputMagnitude > 0.0f) {
+        normalizedHorizontal /= inputMagnitude;
+        normalizedVertical /= inputMagnitude;
+    }
+
+    float velocityX = normalizedHorizontal * currentSpeed * 0.1f;
+    float velocityY = normalizedVertical * currentSpeed * 0.1f;
+    body->modVelocity(velocityX, velocityY, 0.0f);
+
+    auto [actualVelX, actualVelY, actualVelAngle] = body->getVelocity();
+    (void)actualVelAngle;
+
+    updateSprite(actualVelX, actualVelY);
+    updateRotation(horizontal, vertical);
+}
+
+void StandardMovementBehaviorComponent::updateSprite(float actualVelX, float actualVelY) {
+    if (!sprite) {
+        return;
+    }
+
+    float moveMagnitude = std::sqrt(actualVelX * actualVelX + actualVelY * actualVelY);
+    if (moveMagnitude > 1.0f) {
+        sprite->setCurrentSprite("player_walking");
+    } else {
+        sprite->setCurrentSprite("player_standing");
+    }
+}
+
+void StandardMovementBehaviorComponent::updateRotation(float inputHorizontal, float inputVertical) {
+    if (!body) {
+        return;
+    }
+
+    float inputMagnitude = std::sqrt(inputHorizontal * inputHorizontal + inputVertical * inputVertical);
+    if (inputMagnitude <= 0.1f) {
+        return;
+    }
+
+    float targetAngleRad = std::atan2(inputVertical, inputHorizontal) - M_PI / 2.0f + M_PI;
+
+    auto [posX, posY, currentAngleDeg] = body->getPosition();
+    (void)posX;
+    (void)posY;
+    float currentAngleRad = Engine::degreesToRadians(currentAngleDeg);
+
+    float angleDiff = targetAngleRad - currentAngleRad;
+    while (angleDiff > M_PI) angleDiff -= 2.0f * M_PI;
+    while (angleDiff < -M_PI) angleDiff += 2.0f * M_PI;
+
+    float targetAngularVelocityRad = angleDiff * rotationResponsiveness;
+
+    if (targetAngularVelocityRad > maxAngularVelocity) targetAngularVelocityRad = maxAngularVelocity;
+    if (targetAngularVelocityRad < -maxAngularVelocity) targetAngularVelocityRad = -maxAngularVelocity;
+
+    body->modVelocity(0.0f, 0.0f, Engine::radiansToDegrees(targetAngularVelocityRad));
+}
+
+static ComponentRegistrar<StandardMovementBehaviorComponent> registrar("StandardMovementBehaviorComponent");
+
+
