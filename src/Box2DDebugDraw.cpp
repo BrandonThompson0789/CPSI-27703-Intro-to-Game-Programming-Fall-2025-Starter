@@ -33,6 +33,9 @@ Box2DDebugDraw::Box2DDebugDraw()
       enabled(false),
       initialized(false),
       debugDraw{},
+      cameraScale(1.0f),
+      cameraOriginX(0.0f),
+      cameraOriginY(0.0f),
       fontPath("assets/fonts/SuperPixel-m2L8j.ttf"),
       fontSize(14),
       labelFont(nullptr) {}
@@ -111,6 +114,12 @@ bool Box2DDebugDraw::setLabelFont(const std::string& path, int pointSize) {
     }
 
     return true;
+}
+
+void Box2DDebugDraw::setCamera(float scale, float viewMinX, float viewMinY) {
+    cameraScale = scale > 0.0f ? scale : 1.0f;
+    cameraOriginX = viewMinX;
+    cameraOriginY = viewMinY;
 }
 
 void Box2DDebugDraw::DrawPolygon(const b2Vec2* vertices, int vertexCount, b2HexColor color, void* context) {
@@ -259,17 +268,23 @@ void Box2DDebugDraw::drawTransformImpl(b2Transform transform) {
 void Box2DDebugDraw::drawPointImpl(b2Vec2 p, float size, b2HexColor color) {
     useColor(color);
     SDL_FPoint center = toScreen(p);
-    float half = size * pixelsPerMeter * 0.5f;
-    SDL_Rect rect;
-    rect.x = static_cast<int>(center.x - half);
-    rect.y = static_cast<int>(center.y - half);
-    rect.w = static_cast<int>(size * pixelsPerMeter);
-    rect.h = rect.w;
-    SDL_RenderDrawRect(renderer, &rect);
+    float sizePixels = size * pixelsPerMeter * cameraScale;
+    float half = sizePixels * 0.5f;
+    SDL_FRect rect;
+    rect.x = center.x - half;
+    rect.y = center.y - half;
+    rect.w = sizePixels;
+    rect.h = sizePixels;
+    SDL_RenderDrawRectF(renderer, &rect);
 }
 
 SDL_FPoint Box2DDebugDraw::toScreen(b2Vec2 position) const {
-    return {position.x * pixelsPerMeter, position.y * pixelsPerMeter};
+    const float worldX = position.x * pixelsPerMeter;
+    const float worldY = position.y * pixelsPerMeter;
+    return {
+        (worldX - cameraOriginX) * cameraScale,
+        (worldY - cameraOriginY) * cameraScale
+    };
 }
 
 void Box2DDebugDraw::useColor(b2HexColor color) {
@@ -378,8 +393,17 @@ void Box2DDebugDraw::renderLabels(const std::vector<std::unique_ptr<Object>>& ob
             fixtureHeight = 32.0f;
         }
 
-        float objectTopY = posY - (fixtureHeight * 0.5f);
-        float currentLabelTop = objectTopY - 6.0f;
+        const float scale = cameraScale > 0.0f ? cameraScale : 1.0f;
+        SDL_FPoint screenCenter{
+            (posX - cameraOriginX) * scale,
+            (posY - cameraOriginY) * scale
+        };
+        float screenFixtureWidth = std::max(fixtureWidth * scale, 4.0f);
+        float screenFixtureHeight = std::max(fixtureHeight * scale, 4.0f);
+        float spacing = std::max(6.0f * scale, 3.0f);
+
+        float objectTopY = screenCenter.y - (screenFixtureHeight * 0.5f);
+        float currentLabelTop = objectTopY - spacing;
 
         auto* health = objectPtr->getComponent<HealthComponent>();
         if (health && health->getMaxHP() > 0.0f) {
@@ -387,8 +411,8 @@ void Box2DDebugDraw::renderLabels(const std::vector<std::unique_ptr<Object>>& ob
             float currentHP = std::clamp(health->getCurrentHP(), 0.0f, maxHP);
             float normalized = std::clamp(currentHP / maxHP, 0.0f, 1.0f);
 
-            float barWidth = std::max(fixtureWidth, 60.0f);
-            float barHeight = 15.0f;
+            float barWidthWorld = std::max(fixtureWidth, 60.0f);
+            float barHeightWorld = 15.0f;
 
             int hpTextWidth = 0;
             int hpTextHeight = 0;
@@ -396,11 +420,13 @@ void Box2DDebugDraw::renderLabels(const std::vector<std::unique_ptr<Object>>& ob
             hpLabel << static_cast<int>(std::round(currentHP)) << " / " << static_cast<int>(std::round(maxHP));
             bool sizeOk = (TTF_SizeUTF8(labelFont, hpLabel.str().c_str(), &hpTextWidth, &hpTextHeight) == 0);
             if (sizeOk) {
-                barHeight = std::max(barHeight, static_cast<float>(hpTextHeight) + 4.0f);
+                barHeightWorld = std::max(barHeightWorld, static_cast<float>(hpTextHeight) + 4.0f);
             }
 
+            float barWidth = std::max(barWidthWorld * scale, 45.0f);
+            float barHeight = std::max(barHeightWorld * scale, 6.0f);
             float barTop = currentLabelTop - barHeight;
-            float barLeft = posX - (barWidth * 0.5f);
+            float barLeft = screenCenter.x - (barWidth * 0.5f);
 
             SDL_FRect bgRect{barLeft, barTop, barWidth, barHeight};
             SDL_SetRenderDrawColor(renderer, healthBgColor.r, healthBgColor.g, healthBgColor.b, healthBgColor.a);
@@ -418,12 +444,12 @@ void Box2DDebugDraw::renderLabels(const std::vector<std::unique_ptr<Object>>& ob
 
             if (sizeOk) {
                 float textY = barTop + (barHeight - static_cast<float>(hpTextHeight)) * 0.5f;
-                drawTextCentered(hpLabel.str(), posX, textY, healthTextColor);
+                drawTextCentered(hpLabel.str(), screenCenter.x, textY, healthTextColor);
             } else {
-                drawTextCentered(hpLabel.str(), posX, barTop, healthTextColor);
+                drawTextCentered(hpLabel.str(), screenCenter.x, barTop, healthTextColor);
             }
 
-            currentLabelTop = barTop - 6.0f;
+            currentLabelTop = barTop - spacing;
         }
 
         const std::string& name = objectPtr->getName();
@@ -435,7 +461,8 @@ void Box2DDebugDraw::renderLabels(const std::vector<std::unique_ptr<Object>>& ob
             }
 
             float nameTop = currentLabelTop - static_cast<float>(nameTextHeight);
-            drawTextCentered(name, posX, nameTop, nameColor);
+            drawTextCentered(name, screenCenter.x, nameTop, nameColor);
+            currentLabelTop = nameTop - spacing;
         }
     }
 

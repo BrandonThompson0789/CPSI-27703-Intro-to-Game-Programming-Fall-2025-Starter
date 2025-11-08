@@ -42,6 +42,21 @@ class Engine {
 
         static inline float degreesToRadians(float degrees) { return degrees * DEG_TO_RAD; }
         static inline float radiansToDegrees(float radians) { return radians * RAD_TO_DEG; }
+
+        struct CameraState {
+            float viewMinX = -800.0f;
+            float viewMinY = -450.0f;
+            float viewWidth = 1600.0f;
+            float viewHeight = 900.0f;
+            float scale = 1.0f;
+        };
+
+        const CameraState& getCameraState() const { return cameraState; }
+        SDL_FPoint worldToScreen(float worldX, float worldY) const;
+        float worldToScreenLength(float value) const;
+        float getCameraScale() const { return cameraState.scale; }
+        void applyViewBounds(float minX, float minY, float maxX, float maxY);
+        void ensureDefaultCamera();
         
     private:
         void loadObjectTemplates(const std::string& filename);
@@ -52,6 +67,7 @@ class Engine {
         void processEvents();
         void update(float deltaTime);
         void render();
+        void onWindowResized(int width, int height);
         static float getDeltaTime();
         SDL_Window* window;
         SDL_Renderer* renderer;
@@ -64,6 +80,14 @@ class Engine {
         b2WorldId physicsWorldId;
         Box2DDebugDraw debugDraw;
         std::unordered_map<std::string, nlohmann::json> objectTemplates;
+
+        CameraState cameraState;
+        CameraState cameraTarget;
+        bool cameraInitialized = false;
+        static constexpr float MIN_CAMERA_WIDTH = 1600.0f;
+        static constexpr float MIN_CAMERA_HEIGHT = 900.0f;
+        static constexpr float CAMERA_SMOOTHING_RATE = 8.0f;
+        float lastDeltaTime = 1.0f / 60.0f;
 };
 
 #endif // ENGINE_H

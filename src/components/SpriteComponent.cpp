@@ -1,8 +1,10 @@
 #include "SpriteComponent.h"
 #include "ComponentLibrary.h"
 #include "../SpriteManager.h"
+#include "../Engine.h"
 #include "../Object.h"
 #include "../components/BodyComponent.h"
+#include <algorithm>
 
 SpriteComponent::SpriteComponent(Object& parent, const std::string& spriteNameParam, bool animate, bool loop)
     : Component(parent), 
@@ -115,6 +117,11 @@ void SpriteComponent::draw() {
     if (!spriteData) {
         return;
     }
+    SpriteFrame frameData = spriteData->getFrame(currentFrame);
+    Engine* engine = Object::getEngine();
+    if (!engine) {
+        return;
+    }
 
     // Get position and determine render size
     float x = 0.0f, y = 0.0f, angle = 0.0f;
@@ -138,31 +145,50 @@ void SpriteComponent::draw() {
         angle = localAngle;
     }
 
+    if (actualRenderWidth <= 0.0f) {
+        actualRenderWidth = frameData.w > 0 ? static_cast<float>(frameData.w) : 1.0f;
+    }
+    if (actualRenderHeight <= 0.0f) {
+        actualRenderHeight = frameData.h > 0 ? static_cast<float>(frameData.h) : 1.0f;
+    }
+
+    float scale = engine->getCameraScale();
+    if (scale <= 0.0f) {
+        scale = 1.0f;
+    }
+
+    SDL_FPoint screenPos = engine->worldToScreen(x, y);
+    float screenWidth = std::max(actualRenderWidth * scale, 1.0f);
+    float screenHeight = std::max(actualRenderHeight * scale, 1.0f);
+
     // Render the sprite - tiled or normal
     if (tiled && actualRenderWidth > 0 && actualRenderHeight > 0) {
         // Tiled rendering - repeat texture instead of stretching
+        float baseTileWidth = tileWidth > 0.0f ? tileWidth : static_cast<float>(frameData.w);
+        float baseTileHeight = tileHeight > 0.0f ? tileHeight : static_cast<float>(frameData.h);
+        float screenTileWidth = std::max(baseTileWidth * scale, 1.0f);
+        float screenTileHeight = std::max(baseTileHeight * scale, 1.0f);
         SpriteManager::getInstance().renderSpriteTiled(
             spriteName,
             currentFrame,
-            static_cast<int>(x),
-            static_cast<int>(y),
-            static_cast<int>(actualRenderWidth),
-            static_cast<int>(actualRenderHeight),
-            static_cast<int>(tileWidth),
-            static_cast<int>(tileHeight),
+            screenPos.x,
+            screenPos.y,
+            screenWidth,
+            screenHeight,
+            screenTileWidth,
+            screenTileHeight,
             angle,
             flipFlags,
             alpha
         );
     } else if (actualRenderWidth > 0 && actualRenderHeight > 0) {
-        // Custom size rendering (stretch)
         SpriteManager::getInstance().renderSprite(
             spriteName,
             currentFrame,
-            static_cast<int>(x),
-            static_cast<int>(y),
-            static_cast<int>(actualRenderWidth),
-            static_cast<int>(actualRenderHeight),
+            screenPos.x,
+            screenPos.y,
+            screenWidth,
+            screenHeight,
             angle,
             flipFlags,
             alpha
@@ -172,8 +198,10 @@ void SpriteComponent::draw() {
         SpriteManager::getInstance().renderSprite(
             spriteName, 
             currentFrame, 
-            static_cast<int>(x), 
-            static_cast<int>(y), 
+            screenPos.x,
+            screenPos.y,
+            screenWidth,
+            screenHeight,
             angle, 
             flipFlags, 
             alpha

@@ -24,6 +24,7 @@ public:
     b2DebugDraw* getInterface();
     bool setLabelFont(const std::string& path, int pointSize);
     void renderLabels(const std::vector<std::unique_ptr<Object>>& objects);
+    void setCamera(float scale, float viewMinX, float viewMinY);
 
 private:
     static void DrawPolygon(const b2Vec2* vertices, int vertexCount, b2HexColor color, void* context);
@@ -52,6 +53,9 @@ private:
     bool enabled;
     bool initialized;
     b2DebugDraw debugDraw;
+    float cameraScale;
+    float cameraOriginX;
+    float cameraOriginY;
     std::string fontPath;
     int fontSize;
     TTF_Font* labelFont;

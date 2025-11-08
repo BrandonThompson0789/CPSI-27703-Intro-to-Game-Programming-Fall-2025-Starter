@@ -154,7 +154,7 @@
                     "posY": 300.0,
                     "fixture": {
                         "width": 32.0,
-                        "height": 608.0
+                        "height": 600.0
                     }
                 }
             ]
@@ -168,7 +168,7 @@
                     "posY": 300.0,
                     "fixture": {
                         "width": 32.0,
-                        "height": 608.0
+                        "height": 600.0
                     }
                 }
             ]

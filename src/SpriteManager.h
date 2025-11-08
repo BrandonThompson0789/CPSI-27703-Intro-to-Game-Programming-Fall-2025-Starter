@@ -51,18 +51,18 @@ public:
     SDL_Texture* getTexture(const std::string& textureName);
     
     // Render a sprite frame (angle in degrees, centered on position)
-    void renderSprite(const std::string& spriteName, int frame, int x, int y, 
+    void renderSprite(const std::string& spriteName, int frame, float x, float y, 
                      float angle = 0.0f, SDL_RendererFlip flip = SDL_FLIP_NONE, 
                      uint8_t alpha = 255);
     
     // Render a sprite frame with custom width and height (angle in degrees)
-    void renderSprite(const std::string& spriteName, int frame, int x, int y, 
-                     int width, int height, float angle = 0.0f, 
+    void renderSprite(const std::string& spriteName, int frame, float x, float y, 
+                     float width, float height, float angle = 0.0f, 
                      SDL_RendererFlip flip = SDL_FLIP_NONE, uint8_t alpha = 255);
     
     // Render a sprite tiled (repeated) instead of stretched
-    void renderSpriteTiled(const std::string& spriteName, int frame, int x, int y,
-                          int width, int height, int tileWidth, int tileHeight,
+    void renderSpriteTiled(const std::string& spriteName, int frame, float x, float y,
+                          float width, float height, float tileWidth, float tileHeight,
                           float angle = 0.0f, SDL_RendererFlip flip = SDL_FLIP_NONE,
                           uint8_t alpha = 255);
     

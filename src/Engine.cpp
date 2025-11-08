@@ -3,6 +3,8 @@
 #include "InputManager.h"
 #include "CollisionManager.h"
 #include "components/Component.h"
+#include "components/ViewGrabComponent.h"
+#include <cmath>
 #include <SDL_ttf.h>
 #include <fstream>
 #include <iostream>
@@ -23,7 +25,7 @@ void Engine::init() {
     }
     
     // Create window
-    window = SDL_CreateWindow("Engine", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, screenWidth, screenHeight, SDL_WINDOW_SHOWN);
+    window = SDL_CreateWindow("Engine", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, screenWidth, screenHeight, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
     if (window == nullptr) {
         std::cerr << "Window could not be created! SDL_Error: " << SDL_GetError() << std::endl;
         running = false;
@@ -48,6 +50,7 @@ void Engine::init() {
             std::cerr << "Warning: Failed to configure debug draw font." << std::endl;
         }
     }
+    debugDraw.setCamera(cameraState.scale, cameraState.viewMinX, cameraState.viewMinY);
 
     // Initialize Box2D physics world (v3.x API)
     // Gravity: (0, 0) for top-down game, use (0, 9.8) for side-scrollers
@@ -108,6 +111,12 @@ void Engine::processEvents() {
                     std::cout << "Box2D debug draw " << (debugDraw.isEnabled() ? "enabled" : "disabled") << std::endl;
                 }
                 break;
+
+            case SDL_WINDOWEVENT:
+                if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED || event.window.event == SDL_WINDOWEVENT_RESIZED) {
+                    onWindowResized(event.window.data1, event.window.data2);
+                }
+                break;
                 
             case SDL_CONTROLLERDEVICEADDED:
                 // Handle hot-plug: controller connected
@@ -135,6 +144,8 @@ void Engine::processEvents() {
 }
 
 void Engine::update(float deltaTime) {
+    lastDeltaTime = deltaTime;
+
     // Step the Box2D physics simulation (v3.x API)
     // subStepCount controls accuracy (4 is default, higher = more accurate but slower)
     if (B2_IS_NON_NULL(physicsWorldId)) {
@@ -145,12 +156,16 @@ void Engine::update(float deltaTime) {
         }
     }
     
+    ViewGrabComponent::beginFrame();
+
     // Update all game objects
     for (auto& object : objects) {
         if (!object->isMarkedForDeath()) {
             object->update(deltaTime);
         }
     }
+
+    ViewGrabComponent::finalizeFrame(*this);
 
     // Remove objects that have been marked for death
     objects.erase(
@@ -188,6 +203,119 @@ void Engine::render() {
     }
 }
 
+void Engine::onWindowResized(int width, int height) {
+    width = std::max(width, 1);
+    height = std::max(height, 1);
+
+    screenWidth = width;
+    screenHeight = height;
+
+    auto recomputeScale = [width, height](const CameraState& cam) {
+        float viewWidth = std::max(cam.viewWidth, MIN_CAMERA_WIDTH);
+        float viewHeight = std::max(cam.viewHeight, MIN_CAMERA_HEIGHT);
+        float scaleX = static_cast<float>(width) / viewWidth;
+        float scaleY = static_cast<float>(height) / viewHeight;
+        float scale = std::min(scaleX, scaleY);
+        return scale > 0.0f ? scale : 1.0f;
+    };
+
+    cameraTarget.scale = recomputeScale(cameraTarget);
+    cameraState.scale = recomputeScale(cameraState);
+
+    debugDraw.setCamera(cameraState.scale, cameraState.viewMinX, cameraState.viewMinY);
+}
+
+SDL_FPoint Engine::worldToScreen(float worldX, float worldY) const {
+    return {
+        (worldX - cameraState.viewMinX) * cameraState.scale,
+        (worldY - cameraState.viewMinY) * cameraState.scale
+    };
+}
+
+float Engine::worldToScreenLength(float value) const {
+    return value * cameraState.scale;
+}
+
+void Engine::applyViewBounds(float minX, float minY, float maxX, float maxY) {
+    if (minX > maxX) {
+        std::swap(minX, maxX);
+    }
+    if (minY > maxY) {
+        std::swap(minY, maxY);
+    }
+
+    float desiredWidth = std::max(maxX - minX, MIN_CAMERA_WIDTH);
+    float desiredHeight = std::max(maxY - minY, MIN_CAMERA_HEIGHT);
+
+    float scaleX = static_cast<float>(screenWidth) / desiredWidth;
+    float scaleY = static_cast<float>(screenHeight) / desiredHeight;
+
+    float desiredScale = std::min(scaleX, scaleY);
+    if (desiredScale <= 0.0f) {
+        desiredScale = 1.0f;
+    }
+
+    float viewWidth = static_cast<float>(screenWidth) / desiredScale;
+    float viewHeight = static_cast<float>(screenHeight) / desiredScale;
+
+    float centerX = (minX + maxX) * 0.5f;
+    float centerY = (minY + maxY) * 0.5f;
+
+    float viewMinX = centerX - viewWidth * 0.5f;
+    float viewMinY = centerY - viewHeight * 0.5f;
+
+    cameraTarget.viewMinX = viewMinX;
+    cameraTarget.viewMinY = viewMinY;
+    cameraTarget.viewWidth = viewWidth;
+    cameraTarget.viewHeight = viewHeight;
+    cameraTarget.scale = desiredScale;
+
+    auto lerp = [](float a, float b, float t) { return a + (b - a) * t; };
+
+    if (!cameraInitialized) {
+        cameraState = cameraTarget;
+        cameraInitialized = true;
+    } else {
+        float smoothingRate = std::max(CAMERA_SMOOTHING_RATE, 0.0f);
+        float smoothingFactor = smoothingRate > 0.0f
+                                    ? 1.0f - std::exp(-smoothingRate * std::max(lastDeltaTime, 0.0f))
+                                    : 1.0f;
+        smoothingFactor = std::clamp(smoothingFactor, 0.0f, 1.0f);
+
+        cameraState.viewMinX = lerp(cameraState.viewMinX, cameraTarget.viewMinX, smoothingFactor);
+        cameraState.viewMinY = lerp(cameraState.viewMinY, cameraTarget.viewMinY, smoothingFactor);
+        cameraState.viewWidth = lerp(cameraState.viewWidth, cameraTarget.viewWidth, smoothingFactor);
+        cameraState.viewHeight = lerp(cameraState.viewHeight, cameraTarget.viewHeight, smoothingFactor);
+        cameraState.scale = lerp(cameraState.scale, cameraTarget.scale, smoothingFactor);
+    }
+
+    debugDraw.setCamera(cameraState.scale, cameraState.viewMinX, cameraState.viewMinY);
+}
+
+void Engine::ensureDefaultCamera() {
+    float defaultScale = std::min(
+        static_cast<float>(screenWidth) / MIN_CAMERA_WIDTH,
+        static_cast<float>(screenHeight) / MIN_CAMERA_HEIGHT);
+    if (defaultScale <= 0.0f) {
+        defaultScale = 1.0f;
+    }
+
+    cameraTarget.viewWidth = MIN_CAMERA_WIDTH;
+    cameraTarget.viewHeight = MIN_CAMERA_HEIGHT;
+    cameraTarget.viewMinX = -0.5f * cameraTarget.viewWidth;
+    cameraTarget.viewMinY = -0.5f * cameraTarget.viewHeight;
+    cameraTarget.scale = defaultScale;
+
+    if (!cameraInitialized) {
+        cameraState = cameraTarget;
+        cameraInitialized = true;
+    } else {
+        cameraState = cameraTarget;
+    }
+
+    debugDraw.setCamera(cameraState.scale, cameraState.viewMinX, cameraState.viewMinY);
+}
+
 void Engine::cleanup() {
     // Clean up objects before destroying physics world
     objects.clear();
@@ -216,6 +344,19 @@ Engine::Engine() {
     running = true;
     physicsWorldId = b2_nullWorldId;
     collisionManager = std::make_unique<CollisionManager>(*this);
+    cameraState.viewWidth = MIN_CAMERA_WIDTH;
+    cameraState.viewHeight = MIN_CAMERA_HEIGHT;
+    cameraState.viewMinX = -0.5f * cameraState.viewWidth;
+    cameraState.viewMinY = -0.5f * cameraState.viewHeight;
+    cameraState.scale = std::min(
+        static_cast<float>(screenWidth) / cameraState.viewWidth,
+        static_cast<float>(screenHeight) / cameraState.viewHeight);
+    if (cameraState.scale <= 0.0f) {
+        cameraState.scale = 1.0f;
+    }
+    cameraTarget = cameraState;
+    cameraInitialized = false;
+    lastDeltaTime = getDeltaTime();
 }
 
 Engine::~Engine() {

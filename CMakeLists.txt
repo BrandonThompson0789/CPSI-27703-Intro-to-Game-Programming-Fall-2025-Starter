@@ -55,6 +55,8 @@ add_executable(demo
     src/components/BoxBehaviorComponent.cpp
     src/components/JointComponent.h
     src/components/JointComponent.cpp
+    src/components/ViewGrabComponent.h
+    src/components/ViewGrabComponent.cpp
 )
 
 # Link libraries

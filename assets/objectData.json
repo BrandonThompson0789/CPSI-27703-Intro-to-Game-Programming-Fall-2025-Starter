@@ -33,6 +33,11 @@
                     "rotationSpeed": 180.0
                 },
                 {
+                    "type": "ViewGrabComponent",
+                    "paddingX": 320.0,
+                    "paddingY": 220.0
+                },
+                {
                     "type": "CollisionDamageComponent",
                     "baseDamage": 1.0,
                     "kineticScale": 6.0
