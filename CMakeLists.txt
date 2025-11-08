@@ -45,6 +45,8 @@ add_executable(demo
     src/components/HealthComponent.cpp
     src/components/SpriteComponent.h
     src/components/SpriteComponent.cpp
+    src/components/ExplodeOnDeathComponent.h
+    src/components/ExplodeOnDeathComponent.cpp
     src/components/InputComponent.h
     src/components/InputComponent.cpp
     src/components/PlayerMovementComponent.h

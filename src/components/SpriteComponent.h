@@ -6,7 +6,7 @@
 
 class SpriteComponent : public Component {
 public:
-    SpriteComponent(Object& parent, const std::string& spriteName, bool animate = false, bool loop = false);
+    SpriteComponent(Object& parent, const std::string& spriteName, bool animate = false, bool loop = false, int killAfterLoops = -1);
     SpriteComponent(Object& parent, const nlohmann::json& data);
     ~SpriteComponent() override = default;
 
@@ -23,6 +23,12 @@ public:
     void setAnimationSpeed(float framesPerSecond);
     void playAnimation(bool loop = true);
     void stopAnimation();
+    void setKillAfterLoops(int loops);
+    void clearKillAfterLoops();
+    int getKillAfterLoops() const { return killAfterLoops; }
+    int getCompletedLoops() const { return completedLoops; }
+    void setRandomizeAnglePerFrame(bool enable);
+    bool isRandomizingAnglePerFrame() const { return randomizeAnglePerFrame; }
     
     // Rendering options
     void setFlipHorizontal(bool flip);
@@ -32,6 +38,8 @@ public:
     // Position management (for objects without BodyComponent)
     void setPosition(float x, float y, float angle = 0.0f);
     std::tuple<float, float, float> getPosition() const;
+    void setAngle(float angle);
+    float getAngle() const;
     
     // Tiling options
     void setTiled(bool tiled, float tileWidth = 0.0f, float tileHeight = 0.0f);
@@ -60,5 +68,12 @@ private:
     float tileHeight{0.0f};
     float renderWidth{0.0f};  // Custom render size (0 = use sprite size)
     float renderHeight{0.0f};
+
+    // Animation lifecycle
+    int killAfterLoops;   // -1 disables auto-death
+    int completedLoops;
+    bool randomizeAnglePerFrame;
+    
+    void applyRandomAngle();
 };
 

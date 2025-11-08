@@ -18,6 +18,9 @@ public:
     virtual nlohmann::json toJson() const = 0;
     virtual std::string getTypeName() const = 0;
 
+    // Lifecycle hooks
+    virtual void onParentDeath() {}
+
 protected:
     Object& parent() const { return parentObject; }
 

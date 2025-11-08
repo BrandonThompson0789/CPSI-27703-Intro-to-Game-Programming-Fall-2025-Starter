@@ -249,6 +249,14 @@
                     "type": "SpriteComponent",
                     "width": 48,
                     "height": 48
+                },
+                {
+                    "type": "ExplodeOnDeathComponent",
+                    "explosionSprite": "explosion",
+                    "explosionWidth": 96.0,
+                    "explosionHeight": 96.0,
+                    "loopsBeforeDeath": 2,
+                    "randomizeAngleEachFrame": true
                 }
             ]
         },

@@ -102,6 +102,15 @@ void Object::fromJson(const nlohmann::json& data) {
 }
 
 void Object::markForDeath() {
+    if (markedForDeath) {
+        return;
+    }
+
+    for (auto& component : components) {
+        if (component) {
+            component->onParentDeath();
+        }
+    }
     markedForDeath = true;
 }
 

@@ -5,8 +5,17 @@
 #include "../Object.h"
 #include "../components/BodyComponent.h"
 #include <algorithm>
+#include <random>
 
-SpriteComponent::SpriteComponent(Object& parent, const std::string& spriteNameParam, bool animate, bool loop)
+namespace {
+float randomAngleDegrees() {
+    static thread_local std::mt19937 rng(std::random_device{}());
+    static std::uniform_real_distribution<float> distribution(0.0f, 360.0f);
+    return distribution(rng);
+}
+}
+
+SpriteComponent::SpriteComponent(Object& parent, const std::string& spriteNameParam, bool animate, bool loop, int killAfterLoopsParam)
     : Component(parent), 
       spriteName(spriteNameParam),
       currentFrame(0),
@@ -15,7 +24,10 @@ SpriteComponent::SpriteComponent(Object& parent, const std::string& spriteNamePa
       animationSpeed(10.0f),
       animationTimer(0.0f),
       flipFlags(SDL_FLIP_NONE),
-      alpha(255) {
+      alpha(255),
+      killAfterLoops(killAfterLoopsParam),
+      completedLoops(0),
+      randomizeAnglePerFrame(false) {
 }
 
 SpriteComponent::SpriteComponent(Object& parent, const nlohmann::json& data)
@@ -27,7 +39,10 @@ SpriteComponent::SpriteComponent(Object& parent, const nlohmann::json& data)
       animationSpeed(10.0f),
       animationTimer(0.0f),
       flipFlags(SDL_FLIP_NONE),
-      alpha(255) {
+      alpha(255),
+      killAfterLoops(-1),
+      completedLoops(0),
+      randomizeAnglePerFrame(false) {
     
     if (data.contains("spriteName")) spriteName = data["spriteName"].get<std::string>();
     if (data.contains("currentFrame")) currentFrame = data["currentFrame"].get<int>();
@@ -37,6 +52,9 @@ SpriteComponent::SpriteComponent(Object& parent, const nlohmann::json& data)
     if (data.contains("animationTimer")) animationTimer = data["animationTimer"].get<float>();
     if (data.contains("flipFlags")) flipFlags = static_cast<SDL_RendererFlip>(data["flipFlags"].get<int>());
     if (data.contains("alpha")) alpha = data["alpha"].get<uint8_t>();
+    if (data.contains("killAfterLoops")) killAfterLoops = data["killAfterLoops"].get<int>();
+    if (data.contains("completedLoops")) completedLoops = data["completedLoops"].get<int>();
+    if (data.contains("randomizeAnglePerFrame")) randomizeAnglePerFrame = data["randomizeAnglePerFrame"].get<bool>();
     
     // Load local position (for objects without BodyComponent)
     if (data.contains("posX")) localX = data["posX"].get<float>();
@@ -62,6 +80,12 @@ nlohmann::json SpriteComponent::toJson() const {
     j["animationTimer"] = animationTimer;
     j["flipFlags"] = static_cast<int>(flipFlags);
     j["alpha"] = alpha;
+    if (killAfterLoops >= 0) {
+        j["killAfterLoops"] = killAfterLoops;
+    }
+    if (completedLoops > 0) {
+        j["completedLoops"] = completedLoops;
+    }
     
     // Save local position (for objects without BodyComponent)
     j["posX"] = localX;
@@ -76,6 +100,9 @@ nlohmann::json SpriteComponent::toJson() const {
     }
     if (renderWidth > 0) j["renderWidth"] = renderWidth;
     if (renderHeight > 0) j["renderHeight"] = renderHeight;
+    if (randomizeAnglePerFrame) {
+        j["randomizeAnglePerFrame"] = randomizeAnglePerFrame;
+    }
     
     return j;
 }
@@ -99,15 +126,27 @@ void SpriteComponent::update(float deltaTime) {
     // Advance to next frame
     if (animationTimer >= 1.0f) {
         animationTimer -= 1.0f;
+        int previousFrame = currentFrame;
         currentFrame++;
 
         if (currentFrame >= spriteData->getFrameCount()) {
+            completedLoops++;
+            bool shouldMarkForDeath = (killAfterLoops >= 0 && completedLoops >= killAfterLoops);
+
             if (looping) {
                 currentFrame = 0;
             } else {
                 currentFrame = spriteData->getFrameCount() - 1;
                 animating = false;
             }
+
+            if (shouldMarkForDeath) {
+                parent().markForDeath();
+            }
+        }
+
+        if (randomizeAnglePerFrame && currentFrame != previousFrame) {
+            applyRandomAngle();
         }
     }
 }
@@ -211,13 +250,21 @@ void SpriteComponent::draw() {
 
 void SpriteComponent::setCurrentSprite(const std::string& spriteName) {
     this->spriteName = spriteName;
+    completedLoops = 0;
+    if (randomizeAnglePerFrame) {
+        applyRandomAngle();
+    }
 }
 
 void SpriteComponent::setFrame(int frameIndex) {
+    int previousFrame = currentFrame;
     currentFrame = frameIndex;
     const SpriteData* spriteData = SpriteManager::getInstance().getSpriteData(spriteName);
     if (spriteData && currentFrame >= spriteData->getFrameCount()) {
         currentFrame = 0;
+    }
+    if (randomizeAnglePerFrame && currentFrame != previousFrame) {
+        applyRandomAngle();
     }
 }
 
@@ -229,11 +276,34 @@ void SpriteComponent::playAnimation(bool loop) {
     animating = true;
     looping = loop;
     animationTimer = 0.0f;
+    completedLoops = 0;
+    if (randomizeAnglePerFrame) {
+        applyRandomAngle();
+    }
 }
 
 void SpriteComponent::stopAnimation() {
     animating = false;
     animationTimer = 0.0f;
+}
+
+void SpriteComponent::setKillAfterLoops(int loops) {
+    killAfterLoops = (loops < 0) ? -1 : loops;
+    if (killAfterLoops >= 0 && completedLoops > killAfterLoops) {
+        completedLoops = killAfterLoops;
+    }
+}
+
+void SpriteComponent::clearKillAfterLoops() {
+    killAfterLoops = -1;
+    completedLoops = 0;
+}
+
+void SpriteComponent::setRandomizeAnglePerFrame(bool enable) {
+    randomizeAnglePerFrame = enable;
+    if (randomizeAnglePerFrame) {
+        applyRandomAngle();
+    }
 }
 
 void SpriteComponent::setFlipHorizontal(bool flip) {
@@ -270,6 +340,22 @@ std::tuple<float, float, float> SpriteComponent::getPosition() const {
     return std::make_tuple(localX, localY, localAngle);
 }
 
+void SpriteComponent::setAngle(float angle) {
+    if (auto* body = parent().getComponent<BodyComponent>()) {
+        auto [x, y, _] = body->getPosition();
+        body->setPosition(x, y, angle);
+    } else {
+        localAngle = angle;
+    }
+}
+
+float SpriteComponent::getAngle() const {
+    auto [posX, posY, currentAngle] = getPosition();
+    (void)posX;
+    (void)posY;
+    return currentAngle;
+}
+
 void SpriteComponent::setTiled(bool isTiled, float tWidth, float tHeight) {
     tiled = isTiled;
     tileWidth = tWidth;
@@ -279,5 +365,9 @@ void SpriteComponent::setTiled(bool isTiled, float tWidth, float tHeight) {
 void SpriteComponent::setRenderSize(float width, float height) {
     renderWidth = width;
     renderHeight = height;
+}
+
+void SpriteComponent::applyRandomAngle() {
+    setAngle(randomAngleDegrees());
 }
 

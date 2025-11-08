@@ -75,6 +75,14 @@
                 {
                     "type": "SpriteComponent",
                     "spriteName": "crate"
+                },
+                {
+                    "type": "ExplodeOnDeathComponent",
+                    "explosionSprite": "explosion",
+                    "explosionWidth": 64.0,
+                    "explosionHeight": 64.0,
+                    "loopsBeforeDeath": 2,
+                    "randomizeAngleEachFrame": true
                 }
             ]
         },
