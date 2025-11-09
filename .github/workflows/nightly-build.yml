@@ -64,7 +64,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build zip autoconf automake libtool pkg-config build-essential
+          sudo apt-get install -y ninja-build zip autoconf automake libtool libltdl-dev pkg-config build-essential
 
       - name: Install Windows build prerequisites
         if: runner.os == 'Windows'
