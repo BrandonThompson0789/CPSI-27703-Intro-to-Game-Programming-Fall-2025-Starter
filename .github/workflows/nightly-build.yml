@@ -1,0 +1,89 @@
+name: Nightly Build
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.display }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            display: linux
+            artifact_path: dist/linux-x64/demo-linux-x64-release.zip
+            artifact_name: demo-linux-x64-release.zip
+          - os: windows-latest
+            display: windows
+            artifact_path: dist\windows-x64\demo-windows-x64-release.zip
+            artifact_name: demo-windows-x64-release.zip
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Linux build prerequisites
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build zip
+
+      - name: Bootstrap vcpkg (Linux)
+        if: runner.os == 'Linux'
+        run: ./external/vcpkg/bootstrap-vcpkg.sh
+        shell: bash
+
+      - name: Bootstrap vcpkg (Windows)
+        if: runner.os == 'Windows'
+        run: .\external\vcpkg\bootstrap-vcpkg.bat
+        shell: pwsh
+
+      - name: Build release package (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          bash ./build_release.sh
+
+      - name: Build release package (Windows)
+        if: runner.os == 'Windows'
+        run: .\build_release.bat
+        shell: pwsh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.artifact_path }}
+
+  release:
+    name: Publish Nightly Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Generate release notes
+        run: |
+          echo "Nightly build for $GITHUB_SHA" > release-notes.md
+          echo >> release-notes.md
+          echo "Triggered by push to $GITHUB_REF." >> release-notes.md
+
+      - name: Create pre-release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: nightly-${{ github.run_id }}
+          name: Nightly build ${{ github.run_number }}
+          bodyFile: release-notes.md
+          prerelease: true
+          artifacts: "dist/**/*.zip"
+
