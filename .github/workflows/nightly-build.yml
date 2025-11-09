@@ -30,11 +30,22 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Enable Git long paths
+        if: runner.os == 'Windows'
+        run: git config --global core.longpaths true
+        shell: pwsh
+
       - name: Install Linux build prerequisites
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y ninja-build zip
+
+      - name: Install Windows build prerequisites
+        if: runner.os == 'Windows'
+        run: |
+          choco install ninja -y
+        shell: pwsh
 
       - name: Bootstrap vcpkg (Linux)
         if: runner.os == 'Linux'
