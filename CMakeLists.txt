@@ -91,7 +91,9 @@ add_custom_target(copy_assets ALL
 add_dependencies(demo copy_assets)
 
 # Copy DLLs after building demo
-add_custom_command(TARGET demo POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_RUNTIME_DLLS:demo> $<TARGET_FILE_DIR:demo>
-    COMMAND_EXPAND_LISTS
-)
+if(WIN32)
+    add_custom_command(TARGET demo POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_RUNTIME_DLLS:demo> $<TARGET_FILE_DIR:demo>
+        COMMAND_EXPAND_LISTS
+    )
+endif()
