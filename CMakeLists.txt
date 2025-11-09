@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Find packages
 find_package(SDL2 CONFIG REQUIRED)
-find_package(SDL2_ttf REQUIRED)
+find_package(SDL2_ttf CONFIG REQUIRED)
 find_package(SDL2_image CONFIG REQUIRED)
 find_package(box2d CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
@@ -65,28 +65,10 @@ add_executable(demo
 )
 
 # Link libraries
-set(SDL2_TTF_TARGET "")
-if(TARGET SDL2_ttf::SDL2_ttf)
-    set(SDL2_TTF_TARGET SDL2_ttf::SDL2_ttf)
-elseif(TARGET SDL2::SDL2_ttf)
-    set(SDL2_TTF_TARGET SDL2::SDL2_ttf)
-elseif(DEFINED SDL2_TTF_LIBRARIES)
-    add_library(SDL2_ttf::SDL2_ttf INTERFACE IMPORTED)
-    set_target_properties(SDL2_ttf::SDL2_ttf PROPERTIES
-        INTERFACE_LINK_LIBRARIES "${SDL2_TTF_LIBRARIES}"
-        INTERFACE_INCLUDE_DIRECTORIES "${SDL2_TTF_INCLUDE_DIRS}"
-    )
-    set(SDL2_TTF_TARGET SDL2_ttf::SDL2_ttf)
-endif()
-
-if(NOT SDL2_TTF_TARGET)
-    message(FATAL_ERROR "Failed to locate SDL2_ttf target")
-endif()
-
 target_link_libraries(demo PRIVATE
     SDL2::SDL2
-    ${SDL2_TTF_TARGET}
-    SDL2_image::SDL2_image
+    $<IF:$<TARGET_EXISTS:SDL2_ttf::SDL2_ttf>,SDL2_ttf::SDL2_ttf,SDL2_ttf::SDL2_ttf-static>
+    $<IF:$<TARGET_EXISTS:SDL2_image::SDL2_image>,SDL2_image::SDL2_image,SDL2_image::SDL2_image-static>
     box2d::box2d
     nlohmann_json::nlohmann_json
 )
