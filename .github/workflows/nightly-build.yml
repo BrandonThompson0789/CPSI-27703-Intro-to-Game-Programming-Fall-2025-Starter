@@ -35,6 +35,13 @@ jobs:
         run: git config --global core.longpaths true
         shell: pwsh
 
+      - name: Map short workspace path
+        if: runner.os == 'Windows'
+        run: |
+          subst W: $env:GITHUB_WORKSPACE
+          Add-Content $env:GITHUB_ENV "SHORT_WORKSPACE=W:\"
+        shell: pwsh
+
       - name: Install Linux build prerequisites
         if: runner.os == 'Linux'
         run: |
@@ -44,6 +51,7 @@ jobs:
       - name: Install Windows build prerequisites
         if: runner.os == 'Windows'
         run: |
+          Set-ExecutionPolicy Bypass -Scope Process -Force
           choco install ninja -y
         shell: pwsh
 
@@ -54,7 +62,9 @@ jobs:
 
       - name: Bootstrap vcpkg (Windows)
         if: runner.os == 'Windows'
-        run: .\external\vcpkg\bootstrap-vcpkg.bat
+        run: |
+          Set-Location $env:SHORT_WORKSPACE
+          .\external\vcpkg\bootstrap-vcpkg.bat
         shell: pwsh
 
       - name: Build release package (Linux)
@@ -64,7 +74,9 @@ jobs:
 
       - name: Build release package (Windows)
         if: runner.os == 'Windows'
-        run: .\build_release.bat
+        run: |
+          Set-Location $env:SHORT_WORKSPACE
+          .\build_release.bat
         shell: pwsh
 
       - name: Upload artifact
@@ -72,6 +84,12 @@ jobs:
         with:
           name: ${{ matrix.artifact_name }}
           path: ${{ matrix.artifact_path }}
+
+      - name: Remove short workspace mapping
+        if: runner.os == 'Windows'
+        run: |
+          subst W: /D
+        shell: pwsh
 
   release:
     name: Publish Nightly Release
