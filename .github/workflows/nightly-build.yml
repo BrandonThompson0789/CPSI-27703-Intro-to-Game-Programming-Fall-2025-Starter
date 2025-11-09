@@ -110,7 +110,7 @@ jobs:
         shell: pwsh
 
   release:
-    name: Publish Nightly Release
+    name: Publish Unstable Release
     needs: build
     runs-on: ubuntu-latest
     steps:
@@ -121,16 +121,19 @@ jobs:
 
       - name: Generate release notes
         run: |
-          echo "Nightly build for $GITHUB_SHA" > release-notes.md
+          echo "Unstable build for $GITHUB_SHA" > release-notes.md
           echo >> release-notes.md
           echo "Triggered by push to $GITHUB_REF." >> release-notes.md
 
-      - name: Create pre-release
+      - name: Create/update pre-release
         uses: ncipollo/release-action@v1
         with:
-          tag: nightly-${{ github.run_id }}
-          name: Nightly build ${{ github.run_number }}
+          tag: unstable
+          name: Unstable build
           bodyFile: release-notes.md
           prerelease: true
+          allowUpdates: true
+          removeArtifacts: true
+          makeLatest: false
           artifacts: "dist/**/*.zip"
 
