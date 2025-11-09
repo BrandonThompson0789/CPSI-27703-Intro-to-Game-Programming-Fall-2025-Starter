@@ -30,6 +30,24 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Configure vcpkg binary cache (Linux/macOS)
+        if: runner.os == 'Linux' || runner.os == 'macOS'
+        run: echo "VCPKG_BINARY_SOURCES=clear;x-gha,readwrite" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Configure vcpkg binary cache (Windows)
+        if: runner.os == 'Windows'
+        run: Add-Content $env:GITHUB_ENV "VCPKG_BINARY_SOURCES=clear;x-gha,readwrite"
+        shell: pwsh
+
+      - name: Cache vcpkg downloads
+        uses: actions/cache@v4
+        with:
+          path: external/vcpkg/downloads
+          key: vcpkg-downloads-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            vcpkg-downloads-${{ runner.os }}
+
       - name: Enable Git long paths
         if: runner.os == 'Windows'
         run: git config --global core.longpaths true
@@ -46,7 +64,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build zip
+          sudo apt-get install -y ninja-build zip autoconf automake libtool pkg-config build-essential
 
       - name: Install Windows build prerequisites
         if: runner.os == 'Windows'

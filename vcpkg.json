@@ -6,10 +6,7 @@
       "sdl2",
       "sdl2-ttf",
       "sdl2-image",
-      "sdl2-mixer",
       "box2d",
-      "tinyxml2",
-      "yaml-cpp",
       "nlohmann-json"
     ]
   }

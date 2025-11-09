@@ -8,10 +8,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(SDL2 CONFIG REQUIRED)
 find_package(SDL2_ttf CONFIG REQUIRED)
 find_package(SDL2_image CONFIG REQUIRED)
-find_package(SDL2_mixer CONFIG REQUIRED)
 find_package(box2d CONFIG REQUIRED)
-find_package(tinyxml2 CONFIG REQUIRED)
-find_package(yaml-cpp CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 
 # Collect all source files recursively from src directory
@@ -72,10 +69,7 @@ target_link_libraries(demo PRIVATE
     SDL2::SDL2
     SDL2_ttf::SDL2_ttf
     SDL2_image::SDL2_image
-    SDL2_mixer::SDL2_mixer
     box2d::box2d
-    tinyxml2::tinyxml2
-    yaml-cpp::yaml-cpp
     nlohmann_json::nlohmann_json
 )
 
