@@ -9,7 +9,6 @@ StandardMovementBehaviorComponent::StandardMovementBehaviorComponent(Object& par
     : Component(parent)
     , input(nullptr)
     , body(nullptr)
-    , sprite(nullptr)
     , moveSpeed(moveSpeed)
     , walkSlowdownFactor(0.5f)
     , rotationResponsiveness(0.5f)
@@ -21,7 +20,6 @@ StandardMovementBehaviorComponent::StandardMovementBehaviorComponent(Object& par
     : Component(parent)
     , input(nullptr)
     , body(nullptr)
-    , sprite(nullptr)
     , moveSpeed(data.value("moveSpeed", 200.0f))
     , walkSlowdownFactor(data.value("walkSlowdownFactor", 0.5f))
     , rotationResponsiveness(data.value("rotationResponsiveness", 0.5f))
@@ -39,7 +37,6 @@ StandardMovementBehaviorComponent::StandardMovementBehaviorComponent(Object& par
 void StandardMovementBehaviorComponent::resolveDependencies() {
     input = parent().getComponent<InputComponent>();
     body = parent().getComponent<BodyComponent>();
-    sprite = parent().getComponent<SpriteComponent>();
 
     if (!input) {
         std::cerr << "Warning: StandardMovementBehaviorComponent requires InputComponent!\n";
@@ -94,24 +91,7 @@ void StandardMovementBehaviorComponent::update(float deltaTime) {
     float velocityY = normalizedVertical * currentSpeed * 0.1f;
     body->modVelocity(velocityX, velocityY, 0.0f);
 
-    auto [actualVelX, actualVelY, actualVelAngle] = body->getVelocity();
-    (void)actualVelAngle;
-
-    updateSprite(actualVelX, actualVelY);
     updateRotation(horizontal, vertical);
-}
-
-void StandardMovementBehaviorComponent::updateSprite(float actualVelX, float actualVelY) {
-    if (!sprite) {
-        return;
-    }
-
-    float moveMagnitude = std::sqrt(actualVelX * actualVelX + actualVelY * actualVelY);
-    if (moveMagnitude > 1.0f) {
-        sprite->setCurrentSprite("player_walking");
-    } else {
-        sprite->setCurrentSprite("player_standing");
-    }
 }
 
 void StandardMovementBehaviorComponent::updateRotation(float inputHorizontal, float inputVertical) {

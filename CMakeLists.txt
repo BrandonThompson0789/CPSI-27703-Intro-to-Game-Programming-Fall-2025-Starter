@@ -55,6 +55,8 @@ add_executable(demo
     src/components/behaviors/GrabBehaviorComponent.cpp
     src/components/behaviors/ThrowBehaviorComponent.h
     src/components/behaviors/ThrowBehaviorComponent.cpp
+    src/components/behaviors/TankMovementBehaviorComponent.h
+    src/components/behaviors/TankMovementBehaviorComponent.cpp
     src/components/CollisionDamageComponent.h
     src/components/CollisionDamageComponent.cpp
     src/components/BoxBehaviorComponent.h

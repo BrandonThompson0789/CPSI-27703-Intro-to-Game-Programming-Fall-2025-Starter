@@ -5,6 +5,7 @@
 #include "../Object.h"
 #include "../components/BodyComponent.h"
 #include <algorithm>
+#include <cmath>
 #include <random>
 
 namespace {
@@ -27,7 +28,14 @@ SpriteComponent::SpriteComponent(Object& parent, const std::string& spriteNamePa
       alpha(255),
       killAfterLoops(killAfterLoopsParam),
       completedLoops(0),
-      randomizeAnglePerFrame(false) {
+      randomizeAnglePerFrame(false),
+      stillSpriteName(""),
+      movingSpriteName(""),
+      movementSpeedThreshold(5.0f),
+      scaleAnimationWithSpeed(false),
+      animationSpeedScale(0.0f),
+      baseAnimationSpeed(animationSpeed),
+      lastMeasuredSpeed(0.0f) {
 }
 
 SpriteComponent::SpriteComponent(Object& parent, const nlohmann::json& data)
@@ -42,7 +50,14 @@ SpriteComponent::SpriteComponent(Object& parent, const nlohmann::json& data)
       alpha(255),
       killAfterLoops(-1),
       completedLoops(0),
-      randomizeAnglePerFrame(false) {
+      randomizeAnglePerFrame(false),
+      stillSpriteName(""),
+      movingSpriteName(""),
+      movementSpeedThreshold(5.0f),
+      scaleAnimationWithSpeed(false),
+      animationSpeedScale(0.0f),
+      baseAnimationSpeed(animationSpeed),
+      lastMeasuredSpeed(0.0f) {
     
     if (data.contains("spriteName")) spriteName = data["spriteName"].get<std::string>();
     if (data.contains("currentFrame")) currentFrame = data["currentFrame"].get<int>();
@@ -67,6 +82,13 @@ SpriteComponent::SpriteComponent(Object& parent, const nlohmann::json& data)
     if (data.contains("tileHeight")) tileHeight = data["tileHeight"].get<float>();
     if (data.contains("renderWidth")) renderWidth = data["renderWidth"].get<float>();
     if (data.contains("renderHeight")) renderHeight = data["renderHeight"].get<float>();
+    if (data.contains("stillSpriteName")) stillSpriteName = data["stillSpriteName"].get<std::string>();
+    if (data.contains("movingSpriteName")) movingSpriteName = data["movingSpriteName"].get<std::string>();
+    movementSpeedThreshold = data.value("movementSpeedThreshold", movementSpeedThreshold);
+    scaleAnimationWithSpeed = data.value("scaleAnimationWithSpeed", scaleAnimationWithSpeed);
+    animationSpeedScale = data.value("animationSpeedScale", animationSpeedScale);
+
+    baseAnimationSpeed = animationSpeed;
 }
 
 nlohmann::json SpriteComponent::toJson() const {
@@ -76,7 +98,7 @@ nlohmann::json SpriteComponent::toJson() const {
     j["currentFrame"] = currentFrame;
     j["animating"] = animating;
     j["looping"] = looping;
-    j["animationSpeed"] = animationSpeed;
+    j["animationSpeed"] = baseAnimationSpeed;
     j["animationTimer"] = animationTimer;
     j["flipFlags"] = static_cast<int>(flipFlags);
     j["alpha"] = alpha;
@@ -103,6 +125,21 @@ nlohmann::json SpriteComponent::toJson() const {
     if (randomizeAnglePerFrame) {
         j["randomizeAnglePerFrame"] = randomizeAnglePerFrame;
     }
+    if (!stillSpriteName.empty()) {
+        j["stillSpriteName"] = stillSpriteName;
+    }
+    if (!movingSpriteName.empty()) {
+        j["movingSpriteName"] = movingSpriteName;
+    }
+    if (movementSpeedThreshold != 5.0f) {
+        j["movementSpeedThreshold"] = movementSpeedThreshold;
+    }
+    if (scaleAnimationWithSpeed) {
+        j["scaleAnimationWithSpeed"] = scaleAnimationWithSpeed;
+    }
+    if (animationSpeedScale != 0.0f) {
+        j["animationSpeedScale"] = animationSpeedScale;
+    }
     
     return j;
 }
@@ -111,6 +148,9 @@ nlohmann::json SpriteComponent::toJson() const {
 static ComponentRegistrar<SpriteComponent> registrar("SpriteComponent");
 
 void SpriteComponent::update(float deltaTime) {
+    updateMovementDrivenState();
+    updateAnimationSpeedFromMovement();
+
     if (!animating) {
         return;
     }
@@ -269,6 +309,7 @@ void SpriteComponent::setFrame(int frameIndex) {
 }
 
 void SpriteComponent::setAnimationSpeed(float framesPerSecond) {
+    baseAnimationSpeed = framesPerSecond;
     animationSpeed = framesPerSecond;
 }
 
@@ -304,6 +345,26 @@ void SpriteComponent::setRandomizeAnglePerFrame(bool enable) {
     if (randomizeAnglePerFrame) {
         applyRandomAngle();
     }
+}
+
+void SpriteComponent::setStillSprite(const std::string& name) {
+    stillSpriteName = name;
+}
+
+void SpriteComponent::setMovingSprite(const std::string& name) {
+    movingSpriteName = name;
+}
+
+void SpriteComponent::setMovementSpeedThreshold(float threshold) {
+    movementSpeedThreshold = std::max(0.0f, threshold);
+}
+
+void SpriteComponent::setScaleAnimationWithSpeed(bool enabled) {
+    scaleAnimationWithSpeed = enabled;
+}
+
+void SpriteComponent::setAnimationSpeedScale(float scale) {
+    animationSpeedScale = scale;
 }
 
 void SpriteComponent::setFlipHorizontal(bool flip) {
@@ -369,5 +430,55 @@ void SpriteComponent::setRenderSize(float width, float height) {
 
 void SpriteComponent::applyRandomAngle() {
     setAngle(randomAngleDegrees());
+}
+
+void SpriteComponent::updateMovementDrivenState() {
+    lastMeasuredSpeed = 0.0f;
+
+    if (auto* body = parent().getComponent<BodyComponent>()) {
+        auto [velX, velY, velAngle] = body->getVelocity();
+        (void)velAngle;
+        lastMeasuredSpeed = std::sqrt(velX * velX + velY * velY);
+    }
+
+    bool hasStill = !stillSpriteName.empty();
+    bool hasMoving = !movingSpriteName.empty();
+
+    if (!hasStill && !hasMoving) {
+        return;
+    }
+
+    bool isMoving = lastMeasuredSpeed > movementSpeedThreshold;
+    const std::string& desiredSprite = isMoving ? (hasMoving ? movingSpriteName : stillSpriteName)
+                                                : (hasStill ? stillSpriteName : movingSpriteName);
+
+    if (!desiredSprite.empty() && spriteName != desiredSprite) {
+        setCurrentSprite(desiredSprite);
+        currentFrame = 0;
+        animationTimer = 0.0f;
+    }
+
+    if (isMoving) {
+        if (!animating) {
+            animating = true;
+            looping = true;
+            animationTimer = 0.0f;
+        }
+    } else if (hasStill) {
+        if (animating) {
+            animating = false;
+            animationTimer = 0.0f;
+            currentFrame = 0;
+        }
+    }
+}
+
+void SpriteComponent::updateAnimationSpeedFromMovement() {
+    if (scaleAnimationWithSpeed && animating) {
+        float scaledSpeed = baseAnimationSpeed + animationSpeedScale * lastMeasuredSpeed;
+        animationSpeed = std::max(0.0f, scaledSpeed);
+    } else {
+        animationSpeed = baseAnimationSpeed;
+    }
 }
 

@@ -6,8 +6,14 @@
                 {
                     "type": "SpriteComponent",
                     "spriteName": "player_standing",
-                    "animating": true,
-                    "looping": true
+                    "animating": false,
+                    "looping": true,
+                    "stillSpriteName": "player_standing",
+                    "movingSpriteName": "player_walking",
+                    "movementSpeedThreshold": 5.0,
+                    "scaleAnimationWithSpeed": true,
+                    "animationSpeed": 12.0,
+                    "animationSpeedScale": 0.02
                 },
                 {
                     "type": "InputComponent",
@@ -53,6 +59,66 @@
                     "type": "CollisionDamageComponent",
                     "baseDamage": 1.0,
                     "kineticScale": 6.0
+                }
+            ]
+        },
+        "player_vaccumba": {
+            "name": "player_vaccumba",
+            "components": [
+                {
+                    "type": "SpriteComponent",
+                    "spriteName": "vaccumba",
+                    "animating": false,
+                    "looping": false
+                },
+                {
+                    "type": "InputComponent",
+                    "inputSources": [0]
+                },
+                {
+                    "type": "BodyComponent",
+                    "posX": 0.0,
+                    "posY": 0.0,
+                    "bodyType": "dynamic",
+                    "fixedRotation": false,
+                    "linearDamping": 6.0,
+                    "angularDamping": 8.0,
+                    "fixture": {
+                        "shape": "circle",
+                        "radius": 15.0,
+                        "density": 0.5
+                    }
+                },
+                {
+                    "type": "TankMovementBehaviorComponent",
+                    "moveSpeed": 80.0,
+                    "rotationResponsiveness": 0.6,
+                    "maxAngularVelocity": 0.6,
+                    "rotationStopThresholdDegrees": 5.0
+                },
+                {
+                    "type": "ViewGrabComponent",
+                    "paddingX": 320.0,
+                    "paddingY": 220.0
+                },
+                {
+                    "type": "HealthComponent",
+                    "maxHP": 10.0,
+                    "currentHP": 10.0,
+                    "impactResistance": 0.2
+                },
+                {
+                    "type": "CollisionDamageComponent",
+                    "baseDamage": 1.0,
+                    "kineticScale": 6.0
+                },
+                {
+                    "type": "ExplodeOnDeathComponent",
+                    "explosionSprite": "explosion",
+                    "explosionWidth": 64.0,
+                    "explosionHeight": 64.0,
+                    "loopsBeforeDeath": 2,
+                    "randomizeAngleEachFrame": true
                 }
             ]
         },

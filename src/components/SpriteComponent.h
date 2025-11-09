@@ -29,6 +29,13 @@ public:
     int getCompletedLoops() const { return completedLoops; }
     void setRandomizeAnglePerFrame(bool enable);
     bool isRandomizingAnglePerFrame() const { return randomizeAnglePerFrame; }
+
+    // Movement-driven sprite switching
+    void setStillSprite(const std::string& spriteName);
+    void setMovingSprite(const std::string& spriteName);
+    void setMovementSpeedThreshold(float threshold);
+    void setScaleAnimationWithSpeed(bool enabled);
+    void setAnimationSpeedScale(float scale);
     
     // Rendering options
     void setFlipHorizontal(bool flip);
@@ -73,6 +80,18 @@ private:
     int killAfterLoops;   // -1 disables auto-death
     int completedLoops;
     bool randomizeAnglePerFrame;
+
+    // Movement-based sprite control
+    std::string stillSpriteName;
+    std::string movingSpriteName;
+    float movementSpeedThreshold;
+    bool scaleAnimationWithSpeed;
+    float animationSpeedScale;
+    float baseAnimationSpeed;
+    float lastMeasuredSpeed;
+
+    void updateMovementDrivenState();
+    void updateAnimationSpeedFromMovement();
     
     void applyRandomAngle();
 };

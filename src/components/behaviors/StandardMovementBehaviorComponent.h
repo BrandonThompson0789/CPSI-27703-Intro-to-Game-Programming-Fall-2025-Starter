@@ -3,7 +3,6 @@
 #include "../Component.h"
 #include "../InputComponent.h"
 #include "../BodyComponent.h"
-#include "../SpriteComponent.h"
 #include <nlohmann/json.hpp>
 
 /**
@@ -34,11 +33,9 @@ public:
 private:
     void resolveDependencies();
     void updateRotation(float inputHorizontal, float inputVertical);
-    void updateSprite(float actualVelX, float actualVelY);
 
     InputComponent* input;
     BodyComponent* body;
-    SpriteComponent* sprite;
 
     float moveSpeed;
     float walkSlowdownFactor;

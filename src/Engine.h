@@ -85,8 +85,8 @@ class Engine {
         CameraState cameraState;
         CameraState cameraTarget;
         bool cameraInitialized = false;
-        static constexpr float MIN_CAMERA_WIDTH = 1600.0f;
-        static constexpr float MIN_CAMERA_HEIGHT = 900.0f;
+        static constexpr float MIN_CAMERA_WIDTH = 800.0f;
+        static constexpr float MIN_CAMERA_HEIGHT = 450.0f;
         static constexpr float CAMERA_SMOOTHING_RATE = 8.0f;
         float lastDeltaTime = 1.0f / 60.0f;
 };
