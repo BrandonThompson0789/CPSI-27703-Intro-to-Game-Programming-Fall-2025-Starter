@@ -17,6 +17,7 @@ public:
     ~Box2DDebugDraw();
 
     void init(SDL_Renderer* renderer, float pixelsPerMeter);
+    void shutdown();
     void setEnabled(bool enabled);
     bool isEnabled() const;
     void toggle();

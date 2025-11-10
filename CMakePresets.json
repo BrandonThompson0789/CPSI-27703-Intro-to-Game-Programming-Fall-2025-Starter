@@ -13,6 +13,7 @@
           "CMAKE_CXX_COMPILER": "C:/ProgramData/mingw64/mingw64/bin/g++.exe",
           "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/external/vcpkg/scripts/buildsystems/vcpkg.cmake",
           "VCPKG_TARGET_TRIPLET": "x64-mingw-dynamic",
+          "VCPKG_HOST_TRIPLET": "x64-mingw-dynamic",
           "CMAKE_CXX_FLAGS_DEBUG": "-g -O0",
           "CMAKE_C_FLAGS_DEBUG": "-g -O0"
         }

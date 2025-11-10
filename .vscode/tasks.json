@@ -1,22 +1,39 @@
 {
-    "version": "2.0.0",
-    "tasks": [
-        {
-            "label": "build-mingw-debug",
-            "type": "shell",
-            "command": "cmake",
-            "args": ["--build", "build/win-mingw-debug"],
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "shared"
-            },
-            "problemMatcher": "$gcc"
-        }
-    ]
+  "$schema": "https://raw.githubusercontent.com/microsoft/vscode/master/src/vs/workbench/contrib/tasks/common/tasks.schema.json",
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Configure (windows-mingw-debug)",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--preset",
+        "windows-mingw-debug"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Build (windows-mingw-debug)",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "build/win-mingw-debug"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "dependsOn": "Configure (windows-mingw-debug)",
+      "problemMatcher": [
+        "$gcc"
+      ]
+    }
+  ]
 }

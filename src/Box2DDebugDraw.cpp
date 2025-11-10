@@ -41,10 +41,7 @@ Box2DDebugDraw::Box2DDebugDraw()
       labelFont(nullptr) {}
 
 Box2DDebugDraw::~Box2DDebugDraw() {
-    if (labelFont) {
-        TTF_CloseFont(labelFont);
-        labelFont = nullptr;
-    }
+    shutdown();
 }
 
 void Box2DDebugDraw::init(SDL_Renderer* inRenderer, float inPixelsPerMeter) {
@@ -72,6 +69,18 @@ void Box2DDebugDraw::init(SDL_Renderer* inRenderer, float inPixelsPerMeter) {
     debugDraw.drawContacts = false;
 
     initialized = true;
+}
+
+void Box2DDebugDraw::shutdown() {
+    if (labelFont) {
+        TTF_CloseFont(labelFont);
+        labelFont = nullptr;
+    }
+    renderer = nullptr;
+    initialized = false;
+    enabled = false;
+    debugDraw = b2DefaultDebugDraw();
+    debugDraw.context = this;
 }
 
 void Box2DDebugDraw::setEnabled(bool value) {

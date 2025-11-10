@@ -6,6 +6,7 @@
 #include <memory>
 #include <typeindex>
 #include <unordered_map>
+#include <unordered_set>
 #include <nlohmann/json.hpp>
 
 class Component;
@@ -13,7 +14,7 @@ class Engine;
 
 class Object {
     public:
-        Object() = default;
+        Object();
         virtual ~Object();
         
         void update(float deltaTime = 1.0f / 60.0f);
@@ -63,6 +64,7 @@ class Object {
         // Static method to set/get Engine instance
         static void setEngine(Engine* engine);
         static Engine* getEngine();
+        static bool isAlive(const Object* object);
 
         // Lifecycle management
         void markForDeath();
@@ -73,6 +75,7 @@ class Object {
         std::vector<std::unique_ptr<Component>> components;
         std::unordered_map<std::type_index, Component*> componentMap;
         static Engine* engineInstance;
+        static std::unordered_set<Object*> liveObjects;
         bool markedForDeath = false;
 };
 

@@ -325,9 +325,17 @@ void Engine::ensureDefaultCamera() {
 }
 
 void Engine::cleanup() {
+    std::cout << "Clean Up Step 1" << std::endl;
+    if (cleanedUp) {
+        return;
+    }
+    std::cout << "Clean Up Step 2" << std::endl;
+    cleanedUp = true;
+
     // Clean up objects before destroying physics world
+    std::cout << "Clean Up Step 3" << std::endl;
     objects.clear();
-    
+    std::cout << "Clean Up Step 4" << std::endl;
     // Destroy physics world (v3.x API)
     if (B2_IS_NON_NULL(physicsWorldId)) {
         b2DestroyWorld(physicsWorldId);
@@ -337,19 +345,36 @@ void Engine::cleanup() {
             collisionManager->clearImpacts();
         }
     }
-    
+    std::cout << "Clean Up Step 5" << std::endl;
     InputManager::getInstance().cleanup();
+    std::cout << "Clean Up Step 6" << std::endl;
     SpriteManager::getInstance().cleanup();
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
+    std::cout << "Clean Up Step 7" << std::endl;
+    if (renderer) {
+        SDL_DestroyRenderer(renderer);
+        renderer = nullptr;
+    }
+    std::cout << "Clean Up Step 8" << std::endl;
+    if (window) {
+        SDL_DestroyWindow(window);
+        window = nullptr;
+    }
+    std::cout << "Clean Up Step 9" << std::endl;
+    debugDraw.shutdown();
+    std::cout << "Clean Up Step 9.5" << std::endl;
     if (TTF_WasInit()) {
         TTF_Quit();
     }
+    std::cout << "Clean Up Step 10" << std::endl;
     SDL_Quit();
+    std::cout << "Clean Up Step 11" << std::endl;
 }
 
 Engine::Engine() {
     running = true;
+    cleanedUp = false;
+    window = nullptr;
+    renderer = nullptr;
     physicsWorldId = b2_nullWorldId;
     collisionManager = std::make_unique<CollisionManager>(*this);
     cameraState.viewWidth = MIN_CAMERA_WIDTH;

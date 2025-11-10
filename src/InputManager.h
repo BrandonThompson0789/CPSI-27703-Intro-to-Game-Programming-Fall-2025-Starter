@@ -102,6 +102,9 @@ private:
     
     // Device index to controller slot mapping
     std::unordered_map<int, int> deviceToSlot;
+
+    bool subsystemInitialized;
+    bool cleanedUp;
     
     // Input configurations
     std::unique_ptr<InputConfig> config; // Default config

@@ -86,7 +86,7 @@ void TankMovementBehaviorComponent::update(float deltaTime) {
     }
 
     if (!input->isActive()) {
-        std::cerr << "Warning: Input source not active!\n";
+        //std::cerr << "Warning: Input source not active!\n";
         return;
     }
 

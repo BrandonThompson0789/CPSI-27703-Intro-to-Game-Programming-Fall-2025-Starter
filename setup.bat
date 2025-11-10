@@ -19,7 +19,7 @@ if not exist "CMakeLists.txt" (
 :: Check Git
 echo Checking Git...
 git --version >nul 2>&1
-if %errorlevel% equ 0 (
+if !errorlevel! equ 0 (
     echo [SUCCESS] Git is installed
 ) else (
     echo [ERROR] Git is not installed or not in PATH
@@ -31,7 +31,7 @@ if %errorlevel% equ 0 (
 :: Check CMake
 echo Checking CMake...
 cmake --version >nul 2>&1
-if %errorlevel% equ 0 (
+if !errorlevel! equ 0 (
     echo [SUCCESS] CMake is installed
 ) else (
     echo [WARNING] CMake not found
@@ -39,10 +39,10 @@ if %errorlevel% equ 0 (
     
     :: Check if Chocolatey is installed
     where choco >nul 2>&1
-    if %errorlevel% equ 0 (
+    if !errorlevel! equ 0 (
         echo [INFO] Chocolatey found. Installing CMake...
         choco install cmake -y
-        if %errorlevel% equ 0 (
+        if !errorlevel! equ 0 (
             echo [SUCCESS] CMake installed successfully
             echo [INFO] Please restart your terminal/VS Code to refresh PATH
             echo.
@@ -64,13 +64,13 @@ if %errorlevel% equ 0 (
         :: Install Chocolatey
         powershell -Command "Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))"
         
-        if %errorlevel% equ 0 (
+        if !errorlevel! equ 0 (
             echo [SUCCESS] Chocolatey installed successfully
             echo [INFO] Installing CMake...
             
             :: Refresh PATH and install CMake
             call choco install cmake -y
-            if %errorlevel% equ 0 (
+            if !errorlevel! equ 0 (
                 echo [SUCCESS] CMake installed successfully
                 echo [INFO] Please restart your terminal/VS Code to refresh PATH
                 echo.
@@ -97,7 +97,7 @@ if %errorlevel% equ 0 (
 :: Check MinGW-w64
 echo Checking MinGW-w64...
 where gcc >nul 2>&1
-if %errorlevel% equ 0 (
+if !errorlevel! equ 0 (
     echo [SUCCESS] MinGW-w64 GCC is installed
 ) else (
     echo [WARNING] MinGW-w64 GCC not found
@@ -105,10 +105,10 @@ if %errorlevel% equ 0 (
     
     :: Check if Chocolatey is installed
     where choco >nul 2>&1
-    if %errorlevel% equ 0 (
+    if !errorlevel! equ 0 (
         echo [INFO] Chocolatey found. Installing MinGW-w64...
         choco install mingw -y
-        if %errorlevel% equ 0 (
+        if !errorlevel! equ 0 (
             echo [SUCCESS] MinGW-w64 installed successfully
             echo [INFO] Please restart your terminal/VS Code to refresh PATH
             echo.
@@ -130,13 +130,13 @@ if %errorlevel% equ 0 (
         :: Install Chocolatey
         powershell -Command "Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))"
         
-        if %errorlevel% equ 0 (
+        if !errorlevel! equ 0 (
             echo [SUCCESS] Chocolatey installed successfully
             echo [INFO] Installing MinGW-w64...
             
             :: Refresh PATH and install MinGW
             call choco install mingw -y
-            if %errorlevel% equ 0 (
+            if !errorlevel! equ 0 (
                 echo [SUCCESS] MinGW-w64 installed successfully
                 echo [INFO] Please restart your terminal/VS Code to refresh PATH
                 echo.
@@ -163,7 +163,7 @@ if %errorlevel% equ 0 (
 :: Check Ninja
 echo Checking Ninja...
 where ninja >nul 2>&1
-if %errorlevel% equ 0 (
+if !errorlevel! equ 0 (
     echo [SUCCESS] Ninja is installed
 ) else (
     echo [WARNING] Ninja not found
@@ -171,10 +171,10 @@ if %errorlevel% equ 0 (
     
     :: Check if Chocolatey is installed
     where choco >nul 2>&1
-    if %errorlevel% equ 0 (
+    if !errorlevel! equ 0 (
         echo [INFO] Chocolatey found. Installing Ninja...
         choco install ninja -y
-        if %errorlevel% equ 0 (
+        if !errorlevel! equ 0 (
             echo [SUCCESS] Ninja installed successfully
             echo [INFO] Please restart your terminal/VS Code to refresh PATH
             echo.
@@ -196,13 +196,13 @@ if %errorlevel% equ 0 (
         :: Install Chocolatey
         powershell -Command "Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))"
         
-        if %errorlevel% equ 0 (
+        if !errorlevel! equ 0 (
             echo [SUCCESS] Chocolatey installed successfully
             echo [INFO] Installing Ninja...
             
             :: Refresh PATH and install Ninja
             call choco install ninja -y
-            if %errorlevel% equ 0 (
+            if !errorlevel! equ 0 (
                 echo [SUCCESS] Ninja installed successfully
                 echo [INFO] Please restart your terminal/VS Code to refresh PATH
                 echo.
@@ -235,8 +235,8 @@ if not exist "external\vcpkg" (
     echo [WARNING] vcpkg submodule not found. Initializing...
     echo.
     echo Initializing vcpkg submodule...
-    git submodule update --init --recursive
-    if %errorlevel% equ 0 (
+    git submodule update --init --recursive external/vcpkg
+    if !errorlevel! equ 0 (
         echo [SUCCESS] vcpkg submodule initialized
     ) else (
         echo [ERROR] Failed to initialize vcpkg submodule
@@ -245,7 +245,32 @@ if not exist "external\vcpkg" (
         exit /b 1
     )
 ) else (
-    echo [SUCCESS] vcpkg submodule already exists
+    if not exist "external\vcpkg\.git" (
+        echo [WARNING] vcpkg submodule directory exists but is not initialized. Initializing...
+        echo.
+        git submodule update --init --recursive external/vcpkg
+        if !errorlevel! equ 0 (
+            echo [SUCCESS] vcpkg submodule initialized
+        ) else (
+            echo [ERROR] Failed to initialize vcpkg submodule
+            echo [INFO] Make sure you cloned the repository with: git clone --recursive
+            pause
+            exit /b 1
+        )
+    ) else if not exist "external\vcpkg\bootstrap-vcpkg.bat" (
+        echo [WARNING] vcpkg submodule appears incomplete. Updating...
+        echo.
+        git submodule update --init --recursive external/vcpkg
+        if !errorlevel! equ 0 (
+            echo [SUCCESS] vcpkg submodule updated
+        ) else (
+            echo [ERROR] Failed to update vcpkg submodule
+            pause
+            exit /b 1
+        )
+    ) else (
+        echo [SUCCESS] vcpkg submodule already initialized
+    )
 )
 
 :: Check if vcpkg is bootstrapped
@@ -255,7 +280,7 @@ if not exist "external\vcpkg\vcpkg.exe" (
     echo Bootstrapping vcpkg...
     cd external\vcpkg
     call bootstrap-vcpkg.bat
-    if %errorlevel% equ 0 (
+            if !errorlevel! equ 0 (
         echo [SUCCESS] vcpkg bootstrapped successfully
     ) else (
         echo [ERROR] Failed to bootstrap vcpkg
@@ -271,7 +296,7 @@ if not exist "external\vcpkg\vcpkg.exe" (
 echo.
 echo Configuring CMake...
 cmake --preset windows-mingw-debug
-if %errorlevel% equ 0 (
+        if !errorlevel! equ 0 (
     echo [SUCCESS] CMake configuration completed
 ) else (
     echo [ERROR] CMake configuration failed
@@ -284,7 +309,7 @@ if %errorlevel% equ 0 (
 echo.
 echo Building the project...
 cmake --build build/win-mingw-debug
-if %errorlevel% equ 0 (
+            if !errorlevel! equ 0 (
     echo [SUCCESS] Build completed successfully
 ) else (
     echo [ERROR] Build failed

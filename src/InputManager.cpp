@@ -19,6 +19,8 @@ InputManager::InputManager() {
     
     // Create config with defaults
     config = std::make_unique<InputConfig>();
+    subsystemInitialized = false;
+    cleanedUp = false;
 }
 
 InputManager::~InputManager() {
@@ -26,11 +28,18 @@ InputManager::~InputManager() {
 }
 
 void InputManager::init(const std::string& configPath) {
+    if (subsystemInitialized && !cleanedUp) {
+        return;
+    }
+
     // Initialize SDL game controller subsystem
     if (SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER) < 0) {
         std::cerr << "Failed to initialize SDL GameController subsystem: " << SDL_GetError() << std::endl;
         return;
     }
+
+    subsystemInitialized = true;
+    cleanedUp = false;
     
     // Load gamecontrollerdb.txt
     loadGameControllerDB("assets/gamecontrollerdb.txt");
@@ -215,12 +224,24 @@ void InputManager::closeController(int index) {
 }
 
 void InputManager::cleanup() {
+    if (cleanedUp) {
+        return;
+    }
+
     // Close all controllers
     for (int i = 0; i < 4; ++i) {
         closeController(i);
     }
     
-    SDL_QuitSubSystem(SDL_INIT_GAMECONTROLLER);
+    deviceToSlot.clear();
+
+    if (subsystemInitialized) {
+        SDL_QuitSubSystem(SDL_INIT_GAMECONTROLLER);
+        subsystemInitialized = false;
+    }
+
+    controllers.fill(nullptr);
+    cleanedUp = true;
 }
 
 float InputManager::getInputValue(int inputSource, GameAction action) const {

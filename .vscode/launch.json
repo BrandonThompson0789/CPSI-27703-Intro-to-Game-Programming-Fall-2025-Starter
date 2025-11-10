@@ -2,7 +2,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug demo.exe (MinGW + GDB)",
+            "name": "Run Demo (MinGW)",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/win-mingw-debug/demo.exe",
@@ -20,10 +20,29 @@
                     "ignoreFailures": true
                 }
             ],
-            "preLaunchTask": "build-mingw-debug",
-            "logging": {
-                "engineLogging": true
-            }
+            "preLaunchTask": "Build (windows-mingw-debug)"
+        },
+        {
+            "name": "Run Demo (MinGW) - No Debug",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/win-mingw-debug/demo.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "miDebuggerPath": "C:/ProgramData/mingw64/mingw64/bin/gdb.exe",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "Build (windows-mingw-debug)",
+            "noDebug": true
         }
     ]
 }

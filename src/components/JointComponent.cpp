@@ -39,12 +39,13 @@ void JointComponent::setBreakSeparation(float separation) {
 }
 
 void JointComponent::destroyJoint() {
+    std::cout << "Destroy Joint Part 1" << std::endl;
     if (B2_IS_NULL(jointId)) {
         connectedBody = nullptr;
         jointBroken = false;
         return;
     }
-
+    std::cout << "Destroy Joint Part 2" << std::endl;
     bool canDestroy = true;
 
     if (auto* bodyCompA = parent().getComponent<BodyComponent>()) {
@@ -54,8 +55,8 @@ void JointComponent::destroyJoint() {
     } else {
         canDestroy = false;
     }
-
-    if (connectedBody) {
+    std::cout << "Destroy Joint Part 3" << std::endl;
+    if (connectedBody && Object::isAlive(connectedBody)) {
         if (auto* bodyCompB = connectedBody->getComponent<BodyComponent>()) {
             if (B2_IS_NULL(bodyCompB->getBodyId())) {
                 canDestroy = false;
@@ -66,11 +67,11 @@ void JointComponent::destroyJoint() {
     } else {
         canDestroy = false;
     }
-
+    std::cout << "Destroy Joint Part 4" << std::endl;
     if (canDestroy) {
         b2DestroyJoint(jointId);
     }
-
+    std::cout << "Destroy Joint Part 5" << std::endl;
     jointId = b2_nullJointId;
     // Reset broken flag so joint can be recreated
     jointBroken = false;

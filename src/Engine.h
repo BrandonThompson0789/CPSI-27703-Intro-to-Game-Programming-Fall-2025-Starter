@@ -73,6 +73,7 @@ class Engine {
         SDL_Window* window;
         SDL_Renderer* renderer;
         bool running;
+        bool cleanedUp;
         std::vector<std::unique_ptr<Object>> objects;
         std::vector<std::unique_ptr<Object>> pendingObjects;
         std::unique_ptr<CollisionManager> collisionManager;

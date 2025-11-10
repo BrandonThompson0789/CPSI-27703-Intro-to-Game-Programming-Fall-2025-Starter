@@ -6,8 +6,24 @@
 #include <iostream>
 
 Engine* Object::engineInstance = nullptr;
+std::unordered_set<Object*> Object::liveObjects;
 
-Object::~Object() = default;
+Object::Object() {
+    liveObjects.insert(this);
+}
+
+Object::~Object() {
+    if (!markedForDeath) {
+        for (auto& component : components) {
+            if (component) {
+                component->onParentDeath();
+            }
+        }
+    }
+    componentMap.clear();
+    components.clear();
+    liveObjects.erase(this);
+}
 
 void Object::setEngine(Engine* engine) {
     engineInstance = engine;
@@ -15,6 +31,13 @@ void Object::setEngine(Engine* engine) {
 
 Engine* Object::getEngine() {
     return engineInstance;
+}
+
+bool Object::isAlive(const Object* object) {
+    if (object == nullptr) {
+        return false;
+    }
+    return liveObjects.find(const_cast<Object*>(object)) != liveObjects.end();
 }
 
 void Object::update(float deltaTime) {
