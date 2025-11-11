@@ -5,6 +5,8 @@
 #include "../BodyComponent.h"
 #include <nlohmann/json.hpp>
 
+class SoundComponent;
+
 /**
  * Handles standard player movement behaviour: reading movement input,
  * applying velocity to the physics body, and updating the sprite facing.
@@ -36,11 +38,15 @@ private:
 
     InputComponent* input;
     BodyComponent* body;
+    SoundComponent* sound;
 
     float moveSpeed;
+    float moveSoundRateScale;
+    float moveSoundTimer;
     float walkSlowdownFactor;
     float rotationResponsiveness;
     float maxAngularVelocity;
+    bool wasMoving = false;
 };
 
 

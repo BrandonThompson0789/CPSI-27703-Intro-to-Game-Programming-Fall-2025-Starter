@@ -1,5 +1,7 @@
 #include "GrabBehaviorComponent.h"
 #include "../ComponentLibrary.h"
+#include "../JointComponent.h"
+#include "../SoundComponent.h"
 #include "../../Engine.h"
 #include "../../Object.h"
 #include <box2d/box2d.h>
@@ -13,6 +15,7 @@ GrabBehaviorComponent::GrabBehaviorComponent(Object& parent)
     , body(nullptr)
     , grabbedObject(nullptr)
     , grabJoint(nullptr)
+    , sound(nullptr)
     , grabDistance(80.0f)
     , grabForce(200.0f)
     , breakForce(500.0f)
@@ -27,6 +30,7 @@ GrabBehaviorComponent::GrabBehaviorComponent(Object& parent, const nlohmann::jso
     , body(nullptr)
     , grabbedObject(nullptr)
     , grabJoint(nullptr)
+    , sound(nullptr)
     , grabDistance(data.value("grabDistance", 80.0f))
     , grabForce(data.value("grabForce", 200.0f))
     , breakForce(data.value("breakForce", 500.0f))
@@ -39,6 +43,7 @@ void GrabBehaviorComponent::resolveDependencies() {
     input = parent().getComponent<InputComponent>();
     body = parent().getComponent<BodyComponent>();
     grabJoint = parent().getComponent<JointComponent>();
+    sound = parent().getComponent<SoundComponent>();
 
     if (!input) {
         std::cerr << "Warning: GrabBehaviorComponent requires InputComponent!\n";
@@ -71,6 +76,10 @@ void GrabBehaviorComponent::update(float deltaTime) {
 
     if (!input || !body) {
         return;
+    }
+
+    if (!sound) {
+        sound = parent().getComponent<SoundComponent>();
     }
 
     autoReleaseIfNecessary();
@@ -325,9 +334,16 @@ void GrabBehaviorComponent::grabObject(Object* obj) {
     );
 
     grabJoint->setBreakForce(breakForce);
+
+    if (!sound) {
+        sound = parent().getComponent<SoundComponent>();
+    }
+    if (sound) {
+        sound->playActionSound("grab");
+    }
 }
 
-void GrabBehaviorComponent::releaseGrabbedObject() {
+void GrabBehaviorComponent::releaseGrabbedObject(bool playSound) {
     if (!grabbedObject) {
         return;
     }
@@ -336,16 +352,23 @@ void GrabBehaviorComponent::releaseGrabbedObject() {
         grabJoint->destroyJoint();
     }
 
+    if (!sound) {
+        sound = parent().getComponent<SoundComponent>();
+    }
+    if (sound && grabbedObject && playSound) {
+        sound->playActionSound("grab_release");
+    }
+
     grabbedObject = nullptr;
 }
 
-Object* GrabBehaviorComponent::detachGrabbedObject() {
+Object* GrabBehaviorComponent::detachGrabbedObject(bool playSound) {
     if (!grabbedObject) {
         return nullptr;
     }
 
     Object* objectToReturn = grabbedObject;
-    releaseGrabbedObject();
+    releaseGrabbedObject(playSound);
     return objectToReturn;
 }
 

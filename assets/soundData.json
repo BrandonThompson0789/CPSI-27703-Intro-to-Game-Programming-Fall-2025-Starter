@@ -1,0 +1,136 @@
+{
+    "mixer": {
+        "frequency": 44100,
+        "channels": 2,
+        "format": "AUDIO_S16LSB",
+        "chunkSize": 2048,
+        "channelCount": 32
+    },
+    "attenuation": {
+        "enabled": true,
+        "maxOffscreenDistance": 600.0
+    },
+    "collections": {
+        "player_move": [
+            "assets/sounds/footstep_start_02.wav",
+            "assets/sounds/footstep_start_03.wav",
+            "assets/sounds/footstep_start_04.wav",
+            "assets/sounds/footstep_start_05.wav",
+            "assets/sounds/footstep_start_06.wav"
+        ],
+        "player_move_stop": [
+            "assets/sounds/footstep_stop_01.wav"
+        ],
+        "player_grab": [
+            "assets/sounds/wood_soft_01.wav",
+            "assets/sounds/wood_soft_02.wav"
+        ],
+        "player_grab_release": [
+            "assets/sounds/wood_soft_01.wav",
+            "assets/sounds/wood_soft_02.wav"
+        ],
+        "player_throw": [
+            "assets/sounds/throw_01.wav",
+            "assets/sounds/throw_02.wav"
+        ],
+        "impact_soft": [
+            "assets/sounds/wood_soft_01.wav",
+            "assets/sounds/wood_soft_02.wav"
+        ],
+        "impact_medium": [
+            "assets/sounds/wood_medium_01.wav",
+            "assets/sounds/wood_medium_02.wav",
+            "assets/sounds/wood_medium_03.wav",
+            "assets/sounds/wood_medium_04.wav"
+        ],
+        "impact_hard": [
+            "assets/sounds/wood_hard_01.wav"
+        ],
+        "impact_wood_soft": [
+            "assets/sounds/wood_soft_01.wav",
+            "assets/sounds/wood_soft_02.wav"
+        ],
+        "impact_wood_medium": [
+            "assets/sounds/wood_medium_01.wav",
+            "assets/sounds/wood_medium_02.wav",
+            "assets/sounds/wood_medium_03.wav",
+            "assets/sounds/wood_medium_04.wav"
+        ],
+        "impact_wood_hard": [
+            "assets/sounds/wood_hard_01.wav"
+        ],
+        "impact_metal_soft": [
+            "assets/sounds/metal_soft_01.wav",
+            "assets/sounds/metal_soft_02.wav",
+            "assets/sounds/metal_soft_03.wav",
+            "assets/sounds/metal_soft_04.wav"
+        ],
+        "impact_metal_medium": [
+            "assets/sounds/metal_medium_01.wav",
+            "assets/sounds/metal_medium_02.wav",
+            "assets/sounds/metal_medium_03.wav",
+            "assets/sounds/metal_medium_04.wav",
+            "assets/sounds/metal_medium_05.wav",
+            "assets/sounds/metal_medium_06.wav"
+        ],
+        "impact_metal_hard": [
+            "assets/sounds/metal_hard_01.wav",
+            "assets/sounds/metal_hard_02.wav",
+            "assets/sounds/metal_hard_03.wav",
+            "assets/sounds/metal_hard_04.wav"
+        ],
+        "explode": [
+            "assets/sounds/explosion_01.wav",
+            "assets/sounds/explosion_02.wav",
+            "assets/sounds/explosion_03.wav",
+            "assets/sounds/explosion_04.wav",
+            "assets/sounds/explosion_05.wav",
+            "assets/sounds/explosion_06.wav"
+        ]
+    },
+    "impacts": {
+        "thresholds": {
+            "soft": 1.5,
+            "medium": 4.0,
+            "hard": 8.0
+        },
+        "default": {
+            "soft": "impact_soft",
+            "medium": "impact_medium",
+            "hard": "impact_hard"
+        },
+        "materialPairs": [
+            {
+                "materials": ["wood", "wood"],
+                "collections": {
+                    "soft": "impact_wood_soft",
+                    "medium": "impact_wood_medium",
+                    "hard": "impact_wood_hard"
+                }
+            },
+            {
+                "materials": ["metal", "metal"],
+                "collections": {
+                    "soft": "impact_metal_soft",
+                    "medium": "impact_metal_medium",
+                    "hard": "impact_metal_hard"
+                }
+            },
+            {
+                "materials": ["wood", "metal"],
+                "collections": {
+                    "soft": "impact_wood_soft",
+                    "medium": "impact_wood_medium",
+                    "hard": "impact_wood_hard"
+                }
+            },
+            {
+                "materials": ["metal", "*"],
+                "collections": {
+                    "hard": "impact_metal_hard"
+                }
+            }
+        ]
+    }
+}
+

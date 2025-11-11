@@ -1,6 +1,7 @@
 #include "ThrowBehaviorComponent.h"
 #include "GrabBehaviorComponent.h"
 #include "../ComponentLibrary.h"
+#include "../SoundComponent.h"
 #include "../../Engine.h"
 #include "../../Object.h"
 #include <cmath>
@@ -11,6 +12,7 @@ ThrowBehaviorComponent::ThrowBehaviorComponent(Object& parent)
     , input(nullptr)
     , body(nullptr)
     , grabBehavior(nullptr)
+    , soundComponent(nullptr)
     , maxThrowCharge(1.0f)
     , throwForceMultiplier(1000.0f)
     , minThrowForceRatio(0.3f)
@@ -25,6 +27,7 @@ ThrowBehaviorComponent::ThrowBehaviorComponent(Object& parent, const nlohmann::j
     , input(nullptr)
     , body(nullptr)
     , grabBehavior(nullptr)
+    , soundComponent(nullptr)
     , maxThrowCharge(data.value("maxThrowCharge", 1.0f))
     , throwForceMultiplier(data.value("throwForceMultiplier", 1000.0f))
     , minThrowForceRatio(data.value("minThrowForceRatio", 0.3f))
@@ -38,6 +41,7 @@ void ThrowBehaviorComponent::resolveDependencies() {
     input = parent().getComponent<InputComponent>();
     body = parent().getComponent<BodyComponent>();
     grabBehavior = parent().getComponent<GrabBehaviorComponent>();
+    soundComponent = parent().getComponent<SoundComponent>();
 
     if (!input) {
         std::cerr << "Warning: ThrowBehaviorComponent requires InputComponent!\n";
@@ -67,6 +71,9 @@ void ThrowBehaviorComponent::update(float deltaTime) {
     if (!grabBehavior) {
         // Dependency may have been added after construction; attempt to resolve lazily.
         grabBehavior = parent().getComponent<GrabBehaviorComponent>();
+        if (!soundComponent) {
+            soundComponent = parent().getComponent<SoundComponent>();
+        }
         if (!grabBehavior) {
             return;
         }
@@ -115,7 +122,7 @@ void ThrowBehaviorComponent::executeThrow(float chargeRatio) {
         return;
     }
 
-    Object* objectToThrow = grabBehavior->detachGrabbedObject();
+    Object* objectToThrow = grabBehavior->detachGrabbedObject(false);
     if (!objectToThrow) {
         return;
     }
@@ -146,6 +153,13 @@ void ThrowBehaviorComponent::executeThrow(float chargeRatio) {
         currentVelY + throwVelY,
         0.0f
     );
+
+    if (!soundComponent) {
+        soundComponent = parent().getComponent<SoundComponent>();
+    }
+    if (soundComponent) {
+        soundComponent->playActionSound("throw");
+    }
 }
 
 static ComponentRegistrar<ThrowBehaviorComponent> registrar("ThrowBehaviorComponent");

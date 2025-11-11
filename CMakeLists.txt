@@ -8,6 +8,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(SDL2 CONFIG REQUIRED)
 find_package(SDL2_ttf CONFIG REQUIRED)
 find_package(SDL2_image CONFIG REQUIRED)
+find_package(SDL2_mixer CONFIG REQUIRED)
 find_package(box2d CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 
@@ -28,6 +29,8 @@ add_executable(demo
     src/InputManager.cpp
     src/InputConfig.h
     src/InputConfig.cpp
+    src/SoundManager.h
+    src/SoundManager.cpp
     src/ObjectSerializer.h
     src/CollisionManager.h
     src/CollisionManager.cpp
@@ -42,6 +45,8 @@ add_executable(demo
     src/components/HealthComponent.cpp
     src/components/SpriteComponent.h
     src/components/SpriteComponent.cpp
+    src/components/SoundComponent.h
+    src/components/SoundComponent.cpp
     src/components/ExplodeOnDeathComponent.h
     src/components/ExplodeOnDeathComponent.cpp
     src/components/InputComponent.h
@@ -56,8 +61,6 @@ add_executable(demo
     src/components/behaviors/TankMovementBehaviorComponent.cpp
     src/components/CollisionDamageComponent.h
     src/components/CollisionDamageComponent.cpp
-    src/components/BoxBehaviorComponent.h
-    src/components/BoxBehaviorComponent.cpp
     src/components/JointComponent.h
     src/components/JointComponent.cpp
     src/components/ViewGrabComponent.h
@@ -69,6 +72,7 @@ target_link_libraries(demo PRIVATE
     SDL2::SDL2
     $<IF:$<TARGET_EXISTS:SDL2_ttf::SDL2_ttf>,SDL2_ttf::SDL2_ttf,SDL2_ttf::SDL2_ttf-static>
     $<IF:$<TARGET_EXISTS:SDL2_image::SDL2_image>,SDL2_image::SDL2_image,SDL2_image::SDL2_image-static>
+    $<IF:$<TARGET_EXISTS:SDL2_mixer::SDL2_mixer>,SDL2_mixer::SDL2_mixer,SDL2_mixer::SDL2_mixer-static>
     box2d::box2d
     nlohmann_json::nlohmann_json
 )

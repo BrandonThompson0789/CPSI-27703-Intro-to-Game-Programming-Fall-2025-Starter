@@ -2,6 +2,7 @@
 #include "ComponentLibrary.h"
 #include "SpriteComponent.h"
 #include "BodyComponent.h"
+#include "SoundComponent.h"
 #include "../Object.h"
 #include "../Engine.h"
 #include <random>
@@ -90,6 +91,10 @@ void ExplodeOnDeathComponent::onParentDeath() {
         return;
     }
     triggered = true;
+    
+    auto* sound = parent().getComponent<SoundComponent>();
+    if(sound)sound->playActionSound("explode");
+
     spawnExplosion();
 }
 

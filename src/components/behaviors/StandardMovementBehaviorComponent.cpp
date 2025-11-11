@@ -1,7 +1,9 @@
 #include "StandardMovementBehaviorComponent.h"
 #include "../ComponentLibrary.h"
+#include "../SoundComponent.h"
 #include "../../Engine.h"
 #include "../../Object.h"
+#include <algorithm>
 #include <cmath>
 #include <iostream>
 
@@ -9,7 +11,10 @@ StandardMovementBehaviorComponent::StandardMovementBehaviorComponent(Object& par
     : Component(parent)
     , input(nullptr)
     , body(nullptr)
+    , sound(nullptr)
     , moveSpeed(moveSpeed)
+    , moveSoundRateScale(0.02f)
+    , moveSoundTimer(0.0f)
     , walkSlowdownFactor(0.5f)
     , rotationResponsiveness(0.5f)
     , maxAngularVelocity(0.5f) {
@@ -20,7 +25,10 @@ StandardMovementBehaviorComponent::StandardMovementBehaviorComponent(Object& par
     : Component(parent)
     , input(nullptr)
     , body(nullptr)
+    , sound(nullptr)
     , moveSpeed(data.value("moveSpeed", 200.0f))
+    , moveSoundRateScale(data.value("moveSoundRateScale", 0.02f))
+    , moveSoundTimer(0.0f)
     , walkSlowdownFactor(data.value("walkSlowdownFactor", 0.5f))
     , rotationResponsiveness(data.value("rotationResponsiveness", 0.5f))
     , maxAngularVelocity(data.value("maxAngularVelocity", 0.5f)) {
@@ -37,6 +45,7 @@ StandardMovementBehaviorComponent::StandardMovementBehaviorComponent(Object& par
 void StandardMovementBehaviorComponent::resolveDependencies() {
     input = parent().getComponent<InputComponent>();
     body = parent().getComponent<BodyComponent>();
+    sound = parent().getComponent<SoundComponent>();
 
     if (!input) {
         std::cerr << "Warning: StandardMovementBehaviorComponent requires InputComponent!\n";
@@ -50,6 +59,7 @@ nlohmann::json StandardMovementBehaviorComponent::toJson() const {
     nlohmann::json j;
     j["type"] = getTypeName();
     j["moveSpeed"] = moveSpeed;
+    j["moveSoundRateScale"] = moveSoundRateScale;
     j["walkSlowdownFactor"] = walkSlowdownFactor;
     j["rotationResponsiveness"] = rotationResponsiveness;
     j["maxAngularVelocity"] = maxAngularVelocity;
@@ -57,14 +67,21 @@ nlohmann::json StandardMovementBehaviorComponent::toJson() const {
 }
 
 void StandardMovementBehaviorComponent::update(float deltaTime) {
-    (void)deltaTime;
-
     if (!input || !body) {
         return;
     }
 
     if (!input->isActive()) {
-        //std::cerr << "Warning: Input source not active!\n";
+        if (wasMoving) {
+            if (!sound) {
+                sound = parent().getComponent<SoundComponent>();
+            }
+            if (sound) {
+                sound->playActionSound("move_stop");
+            }
+            wasMoving = false;
+        }
+        moveSoundTimer = 0.0f;
         return;
     }
 
@@ -87,9 +104,33 @@ void StandardMovementBehaviorComponent::update(float deltaTime) {
         normalizedVertical /= inputMagnitude;
     }
 
+    auto [velX, velY, velAngle] = body->getVelocity();
+    float speed = std::sqrt(velX * velX + velY * velY);
+
     float velocityX = normalizedHorizontal * currentSpeed * 0.1f;
     float velocityY = normalizedVertical * currentSpeed * 0.1f;
     body->modVelocity(velocityX, velocityY, 0.0f);
+    bool isMoving = speed > 1.0f;
+    if (!sound) {
+        sound = parent().getComponent<SoundComponent>();
+    }
+    if (sound) {
+        if (isMoving) {
+            moveSoundTimer -= deltaTime;
+            if (moveSoundTimer <= 0.0f) {
+                float rateScale = std::clamp(moveSoundRateScale, 0.001f, 10.0f);
+                float speedFactor = std::max(speed, 1.0f);
+                float interval = 1.0f / (speedFactor * rateScale);
+                interval = std::clamp(interval, 0.1f, 1.0f);
+                sound->playActionSound("move");
+                moveSoundTimer = interval;
+            }
+        } else if (wasMoving) {
+            moveSoundTimer = 0.0f;
+            sound->playActionSound("move_stop");
+        }
+    }
+    wasMoving = isMoving;
 
     updateRotation(horizontal, vertical);
 }

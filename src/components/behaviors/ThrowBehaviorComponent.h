@@ -6,6 +6,7 @@
 #include <nlohmann/json.hpp>
 
 class GrabBehaviorComponent;
+class SoundComponent;
 
 /**
  * Handles charging and throwing of objects currently held by the grab
@@ -34,6 +35,7 @@ private:
     InputComponent* input;
     BodyComponent* body;
     GrabBehaviorComponent* grabBehavior;
+    SoundComponent* soundComponent;
 
     float maxThrowCharge;
     float throwForceMultiplier;

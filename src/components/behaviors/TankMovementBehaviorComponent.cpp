@@ -1,7 +1,9 @@
 #include "TankMovementBehaviorComponent.h"
 #include "../ComponentLibrary.h"
+#include "../SoundComponent.h"
 #include "../../Engine.h"
 #include "../../Object.h"
+#include <algorithm>
 #include <cmath>
 #include <iostream>
 
@@ -40,7 +42,10 @@ TankMovementBehaviorComponent::TankMovementBehaviorComponent(Object& parent, flo
     : Component(parent)
     , input(nullptr)
     , body(nullptr)
+    , sound(nullptr)
     , moveSpeed(moveSpeed)
+    , moveSoundRateScale(0.02f)
+    , moveSoundTimer(0.0f)
     , rotationResponsiveness(0.6f)
     , maxAngularVelocity(0.6f)
     , rotationStopThresholdDegrees(5.0f) {
@@ -51,7 +56,10 @@ TankMovementBehaviorComponent::TankMovementBehaviorComponent(Object& parent, con
     : Component(parent)
     , input(nullptr)
     , body(nullptr)
+    , sound(nullptr)
     , moveSpeed(data.value("moveSpeed", 200.0f))
+    , moveSoundRateScale(data.value("moveSoundRateScale", 0.02f))
+    , moveSoundTimer(0.0f)
     , rotationResponsiveness(data.value("rotationResponsiveness", 0.6f))
     , maxAngularVelocity(data.value("maxAngularVelocity", 0.6f))
     , rotationStopThresholdDegrees(data.value("rotationStopThresholdDegrees", 5.0f)) {
@@ -61,6 +69,7 @@ TankMovementBehaviorComponent::TankMovementBehaviorComponent(Object& parent, con
 void TankMovementBehaviorComponent::resolveDependencies() {
     input = parent().getComponent<InputComponent>();
     body = parent().getComponent<BodyComponent>();
+    sound = parent().getComponent<SoundComponent>();
 
     if (!input) {
         std::cerr << "Warning: TankMovementBehaviorComponent requires InputComponent!\n";
@@ -74,6 +83,7 @@ nlohmann::json TankMovementBehaviorComponent::toJson() const {
     nlohmann::json j;
     j["type"] = getTypeName();
     j["moveSpeed"] = moveSpeed;
+    j["moveSoundRateScale"] = moveSoundRateScale;
     j["rotationResponsiveness"] = rotationResponsiveness;
     j["maxAngularVelocity"] = maxAngularVelocity;
     j["rotationStopThresholdDegrees"] = rotationStopThresholdDegrees;
@@ -86,13 +96,44 @@ void TankMovementBehaviorComponent::update(float deltaTime) {
     }
 
     if (!input->isActive()) {
-        //std::cerr << "Warning: Input source not active!\n";
+        if (wasMoving) {
+            if (!sound) {
+                sound = parent().getComponent<SoundComponent>();
+            }
+            if (sound) {
+                sound->playActionSound("move_stop");
+            }
+            wasMoving = false;
+        }
+        moveSoundTimer = 0.0f;
         return;
     }
 
     float desiredHorizontal = 0.0f;
     float desiredVertical = 0.0f;
     bool hasDirection = acquireInputDirection(desiredHorizontal, desiredVertical);
+
+    bool isMoving = hasDirection;
+    if (!sound) {
+        sound = parent().getComponent<SoundComponent>();
+    }
+    if (sound) {
+        if (isMoving) {
+            moveSoundTimer -= deltaTime;
+            if (moveSoundTimer <= 0.0f) {
+                float rateScale = std::clamp(moveSoundRateScale, 0.001f, 10.0f);
+                float speedFactor = std::max(moveSpeed, 1.0f);
+                float interval = 1.0f / (speedFactor * rateScale);
+                interval = std::clamp(interval, 0.1f, 1.0f);
+                sound->playActionSound("move");
+                moveSoundTimer = interval;
+            }
+        } else if (wasMoving) {
+            moveSoundTimer = 0.0f;
+            sound->playActionSound("move_stop");
+        }
+    }
+    wasMoving = isMoving;
 
     if (hasDirection) {
         updateRotation(desiredHorizontal, desiredVertical);

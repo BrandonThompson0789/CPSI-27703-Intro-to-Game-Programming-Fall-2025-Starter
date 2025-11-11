@@ -3,8 +3,10 @@
 #include "../Component.h"
 #include "../InputComponent.h"
 #include "../BodyComponent.h"
-#include "../JointComponent.h"
 #include <nlohmann/json.hpp>
+
+class JointComponent;
+class SoundComponent;
 
 /**
  * Handles interacting with physics objects: grabbing, holding, and releasing
@@ -27,8 +29,8 @@ public:
     bool hasGrabbedObject() const { return grabbedObject != nullptr; }
     JointComponent* getGrabJoint() const { return grabJoint; }
 
-    void releaseGrabbedObject();
-    Object* detachGrabbedObject();
+    void releaseGrabbedObject(bool playSound = true);
+    Object* detachGrabbedObject(bool playSound = true);
 
     void setGrabDistance(float distance) { grabDistance = distance; }
     float getGrabDistance() const { return grabDistance; }
@@ -55,6 +57,7 @@ private:
 
     Object* grabbedObject;
     JointComponent* grabJoint;
+    SoundComponent* sound;
     float grabDistance;
     float grabForce;
     float breakForce;

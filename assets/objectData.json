@@ -20,6 +20,35 @@
                     "inputSources": [-1]
                 },
                 {
+                    "type": "SoundComponent",
+                    "collections": {
+                        "move": {
+                            "collection": "player_move",
+                            "volume": 0.3
+                        },
+                        "move_stop": {
+                            "collection": "player_move_stop",
+                            "volume": 0.1
+                        },
+                        "grab": {
+                            "collection": "player_grab",
+                            "volume": 0.2
+                        },
+                        "grab_release": {
+                            "collection": "player_grab_release",
+                            "volume": 0.2
+                        },
+                        "throw": {
+                            "collection": "player_throw",
+                            "volume": 1.0
+                        },
+                        "explode": {
+                            "collection": "explode",
+                            "volume": 1.0
+                        }
+                    }
+                },
+                {
                     "type": "BodyComponent",
                     "posX": 0.0,
                     "posY": 0.0,
@@ -30,13 +59,15 @@
                     "fixture": {
                         "shape": "circle",
                         "radius": 15.0,
-                        "density": 5.0
+                        "density": 5.0,
+                        "material": "metal"
                     }
                 },
                 {
                     "type": "StandardMovementBehaviorComponent",
                     "moveSpeed": 120.0,
-                    "rotationSpeed": 180.0
+                    "rotationSpeed": 180.0,
+                    "moveSoundRateScale": 0.02
                 },
                 {
                     "type": "GrabBehaviorComponent",
@@ -76,6 +107,35 @@
                     "inputSources": [0]
                 },
                 {
+                    "type": "SoundComponent",
+                    "collections": {
+                        "move": {
+                            "collection": "player_move",
+                            "volume": 1.0
+                        },
+                        "move_stop": {
+                            "collection": "player_move_stop",
+                            "volume": 0.75
+                        },
+                        "grab": {
+                            "collection": "player_grab",
+                            "volume": 0.4
+                        },
+                        "grab_release": {
+                            "collection": "player_grab_release",
+                            "volume": 0.4
+                        },
+                        "throw": {
+                            "collection": "player_throw",
+                            "volume": 1.0
+                        },
+                        "explode": {
+                            "collection": "explode",
+                            "volume": 1.0
+                        }
+                    }
+                },
+                {
                     "type": "BodyComponent",
                     "posX": 0.0,
                     "posY": 0.0,
@@ -86,7 +146,8 @@
                     "fixture": {
                         "shape": "circle",
                         "radius": 15.0,
-                        "density": 0.5
+                        "density": 0.5,
+                        "material": "metal"
                     }
                 },
                 {
@@ -94,7 +155,8 @@
                     "moveSpeed": 80.0,
                     "rotationResponsiveness": 0.6,
                     "maxAngularVelocity": 0.6,
-                    "rotationStopThresholdDegrees": 5.0
+                    "rotationStopThresholdDegrees": 5.0,
+                    "moveSoundRateScale": 0.02
                 },
                 {
                     "type": "ViewGrabComponent",
@@ -136,7 +198,8 @@
                         "shape": "box",
                         "width": 32.0,
                         "height": 32.0,
-                        "density": 1.0
+                        "density": 1.0,
+                        "material": "wood"
                     }
                 },
                 {
@@ -161,6 +224,15 @@
                     "explosionHeight": 64.0,
                     "loopsBeforeDeath": 2,
                     "randomizeAngleEachFrame": true
+                },
+                {
+                    "type": "SoundComponent",
+                    "collections": {
+                        "explode": {
+                            "collection": "explode",
+                            "volume": 1.0
+                        }
+                    }
                 }
             ]
         },
@@ -178,7 +250,8 @@
                         "shape": "box",
                         "width": 32.0,
                         "height": 32.0,
-                        "density": 2.0
+                        "density": 2.0,
+                        "material": "wood"
                     }
                 },
                 {
@@ -190,6 +263,23 @@
                 {
                     "type": "SpriteComponent",
                     "spriteName": "crate"
+                },
+                {
+                    "type": "ExplodeOnDeathComponent",
+                    "explosionSprite": "explosion",
+                    "explosionWidth": 64.0,
+                    "explosionHeight": 64.0,
+                    "loopsBeforeDeath": 2,
+                    "randomizeAngleEachFrame": true
+                },
+                {
+                    "type": "SoundComponent",
+                    "collections": {
+                        "explode": {
+                            "collection": "explode",
+                            "volume": 1.0
+                        }
+                    }
                 }
             ]
         },
@@ -207,7 +297,8 @@
                         "shape": "box",
                         "width": 32.0,
                         "height": 32.0,
-                        "density": 1.0
+                        "density": 1.0,
+                        "material": "wood"
                     }
                 },
                 {
@@ -299,7 +390,8 @@
                     "fixture": {
                         "shape": "box",
                         "width": 32.0,
-                        "height": 32.0
+                        "height": 32.0,
+                        "material": "wood"
                     }
                 },
                 {
@@ -322,7 +414,8 @@
                         "shape": "box",
                         "width": 16.0,
                         "height": 64.0,
-                        "density": 1.0
+                        "density": 1.0,
+                        "material": "wood"
                     }
                 },
                 {

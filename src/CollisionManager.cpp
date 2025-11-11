@@ -5,6 +5,7 @@
 #include "components/BodyComponent.h"
 #include "components/CollisionDamageComponent.h"
 #include "components/HealthComponent.h"
+#include "SoundManager.h"
 
 #include <algorithm>
 
@@ -32,6 +33,7 @@ void CollisionManager::gatherCollisions() {
 void CollisionManager::processCollisions(float /*deltaTime*/) {
     for (const auto& impact : impacts) {
         applyImpactDamage(impact);
+        SoundManager::getInstance().playImpactSound(impact);
     }
 }
 

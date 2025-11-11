@@ -1,6 +1,7 @@
 #include "Engine.h"
 #include "SpriteManager.h"
 #include "InputManager.h"
+#include "SoundManager.h"
 #include "CollisionManager.h"
 #include "components/Component.h"
 #include "components/ViewGrabComponent.h"
@@ -64,7 +65,16 @@ void Engine::init() {
     
     // Initialize sprite manager
     SpriteManager::getInstance().init(renderer, "assets/spriteData.json");
-    
+
+    // Initialize sound manager (non-fatal if missing)
+    if (!SoundManager::getInstance().isInitialized()) {
+        if (!SoundManager::getInstance().init("assets/soundData.json", this)) {
+            std::cerr << "Warning: SoundManager failed to initialize" << std::endl;
+        }
+    } else {
+        SoundManager::getInstance().init("assets/soundData.json", this);
+    }
+
     // Initialize input manager
     InputManager::getInstance().init();
     
@@ -325,17 +335,13 @@ void Engine::ensureDefaultCamera() {
 }
 
 void Engine::cleanup() {
-    std::cout << "Clean Up Step 1" << std::endl;
     if (cleanedUp) {
         return;
     }
-    std::cout << "Clean Up Step 2" << std::endl;
     cleanedUp = true;
 
     // Clean up objects before destroying physics world
-    std::cout << "Clean Up Step 3" << std::endl;
     objects.clear();
-    std::cout << "Clean Up Step 4" << std::endl;
     // Destroy physics world (v3.x API)
     if (B2_IS_NON_NULL(physicsWorldId)) {
         b2DestroyWorld(physicsWorldId);
@@ -345,29 +351,22 @@ void Engine::cleanup() {
             collisionManager->clearImpacts();
         }
     }
-    std::cout << "Clean Up Step 5" << std::endl;
     InputManager::getInstance().cleanup();
-    std::cout << "Clean Up Step 6" << std::endl;
     SpriteManager::getInstance().cleanup();
-    std::cout << "Clean Up Step 7" << std::endl;
+    SoundManager::getInstance().shutdown();
     if (renderer) {
         SDL_DestroyRenderer(renderer);
         renderer = nullptr;
     }
-    std::cout << "Clean Up Step 8" << std::endl;
     if (window) {
         SDL_DestroyWindow(window);
         window = nullptr;
     }
-    std::cout << "Clean Up Step 9" << std::endl;
     debugDraw.shutdown();
-    std::cout << "Clean Up Step 9.5" << std::endl;
     if (TTF_WasInit()) {
         TTF_Quit();
     }
-    std::cout << "Clean Up Step 10" << std::endl;
     SDL_Quit();
-    std::cout << "Clean Up Step 11" << std::endl;
 }
 
 Engine::Engine() {

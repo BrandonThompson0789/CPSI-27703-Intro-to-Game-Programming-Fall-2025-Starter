@@ -5,6 +5,8 @@
 #include "../BodyComponent.h"
 #include <nlohmann/json.hpp>
 
+class SoundComponent;
+
 /**
  * Movement behaviour that restricts motion to the eight cardinal/intercardinal
  * directions. When switching directions, the player stops translating until
@@ -42,11 +44,15 @@ private:
 
     InputComponent* input;
     BodyComponent* body;
+    SoundComponent* sound;
 
     float moveSpeed;
+    float moveSoundRateScale;
+    float moveSoundTimer;
     float rotationResponsiveness;
     float maxAngularVelocity;
     float rotationStopThresholdDegrees;
+    bool wasMoving = false;
 };
 
 
