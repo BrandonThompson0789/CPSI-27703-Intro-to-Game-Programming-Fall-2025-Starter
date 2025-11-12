@@ -5,6 +5,7 @@
 #include "components/BodyComponent.h"
 #include "components/HealthComponent.h"
 #include "components/SensorComponent.h"
+#include "components/RailComponent.h"
 
 #include <algorithm>
 #include <cmath>
@@ -384,7 +385,7 @@ void Box2DDebugDraw::renderLabels(const std::vector<std::unique_ptr<Object>>& ob
     const SDL_Color healthLowColor{220, 80, 60, 255};
     const SDL_Color sensorTextColor{200, 240, 255, 255};
 
-    // First pass: Draw sensor range circles and target lines (before labels)
+    // First pass: Draw sensor range circles, target lines, and rail paths (before labels)
     for (const auto& objectPtr : objects) {
         if (!objectPtr) {
             continue;
@@ -430,6 +431,63 @@ void Box2DDebugDraw::renderLabels(const std::vector<std::unique_ptr<Object>>& ob
             b2Vec2 targetPos{targetX * Engine::PIXELS_TO_METERS, targetY * Engine::PIXELS_TO_METERS};
             // Orange color: 0xFFC864 (RGB: 255, 200, 100)
             drawSegmentImpl(sensorPos, targetPos, static_cast<b2HexColor>(0xFFC864));
+        }
+    }
+
+    // Draw rail component paths
+    for (const auto& objectPtr : objects) {
+        if (!objectPtr) {
+            continue;
+        }
+
+        auto* rail = objectPtr->getComponent<RailComponent>();
+        if (!rail) {
+            continue;
+        }
+
+        const auto& path = rail->getPath();
+        if (path.size() < 2) {
+            continue;
+        }
+
+        // Draw rail path segments
+        // Green color for rail path: 0x00FF00 (RGB: 0, 255, 0)
+        // Yellow color for stop points: 0xFFFF00 (RGB: 255, 255, 0)
+        b2HexColor pathColor = static_cast<b2HexColor>(0x00FF00);
+        b2HexColor stopColor = static_cast<b2HexColor>(0xFFFF00);
+
+        // Draw lines connecting all points in the path
+        for (size_t i = 0; i < path.size(); ++i) {
+            size_t nextIdx = (i + 1) % path.size();
+            const auto& point1 = path[i];
+            const auto& point2 = path[nextIdx];
+            
+            // Convert from pixels to meters
+            b2Vec2 p1{point1.x * Engine::PIXELS_TO_METERS, point1.y * Engine::PIXELS_TO_METERS};
+            b2Vec2 p2{point2.x * Engine::PIXELS_TO_METERS, point2.y * Engine::PIXELS_TO_METERS};
+            
+            drawSegmentImpl(p1, p2, pathColor);
+        }
+
+        // Draw stop points as circles
+        for (const auto& point : path) {
+            if (point.isStop) {
+                b2Vec2 pos{point.x * Engine::PIXELS_TO_METERS, point.y * Engine::PIXELS_TO_METERS};
+                // Draw a small circle at stop points (radius of 0.1 meters = 10 pixels)
+                drawCircleImpl(pos, 0.1f, stopColor);
+            }
+        }
+
+        // Draw current target if moving
+        if (rail->isMoving()) {
+            int targetIdx = rail->getCurrentTargetIndex();
+            if (targetIdx >= 0 && targetIdx < static_cast<int>(path.size())) {
+                const auto& target = path[targetIdx];
+                b2Vec2 targetPos{target.x * Engine::PIXELS_TO_METERS, target.y * Engine::PIXELS_TO_METERS};
+                // Draw a larger circle at current target (radius of 0.15 meters = 15 pixels)
+                // Cyan color: 0x00FFFF (RGB: 0, 255, 255)
+                drawCircleImpl(targetPos, 0.15f, static_cast<b2HexColor>(0x00FFFF));
+            }
         }
     }
 

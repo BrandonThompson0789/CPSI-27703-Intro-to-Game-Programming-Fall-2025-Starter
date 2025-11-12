@@ -325,6 +325,17 @@
                 {
                     "type": "SpriteComponent",
                     "spriteName": "crate"
+                },
+                {
+                    "type": "ExplodeOnDeathComponent",
+                    "explosionSprite": "explosion",
+                    "explosionWidth": 64.0,
+                    "explosionHeight": 64.0,
+                    "loopsBeforeDeath": 2,
+                    "randomizeAngleEachFrame": true
+                },
+                {
+                    "type": "DeathTriggerComponent"
                 }
             ]
         },
@@ -493,7 +504,7 @@
                     "requireCollision": true,
                     "holdDuration": 0.5,
                     "targetObjects": [
-                        "door"
+                        "brick_rail_circular"
                     ]
                 }
             ]
@@ -524,6 +535,84 @@
                     "holdDuration": 0.0,
                     "targetObjects": [
                         "crate_no_damage_received"
+                    ]
+                }
+            ]
+        },
+        "brick_rail_circular": {
+            "name": "brick_rail_circular",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 400.0,
+                    "posY": 300.0,
+                    "bodyType": "kinematic",
+                    "linearDamping": 10.0,
+                    "angularDamping": 10.0,
+                    "fixedRotation": true,
+                    "fixture": {
+                        "shape": "box",
+                        "width": 16.0,
+                        "height": 16.0,
+                        "density": 1.0,
+                        "material": "default"
+                    }
+                },
+                {
+                    "type": "SpriteComponent",
+                    "spriteName": "brick",
+                    "tiled": true
+                },
+                {
+                    "type": "RailComponent",
+                    "moveSpeed": 80.0,
+                    "arrivalThreshold": 2.0,
+                    "path": [
+                        {
+                            "x": 500.0,
+                            "y": 300.0,
+                            "isStop": true
+                        },
+                        {
+                            "x": 470.7,
+                            "y": 370.7,
+                            "isStop": false
+                        },
+                        {
+                            "x": 400.0,
+                            "y": 400.0,
+                            "isStop": true
+                        },
+                        {
+                            "x": 329.3,
+                            "y": 370.7,
+                            "isStop": false
+                        },
+                        {
+                            "x": 300.0,
+                            "y": 300.0,
+                            "isStop": true
+                        },
+                        {
+                            "x": 329.3,
+                            "y": 229.3,
+                            "isStop": false
+                        },
+                        {
+                            "x": 400.0,
+                            "y": 200.0,
+                            "isStop": true
+                        },
+                        {
+                            "x": 470.7,
+                            "y": 229.3,
+                            "isStop": false
+                        },
+                        {
+                            "x": 500.0,
+                            "y": 300.0,
+                            "isStop": true
+                        }
                     ]
                 }
             ]

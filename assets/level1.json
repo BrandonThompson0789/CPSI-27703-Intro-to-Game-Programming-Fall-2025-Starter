@@ -29,7 +29,7 @@
                 {
                     "type": "BodyComponent",
                     "posX": 360.0,
-                    "posY": 340.0
+                    "posY": 540.0
                 },
                 {
                     "type": "SpriteComponent",
@@ -44,12 +44,7 @@
             "components": [
                 {
                     "type": "BodyComponent",
-                    "posX": 520.0,
-                    "posY": 340.0
-                },
-                {
-                    "type": "SpriteComponent",
-                    "posX": 520.0,
+                    "posX": 720.0,
                     "posY": 340.0
                 }
             ]
@@ -89,10 +84,13 @@
             "components": [
                 {
                     "type": "BodyComponent",
-                    "posX": 650.0,
+                    "posX": 150.0,
                     "posY": 450.0
                 }
             ]
+        },
+        {
+            "template": "brick_rail_circular"
         },
         {
             "name": "test crate",

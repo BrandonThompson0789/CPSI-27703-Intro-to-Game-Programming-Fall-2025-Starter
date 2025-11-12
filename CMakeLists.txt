@@ -73,6 +73,10 @@ add_executable(demo
     src/components/JointComponent.cpp
     src/components/ViewGrabComponent.h
     src/components/ViewGrabComponent.cpp
+    src/components/DeathTriggerComponent.h
+    src/components/DeathTriggerComponent.cpp
+    src/components/RailComponent.h
+    src/components/RailComponent.cpp
 )
 
 # Link libraries
