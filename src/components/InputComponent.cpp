@@ -5,6 +5,7 @@
 InputComponent::InputComponent(Object& parent, int inputSource)
     : Component(parent)
     , inputManager(InputManager::getInstance())
+    , configName("") // Default: use default config for input source
 {
     inputSources.push_back(inputSource);
 }
@@ -13,6 +14,7 @@ InputComponent::InputComponent(Object& parent, const std::vector<int>& inputSour
     : Component(parent)
     , inputSources(inputSources)
     , inputManager(InputManager::getInstance())
+    , configName("") // Default: use default config for input source
 {
     // Ensure we have at least one source
     if (this->inputSources.empty()) {
@@ -23,9 +25,14 @@ InputComponent::InputComponent(Object& parent, const std::vector<int>& inputSour
 InputComponent::InputComponent(Object& parent, const nlohmann::json& data)
     : Component(parent)
     , inputManager(InputManager::getInstance())
+    , configName("") // Default: use default config for input source
 {
     if (data.contains("inputSources")) {
         inputSources = data["inputSources"].get<std::vector<int>>();
+    }
+    
+    if (data.contains("configName")) {
+        configName = data["configName"].get<std::string>();
     }
     
     // Ensure we have at least one source
@@ -38,6 +45,9 @@ nlohmann::json InputComponent::toJson() const {
     nlohmann::json j;
     j["type"] = getTypeName();
     j["inputSources"] = inputSources;
+    if (!configName.empty()) {
+        j["configName"] = configName;
+    }
     return j;
 }
 
@@ -54,7 +64,7 @@ float InputComponent::getInput(GameAction action) const {
     // Return the highest value from all sources
     float maxValue = 0.0f;
     for (int source : inputSources) {
-        float value = inputManager.getInputValue(source, action);
+        float value = inputManager.getInputValue(source, action, configName);
         if (value > maxValue) {
             maxValue = value;
         }
@@ -63,7 +73,7 @@ float InputComponent::getInput(GameAction action) const {
 }
 
 float InputComponent::getInputFromSource(int source, GameAction action) const {
-    return inputManager.getInputValue(source, action);
+    return inputManager.getInputValue(source, action, configName);
 }
 
 bool InputComponent::isPressed(GameAction action) const {
@@ -124,12 +134,12 @@ int InputComponent::getActiveSource() const {
     for (int source : inputSources) {
         // Check multiple actions to find the most active source
         float totalValue = 0.0f;
-        totalValue += inputManager.getInputValue(source, GameAction::MOVE_UP);
-        totalValue += inputManager.getInputValue(source, GameAction::MOVE_DOWN);
-        totalValue += inputManager.getInputValue(source, GameAction::MOVE_LEFT);
-        totalValue += inputManager.getInputValue(source, GameAction::MOVE_RIGHT);
-        totalValue += inputManager.getInputValue(source, GameAction::ACTION_INTERACT);
-        totalValue += inputManager.getInputValue(source, GameAction::ACTION_THROW);
+        totalValue += inputManager.getInputValue(source, GameAction::MOVE_UP, configName);
+        totalValue += inputManager.getInputValue(source, GameAction::MOVE_DOWN, configName);
+        totalValue += inputManager.getInputValue(source, GameAction::MOVE_LEFT, configName);
+        totalValue += inputManager.getInputValue(source, GameAction::MOVE_RIGHT, configName);
+        totalValue += inputManager.getInputValue(source, GameAction::ACTION_INTERACT, configName);
+        totalValue += inputManager.getInputValue(source, GameAction::ACTION_THROW, configName);
         
         if (totalValue > maxValue) {
             maxValue = totalValue;

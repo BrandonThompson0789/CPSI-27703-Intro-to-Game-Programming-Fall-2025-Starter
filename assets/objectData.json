@@ -113,7 +113,7 @@
                 },
                 {
                     "type": "InputComponent",
-                    "inputSources": [0]
+                    "inputSources": [-1]
                 },
                 {
                     "type": "InteractComponent",

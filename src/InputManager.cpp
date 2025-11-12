@@ -17,6 +17,13 @@ InputManager::InputManager() {
     // Initialize controller handles to nullptr
     controllers.fill(nullptr);
     
+    // Initialize raw device state
+    keyboardState = nullptr;
+    for (auto& controllerState : controllerRawStates) {
+        controllerState.buttons.fill(false);
+        controllerState.axes.fill(0);
+    }
+    
     // Create config with defaults
     config = std::make_unique<InputConfig>();
     subsystemInitialized = false;
@@ -77,6 +84,9 @@ void InputManager::loadGameControllerDB(const std::string& path) {
 }
 
 void InputManager::update() {
+    // Update raw device state first
+    updateRawDeviceState();
+    
     // Clear all input states
     for (auto& source : inputStates) {
         source.fill(0.0f);
@@ -258,6 +268,51 @@ float InputManager::getInputValue(int inputSource, GameAction action) const {
     return inputStates[index][actionIndex];
 }
 
+float InputManager::getInputValue(int inputSource, GameAction action, const std::string& configName) const {
+    // If config name is empty, use the pre-computed value (backward compatibility)
+    if (configName.empty()) {
+        return getInputValue(inputSource, action);
+    }
+    
+    // Get the named config
+    const InputConfig* configToUse = getNamedConfig(configName);
+    if (!configToUse) {
+        // Named config not found, fall back to default behavior
+        return getInputValue(inputSource, action);
+    }
+    
+    // Compute input value on-demand using the named config
+    return computeInputValue(inputSource, action, *configToUse);
+}
+
+bool InputManager::loadNamedConfig(const std::string& configName, const std::string& configPath) {
+    auto namedConfig = std::make_unique<InputConfig>();
+    if (namedConfig->loadFromFile(configPath)) {
+        namedConfigs[configName] = std::move(namedConfig);
+        std::cout << "Loaded named configuration '" << configName << "' from " << configPath << std::endl;
+        return true;
+    } else {
+        std::cerr << "Failed to load named configuration '" << configName << "' from " << configPath << std::endl;
+        return false;
+    }
+}
+
+InputConfig* InputManager::getNamedConfig(const std::string& configName) {
+    auto it = namedConfigs.find(configName);
+    if (it != namedConfigs.end()) {
+        return it->second.get();
+    }
+    return nullptr;
+}
+
+const InputConfig* InputManager::getNamedConfig(const std::string& configName) const {
+    auto it = namedConfigs.find(configName);
+    if (it != namedConfigs.end()) {
+        return it->second.get();
+    }
+    return nullptr;
+}
+
 bool InputManager::isInputSourceActive(int inputSource) const {
     if (inputSource == INPUT_SOURCE_KEYBOARD) {
         return true; // Keyboard is always active
@@ -406,6 +461,127 @@ std::string InputManager::actionToString(GameAction action) {
         case GameAction::ACTION_INTERACT: return "action_interact";
         case GameAction::ACTION_THROW: return "action_throw";
         default: return "unknown";
+    }
+}
+
+void InputManager::updateRawDeviceState() {
+    // Update keyboard state
+    keyboardState = SDL_GetKeyboardState(nullptr);
+    
+    // Update controller raw state
+    for (int i = 0; i < 4; ++i) {
+        if (controllers[i] != nullptr && SDL_GameControllerGetAttached(controllers[i])) {
+            ControllerRawState& state = controllerRawStates[i];
+            
+            // Update buttons
+            for (int button = 0; button < SDL_CONTROLLER_BUTTON_MAX; ++button) {
+                state.buttons[button] = SDL_GameControllerGetButton(
+                    controllers[i], 
+                    static_cast<SDL_GameControllerButton>(button)
+                ) != 0;
+            }
+            
+            // Update axes
+            for (int axis = 0; axis < SDL_CONTROLLER_AXIS_MAX; ++axis) {
+                state.axes[axis] = SDL_GameControllerGetAxis(
+                    controllers[i], 
+                    static_cast<SDL_GameControllerAxis>(axis)
+                );
+            }
+        } else {
+            // Controller not connected, clear state
+            controllerRawStates[i].buttons.fill(false);
+            controllerRawStates[i].axes.fill(0);
+        }
+    }
+}
+
+float InputManager::computeInputValue(int inputSource, GameAction action, const InputConfig& configToUse) const {
+    if (inputSource == INPUT_SOURCE_KEYBOARD) {
+        // Compute keyboard input using the specified config
+        if (!keyboardState) {
+            return 0.0f;
+        }
+        
+        const KeyboardMapping& mapping = configToUse.getKeyboardMapping(action);
+        
+        // Check if any of the mapped keys are pressed
+        for (SDL_Scancode key : mapping.keys) {
+            if (keyboardState[key]) {
+                return 1.0f;
+            }
+        }
+        
+        return 0.0f;
+        
+    } else {
+        // Compute controller input using the specified config
+        if (inputSource < 0 || inputSource >= 4) {
+            return 0.0f;
+        }
+        
+        SDL_GameController* controller = controllers[inputSource];
+        if (controller == nullptr || !SDL_GameControllerGetAttached(controller)) {
+            return 0.0f;
+        }
+        
+        const ControllerRawState& rawState = controllerRawStates[inputSource];
+        const ControllerMapping& mapping = configToUse.getControllerMapping(action);
+        float deadzone = configToUse.getDeadzone();
+        
+        if (mapping.type == InputMappingType::BUTTON) {
+            // Button mapping - check if any mapped button is pressed
+            for (SDL_GameControllerButton button : mapping.buttonMapping.buttons) {
+                if (rawState.buttons[button]) {
+                    return 1.0f;
+                }
+            }
+            
+        } else { // AXIS
+            // Axis mapping
+            const ControllerAxisMapping& axisMapping = mapping.axisMapping;
+            float rawValue = rawState.axes[axisMapping.axis] / 32767.0f;
+            
+            // Apply deadzone
+            float processedValue = applyDeadzone(rawValue, deadzone);
+            
+            // Extract the desired direction
+            if (axisMapping.fullRange) {
+                // Full range (0.0 to 1.0) - for triggers
+                return std::max(0.0f, processedValue);
+            } else {
+                // Directional - extract positive or negative direction
+                if (axisMapping.positive) {
+                    // Want positive direction
+                    if (processedValue > 0.0f) {
+                        return processedValue;
+                    }
+                } else {
+                    // Want negative direction
+                    if (processedValue < 0.0f) {
+                        return std::abs(processedValue);
+                    }
+                }
+            }
+        }
+        
+        // D-pad buttons (if configured to act as digital buttons)
+        if (configToUse.getDPadAsAxis()) {
+            if (action == GameAction::MOVE_UP && rawState.buttons[SDL_CONTROLLER_BUTTON_DPAD_UP]) {
+                return 1.0f;
+            }
+            if (action == GameAction::MOVE_DOWN && rawState.buttons[SDL_CONTROLLER_BUTTON_DPAD_DOWN]) {
+                return 1.0f;
+            }
+            if (action == GameAction::MOVE_LEFT && rawState.buttons[SDL_CONTROLLER_BUTTON_DPAD_LEFT]) {
+                return 1.0f;
+            }
+            if (action == GameAction::MOVE_RIGHT && rawState.buttons[SDL_CONTROLLER_BUTTON_DPAD_RIGHT]) {
+                return 1.0f;
+            }
+        }
+        
+        return 0.0f;
     }
 }
 

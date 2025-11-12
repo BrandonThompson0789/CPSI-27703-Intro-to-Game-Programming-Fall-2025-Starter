@@ -6,7 +6,7 @@
 
 int main(int argc, char* argv[]) {
     std::cout << "=== Engine Start ===" << std::endl;
-    std::cout << "Controls: WASD/Arrows to move, Shift to walk, Space/E to interact" << std::endl;
+    //std::cout << "Controls: WASD/Arrows to move, Shift to walk, Space/E to interact" << std::endl;
     
     Engine e;
     e.init();
@@ -18,6 +18,8 @@ int main(int argc, char* argv[]) {
     
     // Load the level from JSON file
     e.loadFile("assets/level1.json");
+    InputManager::getInstance().loadNamedConfig("arrows", "assets/input_config_arrows.json");
+    InputManager::getInstance().loadNamedConfig("default", "assets/input_config.json");
     
     std::cout << "Level loaded! Center object is controllable with keyboard/controller." << std::endl;
     std::cout << "Press ESC to quit" << std::endl;

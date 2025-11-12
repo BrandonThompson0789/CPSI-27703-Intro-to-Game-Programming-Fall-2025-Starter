@@ -8,6 +8,10 @@
                     "type": "BodyComponent",
                     "posX": 400.0,
                     "posY": 300.0
+                },
+                {
+                    "type": "InputComponent",
+                    "configName": "default"
                 }
             ]
         },
@@ -19,6 +23,10 @@
                     "type": "BodyComponent",
                     "posX": 440.0,
                     "posY": 300.0
+                },
+                {
+                    "type": "InputComponent",
+                    "configName": "arrows"
                 }
             ]
         },

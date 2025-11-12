@@ -73,9 +73,16 @@ public:
     // Get which source is currently providing input (highest value)
     int getActiveSource() const;
     
+    // Get config name
+    const std::string& getConfigName() const { return configName; }
+    
+    // Set config name (empty string = use default config for input source)
+    void setConfigName(const std::string& name) { configName = name; }
+    
 private:
     std::vector<int> inputSources;
     InputManager& inputManager;
+    std::string configName; // Config identifier (empty = use default config for input source)
 };
 
 #endif // INPUT_COMPONENT_H

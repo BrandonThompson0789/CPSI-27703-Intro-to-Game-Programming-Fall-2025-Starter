@@ -44,7 +44,21 @@ public:
     void cleanup();
     
     // Get input value for a specific source and action (0.0 to 1.0)
+    // Uses default config for the input source
     float getInputValue(int inputSource, GameAction action) const;
+    
+    // Get input value for a specific source and action with a named config (0.0 to 1.0)
+    // If configName is empty, uses default config for the input source
+    // If configName is provided, uses that named config to compute the value on-demand
+    float getInputValue(int inputSource, GameAction action, const std::string& configName) const;
+    
+    // Load and cache a named configuration from a file
+    // Returns true if loaded successfully, false otherwise
+    bool loadNamedConfig(const std::string& configName, const std::string& configPath);
+    
+    // Get a named configuration (returns nullptr if not found)
+    InputConfig* getNamedConfig(const std::string& configName);
+    const InputConfig* getNamedConfig(const std::string& configName) const;
     
     // Check if an input source is active/connected
     bool isInputSourceActive(int inputSource) const;
@@ -97,6 +111,16 @@ private:
     // Second index: GameAction enum
     std::array<std::array<float, static_cast<size_t>(GameAction::NUM_ACTIONS)>, 5> inputStates;
     
+    // Raw device state storage (for on-demand computation with named configs)
+    const Uint8* keyboardState; // Raw keyboard state (updated each frame)
+    
+    // Controller raw state (updated each frame)
+    struct ControllerRawState {
+        std::array<bool, SDL_CONTROLLER_BUTTON_MAX> buttons;
+        std::array<Sint16, SDL_CONTROLLER_AXIS_MAX> axes;
+    };
+    std::array<ControllerRawState, 4> controllerRawStates;
+    
     // SDL Controller handles (max 4 controllers)
     std::array<SDL_GameController*, 4> controllers;
     
@@ -109,12 +133,19 @@ private:
     // Input configurations
     std::unique_ptr<InputConfig> config; // Default config
     std::unordered_map<int, std::unique_ptr<InputConfig>> sourceConfigs; // Per-source configs
+    std::unordered_map<std::string, std::unique_ptr<InputConfig>> namedConfigs; // Named configs (per-object)
     
     // Helper to convert input source to array index
     int sourceToIndex(int inputSource) const;
     
     // Apply deadzone to analog input
     float applyDeadzone(float value, float deadzone) const;
+    
+    // Compute input value on-demand using a specific config
+    float computeInputValue(int inputSource, GameAction action, const InputConfig& configToUse) const;
+    
+    // Update raw device state (called each frame)
+    void updateRawDeviceState();
 };
 
 #endif // INPUT_MANAGER_H

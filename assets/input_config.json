@@ -1,10 +1,10 @@
 {
   "keyboard": {
-    "move_up": ["W", "Up"],
-    "move_down": ["S", "Down"],
-    "move_left": ["A", "Left"],
-    "move_right": ["D", "Right"],
-    "action_walk": ["LShift", "RShift"],
+    "move_up": ["W"],
+    "move_down": ["S"],
+    "move_left": ["A"],
+    "move_right": ["D"],
+    "action_walk": ["LShift"],
     "action_interact": ["Space", "E"],
     "action_throw": ["F", "Q"]
   },
