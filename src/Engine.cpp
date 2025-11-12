@@ -2,6 +2,7 @@
 #include "SpriteManager.h"
 #include "InputManager.h"
 #include "SoundManager.h"
+#include "SensorEventManager.h"
 #include "CollisionManager.h"
 #include "components/Component.h"
 #include "components/ViewGrabComponent.h"
@@ -172,6 +173,7 @@ void Engine::update(float deltaTime) {
             collisionManager->gatherCollisions();
             collisionManager->processCollisions(deltaTime);
         }
+        SensorEventManager::getInstance().processWorldEvents(physicsWorldId);
     }
     
     ViewGrabComponent::beginFrame();
@@ -350,6 +352,7 @@ void Engine::cleanup() {
             collisionManager->setWorld(b2_nullWorldId);
             collisionManager->clearImpacts();
         }
+        SensorEventManager::getInstance().clear();
     }
     InputManager::getInstance().cleanup();
     SpriteManager::getInstance().cleanup();

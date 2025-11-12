@@ -20,6 +20,15 @@
                     "inputSources": [-1]
                 },
                 {
+                    "type": "InteractComponent",
+                    "allowedSenses": [
+                        "collision",
+                        "distance",
+                        "interact"
+                    ],
+                    "interactThreshold": 0.5
+                },
+                {
                     "type": "SoundComponent",
                     "collections": {
                         "move": {
@@ -105,6 +114,13 @@
                 {
                     "type": "InputComponent",
                     "inputSources": [0]
+                },
+                {
+                    "type": "InteractComponent",
+                    "allowedSenses": [
+                        "distance"
+                    ],
+                    "interactThreshold": 0.5
                 },
                 {
                     "type": "SoundComponent",
@@ -448,6 +464,67 @@
                     "hertz": 2.0,
                     "dampingRatio": 0.7,
                     "comment": "Door with spring that returns to closed position (0 degrees)"
+                }
+            ]
+        },
+        "sensor_pad_interact": {
+            "name": "sensor_pad_interact",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "bodyType": "static",
+                    "linearDamping": 0.0,
+                    "angularDamping": 0.0,
+                    "fixture": {
+                        "shape": "circle",
+                        "radius": 24.0,
+                        "density": 0.0,
+                        "isSensor": false,
+                        "material": "default"
+                    }
+                },
+                {
+                    "type": "SpriteComponent",
+                    "spriteName": "tree"
+                },
+                {
+                    "type": "SensorComponent",
+                    "requireInteractInput": true,
+                    "requireCollision": true,
+                    "holdDuration": 0.5,
+                    "targetObjects": [
+                        "door"
+                    ]
+                }
+            ]
+        },
+        "sensor_pad_distance": {
+            "name": "sensor_pad_distance",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "bodyType": "static",
+                    "linearDamping": 0.0,
+                    "angularDamping": 0.0,
+                    "fixture": {
+                        "shape": "circle",
+                        "radius": 24.0,
+                        "density": 0.0,
+                        "isSensor": true,
+                        "material": "default"
+                    }
+                },
+                {
+                    "type": "SpriteComponent",
+                    "spriteName": "tree"
+                },
+                {
+                    "type": "SensorComponent",
+                    "maxDistance": 150.0,
+                    "holdDuration": 0.0,
+                    "targetObjects": [
+                        "crate_no_damage_received"
+                    ]
                 }
             ]
         }

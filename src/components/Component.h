@@ -12,6 +12,9 @@ public:
     virtual void update(float deltaTime = 1.0f / 60.0f)=0;
     virtual void draw() =0;
 
+    // Optional interaction hook invoked when an object is "used"
+    virtual void use(Object& instigator) {}
+
     virtual ~Component() = default;
     
     // Serialization methods

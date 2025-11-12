@@ -62,6 +62,18 @@ void Object::render(SDL_Renderer* renderer) {
     }
 }
 
+void Object::use(Object& instigator) {
+    if (markedForDeath) {
+        return;
+    }
+
+    for (auto& component : components) {
+        if (component) {
+            component->use(instigator);
+        }
+    }
+}
+
 nlohmann::json Object::toJson() const {
     nlohmann::json j;
     

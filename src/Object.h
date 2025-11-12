@@ -19,6 +19,7 @@ class Object {
         
         void update(float deltaTime = 1.0f / 60.0f);
         void render(SDL_Renderer* renderer);
+        void use(Object& instigator);
         
         // Name management
         void setName(const std::string& n) { name = n; }

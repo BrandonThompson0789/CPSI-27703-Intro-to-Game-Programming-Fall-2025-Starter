@@ -23,6 +23,38 @@
             ]
         },
         {
+            "name": "interact_sensor_pad",
+            "template": "sensor_pad_interact",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 360.0,
+                    "posY": 340.0
+                },
+                {
+                    "type": "SpriteComponent",
+                    "posX": 360.0,
+                    "posY": 340.0
+                }
+            ]
+        },
+        {
+            "name": "distance_sensor_pad",
+            "template": "sensor_pad_distance",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 520.0,
+                    "posY": 340.0
+                },
+                {
+                    "type": "SpriteComponent",
+                    "posX": 520.0,
+                    "posY": 340.0
+                }
+            ]
+        },
+        {
             "template": "crate_basic_no_damage_given",
             "components": [
                 {

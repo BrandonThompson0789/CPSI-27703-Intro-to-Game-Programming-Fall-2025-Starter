@@ -1,8 +1,10 @@
 #include "Box2DDebugDraw.h"
 
 #include "Object.h"
+#include "Engine.h"
 #include "components/BodyComponent.h"
 #include "components/HealthComponent.h"
+#include "components/SensorComponent.h"
 
 #include <algorithm>
 #include <cmath>
@@ -380,7 +382,58 @@ void Box2DDebugDraw::renderLabels(const std::vector<std::unique_ptr<Object>>& ob
     const SDL_Color healthGoodColor{80, 150, 100, 255};
     const SDL_Color healthMidColor{200, 180, 0, 255};
     const SDL_Color healthLowColor{220, 80, 60, 255};
+    const SDL_Color sensorTextColor{200, 240, 255, 255};
 
+    // First pass: Draw sensor range circles and target lines (before labels)
+    for (const auto& objectPtr : objects) {
+        if (!objectPtr) {
+            continue;
+        }
+
+        auto* sensor = objectPtr->getComponent<SensorComponent>();
+        if (!sensor) {
+            continue;
+        }
+
+        auto* body = objectPtr->getComponent<BodyComponent>();
+        if (!body) {
+            continue;
+        }
+
+        auto [posX, posY, angleDegrees] = body->getPosition();
+        (void)angleDegrees;
+
+        // Convert from pixels to meters for Box2D world coordinates
+        b2Vec2 sensorPos{posX * Engine::PIXELS_TO_METERS, posY * Engine::PIXELS_TO_METERS};
+
+        // Draw range circle if sensor has distance condition
+        if (sensor->hasDistanceCondition()) {
+            float maxDistance = sensor->getMaxDistance();
+            // maxDistance is in pixels, convert to meters
+            // Light blue color: 0x64C8FF (RGB: 100, 200, 255)
+            drawCircleImpl(sensorPos, maxDistance * Engine::PIXELS_TO_METERS, static_cast<b2HexColor>(0x64C8FF));
+        }
+
+        // Draw lines to target objects
+        std::vector<Object*> targetObjects = sensor->getTargetObjects(objects);
+        for (Object* target : targetObjects) {
+            if (!target || !Object::isAlive(target)) {
+                continue;
+            }
+            auto* targetBody = target->getComponent<BodyComponent>();
+            if (!targetBody) {
+                continue;
+            }
+            auto [targetX, targetY, targetAngle] = targetBody->getPosition();
+            (void)targetAngle;
+            // Convert from pixels to meters
+            b2Vec2 targetPos{targetX * Engine::PIXELS_TO_METERS, targetY * Engine::PIXELS_TO_METERS};
+            // Orange color: 0xFFC864 (RGB: 255, 200, 100)
+            drawSegmentImpl(sensorPos, targetPos, static_cast<b2HexColor>(0xFFC864));
+        }
+    }
+
+    // Second pass: Draw labels (health, name, sensor info)
     for (const auto& objectPtr : objects) {
         if (!objectPtr) {
             continue;
@@ -459,6 +512,38 @@ void Box2DDebugDraw::renderLabels(const std::vector<std::unique_ptr<Object>>& ob
             }
 
             currentLabelTop = barTop - spacing;
+        }
+
+        // Draw sensor information
+        auto* sensor = objectPtr->getComponent<SensorComponent>();
+        if (sensor) {
+            int conditionCount = sensor->getConditionCount();
+            
+            // Convert allObjects vector to Object* vector for getSatisfiedConditionCount
+            std::vector<Object*> allObjectPtrs;
+            allObjectPtrs.reserve(objects.size());
+            for (const auto& obj : objects) {
+                if (obj && Object::isAlive(obj.get())) {
+                    allObjectPtrs.push_back(obj.get());
+                }
+            }
+            int satisfiedCount = sensor->getSatisfiedConditionCount(allObjectPtrs);
+
+            std::ostringstream sensorLabel;
+            sensorLabel << "Sensor: " << satisfiedCount << "/" << conditionCount;
+            if (sensor->hasDistanceCondition()) {
+                sensorLabel << " (range: " << static_cast<int>(std::round(sensor->getMaxDistance())) << ")";
+            }
+
+            int sensorTextWidth = 0;
+            int sensorTextHeight = 0;
+            if (TTF_SizeUTF8(labelFont, sensorLabel.str().c_str(), &sensorTextWidth, &sensorTextHeight) != 0) {
+                sensorTextHeight = fontSize;
+            }
+
+            float sensorTop = currentLabelTop - static_cast<float>(sensorTextHeight);
+            drawTextCentered(sensorLabel.str(), screenCenter.x, sensorTop, sensorTextColor);
+            currentLabelTop = sensorTop - spacing;
         }
 
         const std::string& name = objectPtr->getName();

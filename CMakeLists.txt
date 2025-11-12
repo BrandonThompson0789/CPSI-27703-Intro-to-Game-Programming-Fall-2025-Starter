@@ -34,6 +34,8 @@ add_executable(demo
     src/ObjectSerializer.h
     src/CollisionManager.h
     src/CollisionManager.cpp
+    src/SensorEventManager.h
+    src/SensorEventManager.cpp
     src/PhysicsMaterial.h
     src/PhysicsMaterial.cpp
     src/components/Component.h
@@ -51,6 +53,12 @@ add_executable(demo
     src/components/ExplodeOnDeathComponent.cpp
     src/components/InputComponent.h
     src/components/InputComponent.cpp
+    src/components/InteractComponent.h
+    src/components/InteractComponent.cpp
+    src/components/SensorComponent.h
+    src/components/SensorComponent.cpp
+    src/components/SensorTypes.h
+    src/components/SensorTypes.cpp
     src/components/behaviors/StandardMovementBehaviorComponent.h
     src/components/behaviors/StandardMovementBehaviorComponent.cpp
     src/components/behaviors/GrabBehaviorComponent.h
