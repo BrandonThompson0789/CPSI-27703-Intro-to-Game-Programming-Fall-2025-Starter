@@ -299,6 +299,24 @@ SDL_Texture* SpriteManager::loadTexture(const std::string& filepath) {
         return nullptr;
     }
 
+    // Convert surface to RGBA format if it doesn't have an alpha channel
+    // This ensures proper transparency blending
+    SDL_Surface* convertedSurface = nullptr;
+    if (surface->format->format != SDL_PIXELFORMAT_RGBA32 && 
+        surface->format->format != SDL_PIXELFORMAT_ARGB8888 &&
+        surface->format->format != SDL_PIXELFORMAT_ABGR8888 &&
+        surface->format->format != SDL_PIXELFORMAT_BGRA8888) {
+        // Convert to RGBA32 format to ensure alpha channel support
+        convertedSurface = SDL_ConvertSurfaceFormat(surface, SDL_PIXELFORMAT_RGBA32, 0);
+        SDL_FreeSurface(surface);
+        if (!convertedSurface) {
+            std::cerr << "SpriteManager: Failed to convert surface format: " << filepath 
+                      << " - " << SDL_GetError() << std::endl;
+            return nullptr;
+        }
+        surface = convertedSurface;
+    }
+
     SDL_Texture* texturePtr = SDL_CreateTextureFromSurface(renderer, surface);
     SDL_FreeSurface(surface);
 
@@ -307,6 +325,9 @@ SDL_Texture* SpriteManager::loadTexture(const std::string& filepath) {
                   << " - " << SDL_GetError() << std::endl;
         return nullptr;
     }
+
+    // Enable alpha blending mode for proper transparency support
+    SDL_SetTextureBlendMode(texturePtr, SDL_BLENDMODE_BLEND);
 
     std::cout << "SpriteManager: Loaded texture: " << filepath << std::endl;
     return texturePtr;
