@@ -6,6 +6,7 @@
 #include "components/HealthComponent.h"
 #include "components/SensorComponent.h"
 #include "components/RailComponent.h"
+#include "components/ObjectSpawnerComponent.h"
 
 #include <algorithm>
 #include <cmath>
@@ -491,7 +492,44 @@ void Box2DDebugDraw::renderLabels(const std::vector<std::unique_ptr<Object>>& ob
         }
     }
 
-    // Second pass: Draw labels (health, name, sensor info)
+    // Draw ObjectSpawnerComponent lines and spawn locations
+    for (const auto& objectPtr : objects) {
+        if (!objectPtr) {
+            continue;
+        }
+
+        auto* spawner = objectPtr->getComponent<ObjectSpawnerComponent>();
+        if (!spawner) {
+            continue;
+        }
+
+        auto* body = objectPtr->getComponent<BodyComponent>();
+        if (!body) {
+            continue;
+        }
+
+        auto [posX, posY, angleDegrees] = body->getPosition();
+        (void)angleDegrees;
+
+        // Convert object position from pixels to meters
+        b2Vec2 spawnerPos{posX * Engine::PIXELS_TO_METERS, posY * Engine::PIXELS_TO_METERS};
+
+        // Draw lines to spawn locations
+        const auto& locations = spawner->getSpawnLocations();
+        // Magenta color for spawner lines: 0xFF00FF (RGB: 255, 0, 255)
+        b2HexColor spawnerLineColor = static_cast<b2HexColor>(0xFF00FF);
+        
+        for (const auto& location : locations) {
+            b2Vec2 spawnPos{location.x * Engine::PIXELS_TO_METERS, location.y * Engine::PIXELS_TO_METERS};
+            drawSegmentImpl(spawnerPos, spawnPos, spawnerLineColor);
+            
+            // Draw a small circle at spawn location
+            // Cyan color for spawn points: 0x00FFFF (RGB: 0, 255, 255)
+            drawCircleImpl(spawnPos, 0.1f, static_cast<b2HexColor>(0x00FFFF));
+        }
+    }
+
+    // Second pass: Draw labels (health, name, sensor info, spawner info)
     for (const auto& objectPtr : objects) {
         if (!objectPtr) {
             continue;
@@ -602,6 +640,30 @@ void Box2DDebugDraw::renderLabels(const std::vector<std::unique_ptr<Object>>& ob
             float sensorTop = currentLabelTop - static_cast<float>(sensorTextHeight);
             drawTextCentered(sensorLabel.str(), screenCenter.x, sensorTop, sensorTextColor);
             currentLabelTop = sensorTop - spacing;
+        }
+
+        // Draw ObjectSpawnerComponent info
+        auto* spawner = objectPtr->getComponent<ObjectSpawnerComponent>();
+        if (spawner) {
+            int remainingSpawns = spawner->getTotalRemainingSpawns();
+            std::ostringstream spawnerLabel;
+            if (remainingSpawns < 0) {
+                spawnerLabel << "Spawner: ∞";
+            } else {
+                spawnerLabel << "Spawner: " << remainingSpawns;
+            }
+
+            int spawnerTextWidth = 0;
+            int spawnerTextHeight = 0;
+            if (TTF_SizeUTF8(labelFont, spawnerLabel.str().c_str(), &spawnerTextWidth, &spawnerTextHeight) != 0) {
+                spawnerTextHeight = fontSize;
+            }
+
+            float spawnerTop = currentLabelTop - static_cast<float>(spawnerTextHeight);
+            // Magenta color for spawner text: 255, 0, 255
+            const SDL_Color spawnerTextColor{255, 0, 255, 255};
+            drawTextCentered(spawnerLabel.str(), screenCenter.x, spawnerTop, spawnerTextColor);
+            currentLabelTop = spawnerTop - spacing;
         }
 
         const std::string& name = objectPtr->getName();

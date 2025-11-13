@@ -125,26 +125,6 @@
                 {
                     "type": "SoundComponent",
                     "collections": {
-                        "move": {
-                            "collection": "player_move",
-                            "volume": 1.0
-                        },
-                        "move_stop": {
-                            "collection": "player_move_stop",
-                            "volume": 0.75
-                        },
-                        "grab": {
-                            "collection": "player_grab",
-                            "volume": 0.4
-                        },
-                        "grab_release": {
-                            "collection": "player_grab_release",
-                            "volume": 0.4
-                        },
-                        "throw": {
-                            "collection": "player_throw",
-                            "volume": 1.0
-                        },
                         "explode": {
                             "collection": "explode",
                             "volume": 1.0
@@ -333,6 +313,15 @@
                     "explosionHeight": 64.0,
                     "loopsBeforeDeath": 2,
                     "randomizeAngleEachFrame": true
+                },
+                {
+                    "type": "SoundComponent",
+                    "collections": {
+                        "explode": {
+                            "collection": "explode",
+                            "volume": 1.0
+                        }
+                    }
                 },
                 {
                     "type": "DeathTriggerComponent"

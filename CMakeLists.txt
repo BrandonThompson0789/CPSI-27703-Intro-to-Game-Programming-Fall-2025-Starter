@@ -77,6 +77,8 @@ add_executable(demo
     src/components/DeathTriggerComponent.cpp
     src/components/RailComponent.h
     src/components/RailComponent.cpp
+    src/components/ObjectSpawnerComponent.h
+    src/components/ObjectSpawnerComponent.cpp
 )
 
 # Link libraries

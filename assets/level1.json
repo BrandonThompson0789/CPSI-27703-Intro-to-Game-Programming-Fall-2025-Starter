@@ -45,6 +45,25 @@
                     "posY": 340.0
                 }
             ]
+        },{
+            "name": "object_spawner_trigger",
+            "template": "sensor_pad_interact",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 160.0,
+                    "posY": 500.0
+                },
+                {
+                    "type": "SensorComponent",
+                    "requireInteractInput": true,
+                    "requireCollision": true,
+                    "holdDuration": 0,
+                    "targetObjects": [
+                        "object_spawner"
+                    ]
+                }
+            ]
         },
         {
             "name": "distance_sensor_pad",
@@ -369,6 +388,58 @@
                     "type": "BodyComponent",
                     "posX": 400.0,
                     "posY": 160.0
+                }
+            ]
+        },
+        {
+            "name": "object_spawner",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 200.0,
+                    "posY": 300.0,
+                    "bodyType": "static",
+                    "fixture": {
+                        "shape": "circle",
+                        "radius": 20.0,
+                        "isSensor": true
+                    }
+                },
+                {
+                    "type": "SpriteComponent",
+                    "spriteName": "tree"
+                },
+                {
+                    "type": "ObjectSpawnerComponent",
+                    "spawnInOrder": false,
+                    "useNextPosition": true,
+                    "spawnableObjects": [
+                        {
+                            "template": "crate_basic",
+                            "maxSpawns": 3
+                        },
+                        {
+                            "template": "crate_basic",
+                            "objectData": {
+                                "components": [
+                                    {
+                                        "type": "BodyComponent",
+                                        "fixture": {
+                                            "density": 2.0
+                                        }
+                                    }
+                                ]
+                            },
+                            "maxSpawns": 2
+                        }
+                    ],
+                    "spawnLocations": [
+                        {"x": 250.0, "y": 300.0},
+                        {"x": 300.0, "y": 300.0},
+                        {"x": 350.0, "y": 300.0},
+                        {"x": 250.0, "y": 250.0},
+                        {"x": 300.0, "y": 250.0}
+                    ]
                 }
             ]
         }

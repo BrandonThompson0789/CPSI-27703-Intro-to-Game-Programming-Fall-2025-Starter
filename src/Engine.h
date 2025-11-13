@@ -59,9 +59,11 @@ class Engine {
         void applyViewBounds(float minX, float minY, float maxX, float maxY);
         void ensureDefaultCamera();
         
+        // Template support for object spawning
+        nlohmann::json buildObjectDefinition(const nlohmann::json& objectData) const;
+        
     private:
         void loadObjectTemplates(const std::string& filename);
-        nlohmann::json buildObjectDefinition(const nlohmann::json& objectData) const;
         static void mergeJsonObjects(nlohmann::json& target, const nlohmann::json& overrides);
         static void mergeComponentData(nlohmann::json& baseComponent, const nlohmann::json& overrideComponent);
         static nlohmann::json mergeObjectDefinitions(const nlohmann::json& baseObject, const nlohmann::json& overrides);
