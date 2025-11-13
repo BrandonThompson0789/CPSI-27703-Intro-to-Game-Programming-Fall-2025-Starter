@@ -25,6 +25,8 @@ add_executable(demo
     src/Box2DDebugDraw.cpp
     src/SpriteManager.h
     src/SpriteManager.cpp
+    src/BackgroundManager.h
+    src/BackgroundManager.cpp
     src/InputManager.h
     src/InputManager.cpp
     src/InputConfig.h

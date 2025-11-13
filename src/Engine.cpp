@@ -4,6 +4,7 @@
 #include "SoundManager.h"
 #include "SensorEventManager.h"
 #include "CollisionManager.h"
+#include "BackgroundManager.h"
 #include "components/Component.h"
 #include "components/ViewGrabComponent.h"
 #include <cmath>
@@ -66,6 +67,10 @@ void Engine::init() {
     
     // Initialize sprite manager
     SpriteManager::getInstance().init(renderer, "assets/spriteData.json");
+
+    // Initialize background manager
+    backgroundManager = std::make_unique<BackgroundManager>();
+    backgroundManager->init(renderer);
 
     // Initialize sound manager (non-fatal if missing)
     if (!SoundManager::getInstance().isInitialized()) {
@@ -211,6 +216,12 @@ float Engine::getDeltaTime() {
 }
 
 void Engine::render() {
+    // Render background first (before all objects)
+    if (backgroundManager) {
+        backgroundManager->render(this);
+    }
+    
+    // Render all game objects
     for (auto& object : objects) {
         if (!object->isMarkedForDeath()) {
             object->render(renderer);
@@ -357,6 +368,10 @@ void Engine::cleanup() {
     InputManager::getInstance().cleanup();
     SpriteManager::getInstance().cleanup();
     SoundManager::getInstance().shutdown();
+    if (backgroundManager) {
+        backgroundManager->cleanup();
+        backgroundManager.reset();
+    }
     if (renderer) {
         SDL_DestroyRenderer(renderer);
         renderer = nullptr;
@@ -379,6 +394,7 @@ Engine::Engine() {
     renderer = nullptr;
     physicsWorldId = b2_nullWorldId;
     collisionManager = std::make_unique<CollisionManager>(*this);
+    backgroundManager = nullptr;
     cameraState.viewWidth = MIN_CAMERA_WIDTH;
     cameraState.viewHeight = MIN_CAMERA_HEIGHT;
     cameraState.viewMinX = -0.5f * cameraState.viewWidth;
@@ -423,6 +439,11 @@ void Engine::loadFile(const std::string& filename) {
     pendingObjects.clear();
     if (collisionManager) {
         collisionManager->clearImpacts();
+    }
+
+    // Load background configuration
+    if (backgroundManager) {
+        backgroundManager->loadFromJson(j, this);
     }
 
     // Set Engine instance so objects can access it

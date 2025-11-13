@@ -328,8 +328,8 @@
                 }
             ]
         },
-        "brick_wall": {
-            "name": "brick_wall",
+        "invisible_wall": {
+            "name": "invisible_wall",
             "components": [
                 {
                     "type": "BodyComponent",
@@ -348,11 +348,6 @@
                     "kineticScale": 0.0,
                     "affectStatic": false,
                     "affectKinematic": true
-                },
-                {
-                    "type": "SpriteComponent",
-                    "spriteName": "brick",
-                    "tiled": true
                 }
             ]
         },

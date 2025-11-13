@@ -13,6 +13,7 @@
 #include "Box2DDebugDraw.h"
 
 class CollisionManager;
+class BackgroundManager;
 
 class Engine {
     public:
@@ -84,6 +85,7 @@ class Engine {
         b2WorldId physicsWorldId;
         Box2DDebugDraw debugDraw;
         std::unordered_map<std::string, nlohmann::json> objectTemplates;
+        std::unique_ptr<BackgroundManager> backgroundManager;
 
         CameraState cameraState;
         CameraState cameraTarget;
