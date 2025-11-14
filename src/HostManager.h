@@ -9,6 +9,7 @@
 #include <chrono>
 #include <mutex>
 #include <memory>
+#include <atomic>
 
 // Forward declarations
 class Engine;
@@ -22,7 +23,8 @@ enum class HostMessageType : uint8_t {
     OBJECT_CREATE = 14,
     OBJECT_DESTROY = 15,
     CLIENT_INPUT = 16,
-    HEARTBEAT = 17
+    HEARTBEAT = 17,
+    ASSIGN_CONTROLLED_OBJECT = 18
 };
 
 // Message headers
@@ -42,7 +44,10 @@ struct InitPackageHeader {
     HostMessageHeader header;
     uint32_t backgroundLayerCount;
     uint32_t objectCount;
-    // Followed by background layers JSON, then objects JSON
+    uint8_t isCompressed;  // 1 if data is compressed, 0 if not
+    uint8_t reserved[3];   // Padding
+    // Followed by background layers JSON/compressed data, then objects JSON/compressed data
+    // If compressed, each data block is prefixed with uint32_t size
 };
 
 // Object update message
@@ -53,8 +58,11 @@ struct ObjectUpdateHeader {
     uint8_t hasSprite : 1;
     uint8_t hasSound : 1;
     uint8_t hasViewGrab : 1;
-    uint8_t reserved : 4;
+    uint8_t isCompressed : 1;  // 1 if data is compressed, 0 if not
+    uint8_t reserved : 3;
     // Followed by component data if flags are set
+    // If compressed, all component data is compressed together as a single block
+    // Format: uint32_t compressedSize, then compressed data
 };
 
 // Object body data (position, rotation, velocity)
@@ -94,12 +102,20 @@ struct ClientInputMessage {
     float actionThrow;
 };
 
+// Assign controlled object message
+struct AssignControlledObjectMessage {
+    HostMessageHeader header;
+    uint32_t objectId;
+    char reserved[4];
+};
+
 // Client information
 struct ClientInfo {
     std::string ip;
     uint16_t port;
     std::chrono::steady_clock::time_point lastHeartbeat;
     bool connected;
+    uint32_t assignedObjectId;  // Object ID that this client controls
 };
 
 // HostManager manages multiplayer hosting
@@ -140,6 +156,10 @@ private:
     void HandleClientInput(const std::string& fromIP, uint16_t fromPort, const ClientInputMessage& msg);
     void HandleClientHeartbeat(const std::string& fromIP, uint16_t fromPort);
     void CleanupDisconnectedClients();
+    
+    // Object assignment
+    uint32_t AssignObjectToClient(const std::string& clientKey);
+    void SendControlledObjectAssignment(const std::string& clientIP, uint16_t clientPort, uint32_t objectId);
 
     // Object synchronization
     void SendInitializationPackage(const std::string& clientIP, uint16_t clientPort);
@@ -156,7 +176,7 @@ private:
 
     // Serialization helpers
     nlohmann::json SerializeBackgroundLayers() const;
-    nlohmann::json SerializeObjectForSync(Object* obj) const;
+    nlohmann::json SerializeObjectForSync(Object* obj);  // Non-const because it may assign object IDs
     nlohmann::json SerializeObjectBody(Object* obj) const;
     nlohmann::json SerializeObjectSprite(Object* obj) const;
     nlohmann::json SerializeObjectSound(Object* obj) const;
@@ -191,5 +211,10 @@ private:
     // Track objects that were created/destroyed this frame
     std::unordered_set<Object*> createdObjects;
     std::unordered_set<Object*> destroyedObjects;
+
+    // Bandwidth tracking
+    std::atomic<uint64_t> bytesSent;
+    std::atomic<uint64_t> bytesReceived;
+    std::chrono::steady_clock::time_point lastBandwidthLogTime;
 };
 

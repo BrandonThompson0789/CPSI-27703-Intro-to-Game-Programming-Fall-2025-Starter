@@ -57,6 +57,74 @@ nlohmann::json BodyComponent::toJson() const {
     j["velY"] = vel.y * Engine::METERS_TO_PIXELS;
     j["velAngle"] = Engine::radiansToDegrees(b2Body_GetAngularVelocity(bodyId));
     
+    // Serialize fixture information (needed for client to recreate objects correctly)
+    int shapeCount = b2Body_GetShapeCount(bodyId);
+    if (shapeCount > 0) {
+        nlohmann::json fixtureArray = nlohmann::json::array();
+        
+        // Get all shapes
+        std::vector<b2ShapeId> shapes(shapeCount);
+        b2Body_GetShapes(bodyId, shapes.data(), shapeCount);
+        
+        for (const b2ShapeId& shapeId : shapes) {
+            if (B2_IS_NULL(shapeId)) continue;
+            
+            nlohmann::json fixtureJson;
+            b2ShapeType shapeType = b2Shape_GetType(shapeId);
+            
+            // Get material name if available (convert ID to name)
+            int materialId = getMaterialId();
+            if (materialId != 0) {
+                const std::string& materialName = PhysicsMaterialLibrary::getMaterialName(materialId);
+                if (materialName != "unknown" && materialName != "default") {
+                    fixtureJson["material"] = materialName;
+                }
+            }
+            
+            // Get shape properties
+            fixtureJson["density"] = b2Shape_GetDensity(shapeId);
+            fixtureJson["friction"] = b2Shape_GetFriction(shapeId);
+            fixtureJson["restitution"] = b2Shape_GetRestitution(shapeId);
+            fixtureJson["isSensor"] = b2Shape_IsSensor(shapeId);
+            
+            if (shapeType == b2_polygonShape) {
+                fixtureJson["shape"] = "box";
+                b2Polygon polygon = b2Shape_GetPolygon(shapeId);
+                
+                // Calculate bounding box to get width/height
+                float minX = polygon.vertices[0].x;
+                float maxX = polygon.vertices[0].x;
+                float minY = polygon.vertices[0].y;
+                float maxY = polygon.vertices[0].y;
+                
+                for (int i = 1; i < polygon.count; ++i) {
+                    if (polygon.vertices[i].x < minX) minX = polygon.vertices[i].x;
+                    if (polygon.vertices[i].x > maxX) maxX = polygon.vertices[i].x;
+                    if (polygon.vertices[i].y < minY) minY = polygon.vertices[i].y;
+                    if (polygon.vertices[i].y > maxY) maxY = polygon.vertices[i].y;
+                }
+                
+                float width = (maxX - minX) * Engine::METERS_TO_PIXELS;
+                float height = (maxY - minY) * Engine::METERS_TO_PIXELS;
+                fixtureJson["width"] = width;
+                fixtureJson["height"] = height;
+            }
+            else if (shapeType == b2_circleShape) {
+                fixtureJson["shape"] = "circle";
+                b2Circle circle = b2Shape_GetCircle(shapeId);
+                float radius = circle.radius * Engine::METERS_TO_PIXELS;
+                fixtureJson["radius"] = radius;
+            }
+            
+            fixtureArray.push_back(fixtureJson);
+        }
+        
+        // If we have fixtures, include them (use first fixture as primary)
+        if (!fixtureArray.empty()) {
+            j["fixture"] = fixtureArray[0];  // Use first fixture (most common case)
+        }
+    }
+    
     return j;
 }
 

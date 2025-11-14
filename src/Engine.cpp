@@ -6,6 +6,7 @@
 #include "CollisionManager.h"
 #include "BackgroundManager.h"
 #include "HostManager.h"
+#include "ClientManager.h"
 #include "components/Component.h"
 #include "components/ViewGrabComponent.h"
 #include <cmath>
@@ -235,6 +236,11 @@ void Engine::update(float deltaTime) {
     if (hostManager && hostManager->IsHosting()) {
         hostManager->Update(deltaTime);
     }
+
+    // Update ClientManager
+    if (clientManager && clientManager->IsConnected()) {
+        clientManager->Update(deltaTime);
+    }
 }
 
 float Engine::getDeltaTime() {
@@ -401,6 +407,10 @@ void Engine::cleanup() {
     if (hostManager) {
         hostManager->Shutdown();
         hostManager.reset();
+    }
+    if (clientManager) {
+        clientManager->Disconnect();
+        clientManager.reset();
     }
     if (renderer) {
         SDL_DestroyRenderer(renderer);
@@ -682,4 +692,29 @@ void Engine::stopHosting() {
 
 bool Engine::isHosting() const {
     return hostManager && hostManager->IsHosting();
+}
+
+bool Engine::connectAsClient(const std::string& roomCode, const std::string& serverManagerIP, uint16_t serverManagerPort) {
+    if (clientManager) {
+        disconnectClient();
+    }
+
+    clientManager = std::make_unique<ClientManager>(this);
+    if (clientManager->Connect(roomCode, serverManagerIP, serverManagerPort)) {
+        return true;
+    }
+
+    clientManager.reset();
+    return false;
+}
+
+void Engine::disconnectClient() {
+    if (clientManager) {
+        clientManager->Disconnect();
+        clientManager.reset();
+    }
+}
+
+bool Engine::isClient() const {
+    return clientManager && clientManager->IsConnected();
 }

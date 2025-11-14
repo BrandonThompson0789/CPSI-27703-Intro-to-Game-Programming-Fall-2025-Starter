@@ -20,26 +20,35 @@ void BackgroundManager::init(SDL_Renderer* rendererParam) {
 void BackgroundManager::loadFromJson(const nlohmann::json& json, Engine* engine) {
     clear();
     
-    if (!json.contains("background") || !json["background"].is_object()) {
-        // No background configuration, that's fine
-        return;
-    }
-    
-    const auto& bgJson = json["background"];
-    
-    // Check if it's a single layer or multiple layers
-    if (bgJson.contains("layers") && bgJson["layers"].is_array()) {
-        // Multiple layers
-        for (const auto& layerJson : bgJson["layers"]) {
+    // Check if JSON is directly an array of layers (from toJson() serialization)
+    if (json.is_array()) {
+        // Direct array of layers (used by network serialization)
+        for (const auto& layerJson : json) {
             BackgroundLayer layer;
             layer.fromJson(layerJson);
             layers.push_back(layer);
         }
+    } else if (json.contains("background") && json["background"].is_object()) {
+        // Standard format: object with "background" key
+        const auto& bgJson = json["background"];
+        
+        // Check if it's a single layer or multiple layers
+        if (bgJson.contains("layers") && bgJson["layers"].is_array()) {
+            // Multiple layers
+            for (const auto& layerJson : bgJson["layers"]) {
+                BackgroundLayer layer;
+                layer.fromJson(layerJson);
+                layers.push_back(layer);
+            }
+        } else {
+            // Single layer (backward compatibility)
+            BackgroundLayer layer;
+            layer.fromJson(bgJson);
+            layers.push_back(layer);
+        }
     } else {
-        // Single layer (backward compatibility)
-        BackgroundLayer layer;
-        layer.fromJson(bgJson);
-        layers.push_back(layer);
+        // No background configuration, that's fine
+        return;
     }
     
     // Sort layers by depth (lower depth = further back = render first)

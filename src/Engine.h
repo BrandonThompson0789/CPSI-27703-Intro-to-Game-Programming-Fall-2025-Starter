@@ -15,6 +15,7 @@
 class CollisionManager;
 class BackgroundManager;
 class HostManager;
+class ClientManager;
 
 class Engine {
     public:
@@ -30,11 +31,17 @@ class Engine {
         CollisionManager* getCollisionManager() { return collisionManager.get(); }
         BackgroundManager* getBackgroundManager() { return backgroundManager.get(); }
         HostManager* getHostManager() { return hostManager.get(); }
+        ClientManager* getClientManager() { return clientManager.get(); }
         
         // Start hosting (returns room code on success, empty string on failure)
         std::string startHosting(uint16_t hostPort = 8889, const std::string& serverManagerIP = "127.0.0.1", uint16_t serverManagerPort = 8888);
         void stopHosting();
         bool isHosting() const;
+        
+        // Connect as client (returns true on success, false on failure)
+        bool connectAsClient(const std::string& roomCode, const std::string& serverManagerIP = "127.0.0.1", uint16_t serverManagerPort = 8888);
+        void disconnectClient();
+        bool isClient() const;
         
         // Physics world access
         b2WorldId getPhysicsWorld() { return physicsWorldId; }
@@ -95,6 +102,7 @@ class Engine {
         std::unordered_map<std::string, nlohmann::json> objectTemplates;
         std::unique_ptr<BackgroundManager> backgroundManager;
         std::unique_ptr<HostManager> hostManager;
+        std::unique_ptr<ClientManager> clientManager;
 
         CameraState cameraState;
         CameraState cameraTarget;

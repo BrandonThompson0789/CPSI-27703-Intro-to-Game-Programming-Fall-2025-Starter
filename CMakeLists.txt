@@ -11,6 +11,7 @@ find_package(SDL2_image CONFIG REQUIRED)
 find_package(SDL2_mixer CONFIG REQUIRED)
 find_package(box2d CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
+find_package(ZLIB REQUIRED)
 
 # Collect all source files recursively from src directory
 
@@ -83,6 +84,10 @@ add_executable(demo
     src/components/ObjectSpawnerComponent.cpp
     src/HostManager.h
     src/HostManager.cpp
+    src/ClientManager.h
+    src/ClientManager.cpp
+    src/CompressionUtils.h
+    src/CompressionUtils.cpp
     src/server_manager/NetworkUtils.h
     src/server_manager/NetworkUtils.cpp
 )
@@ -95,6 +100,7 @@ target_link_libraries(demo PRIVATE
     $<IF:$<TARGET_EXISTS:SDL2_mixer::SDL2_mixer>,SDL2_mixer::SDL2_mixer,SDL2_mixer::SDL2_mixer-static>
     box2d::box2d
     nlohmann_json::nlohmann_json
+    ZLIB::ZLIB
 )
 
 # Link system libraries for networking (needed for HostManager)
