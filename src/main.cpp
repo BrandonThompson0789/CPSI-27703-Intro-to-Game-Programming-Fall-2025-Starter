@@ -34,12 +34,12 @@ int main(int argc, char* argv[]) {
         } else if (arg == "--help" || arg == "-h") {
             std::cout << "Usage: " << argv[0] << " [options]" << std::endl;
             std::cout << "Options:" << std::endl;
-            std::cout << "  --host                    Start in host mode (multiplayer)" << std::endl;
+            std::cout << "  --host                     Start in host mode (multiplayer)" << std::endl;
             std::cout << "  --client ROOM_CODE         Connect as client to room with given code" << std::endl;
-            std::cout << "  --host-port PORT          Host port (default: 8889)" << std::endl;
-            std::cout << "  --server-manager-ip IP    Server Manager IP (default: 127.0.0.1)" << std::endl;
+            std::cout << "  --host-port PORT           Host port (default: 8889)" << std::endl;
+            std::cout << "  --server-manager-ip IP     Server Manager IP (default: 127.0.0.1)" << std::endl;
             std::cout << "  --server-manager-port PORT Server Manager port (default: 8888)" << std::endl;
-            std::cout << "  --help, -h                Show this help message" << std::endl;
+            std::cout << "  --help, -h                 Show this help message" << std::endl;
             return 0;
         }
     }

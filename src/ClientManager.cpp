@@ -64,6 +64,9 @@ bool ClientManager::Connect(const std::string& roomCodeParam,
                             const std::string& serverManagerIPParam, 
                             uint16_t serverManagerPortParam) {
     roomCode = roomCodeParam;
+    std::transform(roomCode.begin(), roomCode.end(), roomCode.begin(), [](unsigned char c) {
+        return static_cast<char>(std::toupper(c));
+    });
     serverManagerIP = serverManagerIPParam;
     serverManagerPort = serverManagerPortParam;
 
