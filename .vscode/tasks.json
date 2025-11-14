@@ -31,9 +31,7 @@
         "isDefault": true
       },
       "dependsOn": "Configure (windows-mingw-debug)",
-      "problemMatcher": [
-        "$gcc"
-      ]
+      "problemMatcher": []
     }
   ]
 }

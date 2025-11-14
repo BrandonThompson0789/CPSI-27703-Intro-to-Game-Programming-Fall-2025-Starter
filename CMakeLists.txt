@@ -117,3 +117,19 @@ if(WIN32)
         COMMAND_EXPAND_LISTS
     )
 endif()
+
+# Create server_manager executable
+add_executable(server_manager
+    src/server_manager/server_manager_main.cpp
+    src/server_manager/ServerManager.h
+    src/server_manager/ServerManager.cpp
+    src/server_manager/NetworkUtils.h
+    src/server_manager/NetworkUtils.cpp
+)
+
+# Link system libraries for networking
+if(WIN32)
+    target_link_libraries(server_manager PRIVATE ws2_32)
+else()
+    target_link_libraries(server_manager PRIVATE pthread)
+endif()
