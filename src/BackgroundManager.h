@@ -45,6 +45,9 @@ public:
     // Render all background layers (should be called before rendering objects)
     void render(Engine* engine);
     
+    // Serialize background layers to JSON
+    nlohmann::json toJson() const;
+    
     // Cleanup
     void cleanup();
     

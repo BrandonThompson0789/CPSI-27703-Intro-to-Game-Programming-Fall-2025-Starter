@@ -5,6 +5,7 @@
 #include "SensorEventManager.h"
 #include "CollisionManager.h"
 #include "BackgroundManager.h"
+#include "HostManager.h"
 #include "components/Component.h"
 #include "components/ViewGrabComponent.h"
 #include <cmath>
@@ -192,6 +193,14 @@ void Engine::update(float deltaTime) {
 
     ViewGrabComponent::finalizeFrame(*this);
 
+    // Track objects being destroyed for HostManager
+    std::vector<Object*> destroyedObjects;
+    for (auto& object : objects) {
+        if (object->isMarkedForDeath()) {
+            destroyedObjects.push_back(object.get());
+        }
+    }
+
     // Remove objects that have been marked for death
     objects.erase(
         std::remove_if(
@@ -203,11 +212,28 @@ void Engine::update(float deltaTime) {
         objects.end());
 
     // Add any queued objects after removals
+    std::vector<Object*> createdObjects;
     if (!pendingObjects.empty()) {
         for (auto& pending : pendingObjects) {
+            createdObjects.push_back(pending.get());
             objects.push_back(std::move(pending));
         }
         pendingObjects.clear();
+    }
+
+    // Notify HostManager of object changes
+    if (hostManager && hostManager->IsHosting()) {
+        for (Object* obj : destroyedObjects) {
+            hostManager->SendObjectDestroy(obj);
+        }
+        for (Object* obj : createdObjects) {
+            hostManager->SendObjectCreate(obj);
+        }
+    }
+
+    // Update HostManager
+    if (hostManager && hostManager->IsHosting()) {
+        hostManager->Update(deltaTime);
     }
 }
 
@@ -371,6 +397,10 @@ void Engine::cleanup() {
     if (backgroundManager) {
         backgroundManager->cleanup();
         backgroundManager.reset();
+    }
+    if (hostManager) {
+        hostManager->Shutdown();
+        hostManager.reset();
     }
     if (renderer) {
         SDL_DestroyRenderer(renderer);
@@ -627,4 +657,29 @@ nlohmann::json Engine::buildObjectDefinition(const nlohmann::json& objectData) c
     nlohmann::json merged = mergeObjectDefinitions(found->second, objectData);
     merged.erase("template");
     return merged;
+}
+
+std::string Engine::startHosting(uint16_t hostPort, const std::string& serverManagerIP, uint16_t serverManagerPort) {
+    if (hostManager) {
+        stopHosting();
+    }
+
+    hostManager = std::make_unique<HostManager>(this);
+    if (hostManager->Initialize(hostPort, serverManagerIP, serverManagerPort)) {
+        return hostManager->GetRoomCode();
+    }
+
+    hostManager.reset();
+    return "";
+}
+
+void Engine::stopHosting() {
+    if (hostManager) {
+        hostManager->Shutdown();
+        hostManager.reset();
+    }
+}
+
+bool Engine::isHosting() const {
+    return hostManager && hostManager->IsHosting();
 }

@@ -252,6 +252,30 @@ void BackgroundManager::cleanup() {
     renderer = nullptr;
 }
 
+nlohmann::json BackgroundManager::toJson() const {
+    nlohmann::json j = nlohmann::json::array();
+    
+    for (const auto& layer : layers) {
+        nlohmann::json layerJson;
+        layerJson["spriteName"] = layer.spriteName;
+        layerJson["frame"] = layer.frame;
+        layerJson["parallaxX"] = layer.parallaxX;
+        layerJson["parallaxY"] = layer.parallaxY;
+        layerJson["tiled"] = layer.tiled;
+        layerJson["tileWidth"] = layer.tileWidth;
+        layerJson["tileHeight"] = layer.tileHeight;
+        layerJson["offsetX"] = layer.offsetX;
+        layerJson["offsetY"] = layer.offsetY;
+        layerJson["width"] = layer.width;
+        layerJson["height"] = layer.height;
+        layerJson["alpha"] = layer.alpha;
+        layerJson["depth"] = layer.depth;
+        j.push_back(layerJson);
+    }
+    
+    return j;
+}
+
 void BackgroundLayer::fromJson(const nlohmann::json& json) {
     if (json.contains("spriteName") && json["spriteName"].is_string()) {
         spriteName = json["spriteName"].get<std::string>();

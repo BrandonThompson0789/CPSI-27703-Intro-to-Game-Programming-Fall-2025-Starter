@@ -79,10 +79,25 @@ public:
     // Set config name (empty string = use default config for input source)
     void setConfigName(const std::string& name) { configName = name; }
     
+    // Network input support
+    // Set network input values (used for multiplayer - overrides local input when set)
+    void setNetworkInput(float moveUp, float moveDown, float moveLeft, float moveRight,
+                        float actionWalk, float actionInteract, float actionThrow);
+    
+    // Clear network input (revert to local input)
+    void clearNetworkInput();
+    
+    // Check if network input is active
+    bool hasNetworkInput() const { return networkInputActive; }
+    
 private:
     std::vector<int> inputSources;
     InputManager& inputManager;
     std::string configName; // Config identifier (empty = use default config for input source)
+    
+    // Network input storage
+    bool networkInputActive;
+    float networkInputValues[7]; // MOVE_UP, MOVE_DOWN, MOVE_LEFT, MOVE_RIGHT, ACTION_WALK, ACTION_INTERACT, ACTION_THROW
 };
 
 #endif // INPUT_COMPONENT_H

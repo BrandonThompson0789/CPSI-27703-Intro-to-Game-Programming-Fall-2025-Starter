@@ -14,6 +14,7 @@
 
 class CollisionManager;
 class BackgroundManager;
+class HostManager;
 
 class Engine {
     public:
@@ -27,6 +28,13 @@ class Engine {
         void queueObject(std::unique_ptr<Object> object);
         std::vector<std::unique_ptr<Object>>& getQueuedObjects() { return pendingObjects; }
         CollisionManager* getCollisionManager() { return collisionManager.get(); }
+        BackgroundManager* getBackgroundManager() { return backgroundManager.get(); }
+        HostManager* getHostManager() { return hostManager.get(); }
+        
+        // Start hosting (returns room code on success, empty string on failure)
+        std::string startHosting(uint16_t hostPort = 8889, const std::string& serverManagerIP = "127.0.0.1", uint16_t serverManagerPort = 8888);
+        void stopHosting();
+        bool isHosting() const;
         
         // Physics world access
         b2WorldId getPhysicsWorld() { return physicsWorldId; }
@@ -86,6 +94,7 @@ class Engine {
         Box2DDebugDraw debugDraw;
         std::unordered_map<std::string, nlohmann::json> objectTemplates;
         std::unique_ptr<BackgroundManager> backgroundManager;
+        std::unique_ptr<HostManager> hostManager;
 
         CameraState cameraState;
         CameraState cameraTarget;

@@ -81,6 +81,10 @@ add_executable(demo
     src/components/RailComponent.cpp
     src/components/ObjectSpawnerComponent.h
     src/components/ObjectSpawnerComponent.cpp
+    src/HostManager.h
+    src/HostManager.cpp
+    src/server_manager/NetworkUtils.h
+    src/server_manager/NetworkUtils.cpp
 )
 
 # Link libraries
@@ -92,6 +96,13 @@ target_link_libraries(demo PRIVATE
     box2d::box2d
     nlohmann_json::nlohmann_json
 )
+
+# Link system libraries for networking (needed for HostManager)
+if(WIN32)
+    target_link_libraries(demo PRIVATE ws2_32)
+else()
+    target_link_libraries(demo PRIVATE pthread)
+endif()
 
 # Define SDL_MAIN_HANDLED for MinGW
 target_compile_definitions(demo PRIVATE SDL_MAIN_HANDLED)
