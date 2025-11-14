@@ -14,24 +14,49 @@
 #include <chrono>
 #include <thread>
 #include <atomic>
+#include <fstream>
+#include <limits>
+
+namespace {
+constexpr uint16_t kDefaultHostPort = 8889;
+constexpr const char* kDefaultServerManagerIP = "127.0.0.1";
+constexpr uint16_t kDefaultServerManagerPort = 8888;
+constexpr uint32_t kDefaultSyncIntervalMs = 20;
+constexpr uint32_t kDefaultHeartbeatSeconds = 5;
+constexpr const char* kServerDataPath = "assets/serverData.json";
+}
 
 HostManager::HostManager(Engine* engine)
     : engine(engine)
     , socket(INVALID_SOCKET_HANDLE)
-    , hostPort(8889)
-    , serverManagerIP("127.0.0.1")
-    , serverManagerPort(8888)
+    , hostPort(kDefaultHostPort)
+    , serverManagerIP(kDefaultServerManagerIP)
+    , serverManagerPort(kDefaultServerManagerPort)
     , roomCode("")
     , isHosting(false)
     , nextObjectId(1)
-    , syncInterval(20)  // 20ms
-    , serverManagerHeartbeatInterval(5)  // 5 seconds
+    , syncInterval(std::chrono::milliseconds(kDefaultSyncIntervalMs))
+    , serverManagerHeartbeatInterval(std::chrono::seconds(kDefaultHeartbeatSeconds))
     , bytesSent(0)
     , bytesReceived(0)
 {
     lastSyncTime = std::chrono::steady_clock::now();
     lastServerManagerHeartbeat = std::chrono::steady_clock::now();
     lastBandwidthLogTime = std::chrono::steady_clock::now();
+
+    serverDataConfig.hostPort = kDefaultHostPort;
+    serverDataConfig.serverManagerIP = kDefaultServerManagerIP;
+    serverDataConfig.serverManagerPort = kDefaultServerManagerPort;
+    serverDataConfig.syncIntervalMs = kDefaultSyncIntervalMs;
+    serverDataConfig.heartbeatSeconds = kDefaultHeartbeatSeconds;
+
+    LoadServerDataConfig();
+
+    hostPort = serverDataConfig.hostPort;
+    serverManagerIP = serverDataConfig.serverManagerIP;
+    serverManagerPort = serverDataConfig.serverManagerPort;
+    syncInterval = std::chrono::milliseconds(serverDataConfig.syncIntervalMs);
+    serverManagerHeartbeatInterval = std::chrono::seconds(serverDataConfig.heartbeatSeconds);
 }
 
 HostManager::~HostManager() {
@@ -39,9 +64,25 @@ HostManager::~HostManager() {
 }
 
 bool HostManager::Initialize(uint16_t hostPortParam, const std::string& serverManagerIPParam, uint16_t serverManagerPortParam) {
-    hostPort = hostPortParam;
-    serverManagerIP = serverManagerIPParam;
-    serverManagerPort = serverManagerPortParam;
+    uint16_t resolvedHostPort = hostPortParam;
+    std::string resolvedServerManagerIP = serverManagerIPParam;
+    uint16_t resolvedServerManagerPort = serverManagerPortParam;
+
+    if (serverDataConfig.loaded) {
+        if (hostPortParam == kDefaultHostPort) {
+            resolvedHostPort = serverDataConfig.hostPort;
+        }
+        if (serverManagerIPParam == kDefaultServerManagerIP) {
+            resolvedServerManagerIP = serverDataConfig.serverManagerIP;
+        }
+        if (serverManagerPortParam == kDefaultServerManagerPort) {
+            resolvedServerManagerPort = serverDataConfig.serverManagerPort;
+        }
+    }
+
+    hostPort = resolvedHostPort;
+    serverManagerIP = resolvedServerManagerIP;
+    serverManagerPort = resolvedServerManagerPort;
 
     if (!NetworkUtils::Initialize()) {
         std::cerr << "HostManager: Failed to initialize networking" << std::endl;
@@ -211,6 +252,50 @@ void HostManager::UpdateServerManagerWithClients() {
     }
 
     NetworkUtils::SendTo(socket, buffer.data(), buffer.size(), serverManagerIP, serverManagerPort);
+}
+
+void HostManager::LoadServerDataConfig() {
+    std::ifstream configStream(kServerDataPath);
+    if (!configStream.is_open()) {
+        std::cerr << "HostManager: Could not open " << kServerDataPath << ", using default networking parameters." << std::endl;
+        return;
+    }
+
+    try {
+        nlohmann::json configJson;
+        configStream >> configJson;
+
+        if (configJson.contains("hostPort") && configJson["hostPort"].is_number_unsigned()) {
+            uint32_t portValue = configJson["hostPort"].get<uint32_t>();
+            if (portValue > 0 && portValue <= std::numeric_limits<uint16_t>::max()) {
+                serverDataConfig.hostPort = static_cast<uint16_t>(portValue);
+            }
+        }
+
+        if (configJson.contains("serverManagerIP") && configJson["serverManagerIP"].is_string()) {
+            serverDataConfig.serverManagerIP = configJson["serverManagerIP"].get<std::string>();
+        }
+
+        if (configJson.contains("serverManagerPort") && configJson["serverManagerPort"].is_number_unsigned()) {
+            uint32_t portValue = configJson["serverManagerPort"].get<uint32_t>();
+            if (portValue > 0 && portValue <= std::numeric_limits<uint16_t>::max()) {
+                serverDataConfig.serverManagerPort = static_cast<uint16_t>(portValue);
+            }
+        }
+
+        if (configJson.contains("syncIntervalMs") && configJson["syncIntervalMs"].is_number_unsigned()) {
+            serverDataConfig.syncIntervalMs = configJson["syncIntervalMs"].get<uint32_t>();
+        }
+
+        if (configJson.contains("serverManagerHeartbeatSeconds") && configJson["serverManagerHeartbeatSeconds"].is_number_unsigned()) {
+            serverDataConfig.heartbeatSeconds = configJson["serverManagerHeartbeatSeconds"].get<uint32_t>();
+        }
+
+        serverDataConfig.loaded = true;
+        std::cout << "HostManager: Loaded server data config from " << kServerDataPath << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "HostManager: Failed to parse " << kServerDataPath << " (" << e.what() << "), using defaults." << std::endl;
+    }
 }
 
 void HostManager::ProcessIncomingMessages() {
@@ -408,6 +493,7 @@ void HostManager::SendInitializationPackage(const std::string& clientIP, uint16_
     memset(header.header.reserved, 0, sizeof(header.header.reserved));
     header.backgroundLayerCount = static_cast<uint32_t>(backgroundJson.is_array() ? backgroundJson.size() : (backgroundJson.empty() ? 0 : 1));
     header.objectCount = static_cast<uint32_t>(objectsArray.size());
+    header.syncIntervalMs = static_cast<uint32_t>(syncInterval.count());
     header.isCompressed = useCompression ? 1 : 0;
     memset(header.reserved, 0, sizeof(header.reserved));
     
@@ -709,6 +795,13 @@ nlohmann::json HostManager::SerializeObjectForSync(Object* obj) {
             if (componentType == "CollisionDamageComponent" ||
                 componentType == "RailComponent" ||
                 componentType == "ObjectSpawnerComponent" ||
+                componentType == "InputComponent" ||
+                componentType == "JointComponent" ||
+                componentType == "InteractComponent" ||
+                componentType == "ThrowBehaviorComponent" ||
+                componentType == "GrabBehaviorComponent" ||
+                componentType == "StandardMovementBehaviorComponent" ||
+                componentType == "TankMovementBehaviorComponent" ||
                 componentType == "DeathTriggerComponent" ||
                 componentType == "ExplodeOnDeathComponent" ||
                 componentType == "SensorComponent") {

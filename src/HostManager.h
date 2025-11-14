@@ -44,6 +44,7 @@ struct InitPackageHeader {
     HostMessageHeader header;
     uint32_t backgroundLayerCount;
     uint32_t objectCount;
+    uint32_t syncIntervalMs;
     uint8_t isCompressed;  // 1 if data is compressed, 0 if not
     uint8_t reserved[3];   // Padding
     // Followed by background layers JSON/compressed data, then objects JSON/compressed data
@@ -118,6 +119,15 @@ struct ClientInfo {
     uint32_t assignedObjectId;  // Object ID that this client controls
 };
 
+struct ServerDataConfig {
+    bool loaded = false;
+    uint16_t hostPort = 8889;
+    std::string serverManagerIP = "127.0.0.1";
+    uint16_t serverManagerPort = 8888;
+    uint32_t syncIntervalMs = 20;
+    uint32_t heartbeatSeconds = 5;
+};
+
 // HostManager manages multiplayer hosting
 class HostManager {
 public:
@@ -148,6 +158,7 @@ private:
     bool RegisterWithServerManager();
     void SendHeartbeatToServerManager();
     void UpdateServerManagerWithClients();
+    void LoadServerDataConfig();
 
     // Client management
     void ProcessIncomingMessages();
@@ -189,6 +200,7 @@ private:
     uint16_t serverManagerPort;
     std::string roomCode;
     bool isHosting;
+    ServerDataConfig serverDataConfig;
 
     // Client management
     std::unordered_map<std::string, ClientInfo> clients;  // Key: "IP:PORT"

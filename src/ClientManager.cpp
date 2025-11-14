@@ -15,6 +15,23 @@
 #include <chrono>
 #include <thread>
 #include <atomic>
+#include <vector>
+#include <algorithm>
+#include <cmath>
+
+namespace {
+float NormalizeAngleDelta(float deltaDegrees) {
+    deltaDegrees = std::fmod(deltaDegrees + 180.0f, 360.0f);
+    if (deltaDegrees < 0.0f) {
+        deltaDegrees += 360.0f;
+    }
+    return deltaDegrees - 180.0f;
+}
+
+float AdjustTargetAngle(float currentDegrees, float targetDegrees) {
+    return currentDegrees + NormalizeAngleDelta(targetDegrees - currentDegrees);
+}
+}
 
 ClientManager::ClientManager(Engine* engine)
     : engine(engine)
@@ -26,6 +43,9 @@ ClientManager::ClientManager(Engine* engine)
     , roomCode("")
     , isConnected(false)
     , controlledObjectId(0)
+    , smoothingEnabled(true)
+    , hostSyncIntervalSeconds(0.02f)
+    , smoothingRevisionCounter(0)
     , heartbeatInterval(5)  // 5 seconds
     , inputSendInterval(20)  // 20ms
     , bytesSent(0)
@@ -153,6 +173,8 @@ void ClientManager::Update(float deltaTime) {
         lastInputSend = now;
     }
 
+    ApplySmoothing(deltaTime);
+
     // Cleanup object IDs for destroyed objects
     CleanupObjectIds();
 }
@@ -182,6 +204,8 @@ void ClientManager::Disconnect() {
         std::lock_guard<std::mutex> lock(objectIdsMutex);
         idToObject.clear();
     }
+
+    ClearAllSmoothingStates();
 
     NetworkUtils::Cleanup();
     std::cout << "ClientManager: Disconnected" << std::endl;
@@ -302,6 +326,9 @@ void ClientManager::HandleInitPackage(const void* data, size_t length) {
     }
 
     const InitPackageHeader* header = reinterpret_cast<const InitPackageHeader*>(data);
+    if (header->syncIntervalMs > 0) {
+        hostSyncIntervalSeconds = static_cast<float>(header->syncIntervalMs) / 1000.0f;
+    }
     
     std::string backgroundStr;
     std::string objectsStr;
@@ -376,6 +403,8 @@ void ClientManager::HandleInitPackage(const void* data, size_t length) {
                 engine->getCollisionManager()->clearImpacts();
             }
         }
+
+        ClearAllSmoothingStates();
 
         // Set Engine instance
         if (engine) {
@@ -572,17 +601,21 @@ void ClientManager::UpdateObjectFromJson(uint32_t objectId,
     // Update BodyComponent
     if (!bodyJson.empty() && obj->hasComponent<BodyComponent>()) {
         BodyComponent* body = obj->getComponent<BodyComponent>();
-        if (bodyJson.contains("posX") && bodyJson.contains("posY") && bodyJson.contains("angle")) {
-            float posX = bodyJson["posX"].get<float>();
-            float posY = bodyJson["posY"].get<float>();
-            float angle = bodyJson["angle"].get<float>();
-            body->setPosition(posX, posY, angle);
-        }
-        if (bodyJson.contains("velX") && bodyJson.contains("velY") && bodyJson.contains("velAngle")) {
-            float velX = bodyJson["velX"].get<float>();
-            float velY = bodyJson["velY"].get<float>();
-            float velAngle = bodyJson["velAngle"].get<float>();
-            body->setVelocity(velX, velY, velAngle);
+        bool smoothed = UpdateSmoothingState(objectId, body, bodyJson);
+
+        if (!smoothed) {
+            if (bodyJson.contains("posX") && bodyJson.contains("posY") && bodyJson.contains("angle")) {
+                float posX = bodyJson["posX"].get<float>();
+                float posY = bodyJson["posY"].get<float>();
+                float angle = bodyJson["angle"].get<float>();
+                body->setPosition(posX, posY, angle);
+            }
+            if (bodyJson.contains("velX") && bodyJson.contains("velY") && bodyJson.contains("velAngle")) {
+                float velX = bodyJson["velX"].get<float>();
+                float velY = bodyJson["velY"].get<float>();
+                float velAngle = bodyJson["velAngle"].get<float>();
+                body->setVelocity(velX, velY, velAngle);
+            }
         }
     }
 
@@ -599,6 +632,8 @@ void ClientManager::DestroyObject(uint32_t objectId) {
     if (obj) {
         obj->markForDeath();
     }
+
+    ClearSmoothingState(objectId);
 
     {
         std::lock_guard<std::mutex> lock(objectIdsMutex);
@@ -680,5 +715,167 @@ void ClientManager::CleanupObjectIds() {
     for (uint32_t id : toRemove) {
         idToObject.erase(id);
     }
+}
+
+void ClientManager::SetSmoothingEnabled(bool enabled) {
+    if (smoothingEnabled == enabled) {
+        return;
+    }
+
+    smoothingEnabled = enabled;
+    if (!smoothingEnabled) {
+        ClearAllSmoothingStates();
+    }
+}
+
+bool ClientManager::UpdateSmoothingState(uint32_t objectId, BodyComponent* body, const nlohmann::json& bodyJson) {
+    if (!smoothingEnabled || !body || hostSyncIntervalSeconds <= 0.0f) {
+        ClearSmoothingState(objectId);
+        return false;
+    }
+
+    bool hasPosition = bodyJson.contains("posX") && bodyJson.contains("posY") && bodyJson.contains("angle");
+    bool hasVelocity = bodyJson.contains("velX") && bodyJson.contains("velY") && bodyJson.contains("velAngle");
+    if (!hasPosition && !hasVelocity) {
+        return false;
+    }
+
+    auto [currPosX, currPosY, currAngle] = body->getPosition();
+    auto [currVelX, currVelY, currVelAngle] = body->getVelocity();
+
+    ObjectSmoothingState state;
+    state.startPosX = currPosX;
+    state.startPosY = currPosY;
+    state.startAngle = currAngle;
+    state.startVelX = currVelX;
+    state.startVelY = currVelY;
+    state.startVelAngle = currVelAngle;
+
+    if (hasPosition) {
+        state.targetPosX = bodyJson["posX"].get<float>();
+        state.targetPosY = bodyJson["posY"].get<float>();
+        float rawTargetAngle = bodyJson["angle"].get<float>();
+        state.targetAngle = AdjustTargetAngle(currAngle, rawTargetAngle);
+    } else {
+        state.targetPosX = currPosX;
+        state.targetPosY = currPosY;
+        state.targetAngle = currAngle;
+    }
+
+    state.targetVelX = hasVelocity ? bodyJson["velX"].get<float>() : currVelX;
+    state.targetVelY = hasVelocity ? bodyJson["velY"].get<float>() : currVelY;
+    state.targetVelAngle = hasVelocity ? bodyJson["velAngle"].get<float>() : currVelAngle;
+
+    state.elapsed = 0.0f;
+    state.duration = std::max(hostSyncIntervalSeconds, 0.001f);
+    state.revision = ++smoothingRevisionCounter;
+
+    {
+        std::lock_guard<std::mutex> lock(smoothingMutex);
+        smoothingStates[objectId] = state;
+    }
+
+    return true;
+}
+
+void ClientManager::ApplySmoothing(float deltaTime) {
+    if (!smoothingEnabled) {
+        return;
+    }
+
+    struct SmoothingStateCopy {
+        uint32_t objectId;
+        ObjectSmoothingState state;
+    };
+
+    std::vector<SmoothingStateCopy> copies;
+    {
+        std::lock_guard<std::mutex> lock(smoothingMutex);
+        if (smoothingStates.empty()) {
+            return;
+        }
+
+        copies.reserve(smoothingStates.size());
+        for (const auto& entry : smoothingStates) {
+            copies.push_back({entry.first, entry.second});
+        }
+    }
+
+    if (copies.empty()) {
+        return;
+    }
+
+    std::vector<SmoothingStateCopy> inProgress;
+    std::vector<SmoothingStateCopy> finished;
+    inProgress.reserve(copies.size());
+
+    auto lerp = [](float a, float b, float alpha) {
+        return a + (b - a) * alpha;
+    };
+
+    for (auto& entry : copies) {
+        Object* obj = GetObjectById(entry.objectId);
+        if (!obj || !obj->hasComponent<BodyComponent>()) {
+            finished.push_back(entry);
+            continue;
+        }
+
+        BodyComponent* body = obj->getComponent<BodyComponent>();
+        if (!body) {
+            finished.push_back(entry);
+            continue;
+        }
+
+        float duration = entry.state.duration > 0.0f ? entry.state.duration : hostSyncIntervalSeconds;
+        if (duration <= 0.0f) {
+            duration = 0.02f;
+        }
+
+        entry.state.elapsed = std::min(entry.state.elapsed + deltaTime, duration);
+        float t = duration > 0.0f ? entry.state.elapsed / duration : 1.0f;
+
+        float posX = lerp(entry.state.startPosX, entry.state.targetPosX, t);
+        float posY = lerp(entry.state.startPosY, entry.state.targetPosY, t);
+        float angle = lerp(entry.state.startAngle, entry.state.targetAngle, t);
+        float velX = lerp(entry.state.startVelX, entry.state.targetVelX, t);
+        float velY = lerp(entry.state.startVelY, entry.state.targetVelY, t);
+        float velAngle = lerp(entry.state.startVelAngle, entry.state.targetVelAngle, t);
+
+        body->setPosition(posX, posY, angle);
+        body->setVelocity(velX, velY, velAngle);
+
+        if (t >= 0.999f) {
+            finished.push_back(entry);
+        } else {
+            inProgress.push_back(entry);
+        }
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(smoothingMutex);
+        for (const auto& entry : finished) {
+            auto it = smoothingStates.find(entry.objectId);
+            if (it != smoothingStates.end() && it->second.revision == entry.state.revision) {
+                smoothingStates.erase(it);
+            }
+        }
+
+        for (const auto& entry : inProgress) {
+            auto it = smoothingStates.find(entry.objectId);
+            if (it != smoothingStates.end() && it->second.revision == entry.state.revision) {
+                it->second.elapsed = entry.state.elapsed;
+            }
+        }
+    }
+}
+
+void ClientManager::ClearSmoothingState(uint32_t objectId) {
+    std::lock_guard<std::mutex> lock(smoothingMutex);
+    smoothingStates.erase(objectId);
+}
+
+void ClientManager::ClearAllSmoothingStates() {
+    std::lock_guard<std::mutex> lock(smoothingMutex);
+    smoothingStates.clear();
 }
 

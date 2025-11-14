@@ -12,9 +12,28 @@
 
 // Forward declarations
 class Engine;
+class BodyComponent;
 
 // Use HostMessageType and message structs from HostManager.h
 // They are compatible and avoid duplication - just use the types directly
+
+struct ObjectSmoothingState {
+    float startPosX = 0.0f;
+    float startPosY = 0.0f;
+    float startAngle = 0.0f;
+    float targetPosX = 0.0f;
+    float targetPosY = 0.0f;
+    float targetAngle = 0.0f;
+    float startVelX = 0.0f;
+    float startVelY = 0.0f;
+    float startVelAngle = 0.0f;
+    float targetVelX = 0.0f;
+    float targetVelY = 0.0f;
+    float targetVelAngle = 0.0f;
+    float elapsed = 0.0f;
+    float duration = 0.0f;
+    uint64_t revision = 0;
+};
 
 // ClientManager manages multiplayer client connection
 class ClientManager {
@@ -48,6 +67,9 @@ public:
     void SetControlledObjectId(uint32_t objectId) { controlledObjectId = objectId; }
     uint32_t GetControlledObjectId() const { return controlledObjectId; }
 
+    void SetSmoothingEnabled(bool enabled);
+    bool IsSmoothingEnabled() const { return smoothingEnabled; }
+
 private:
     // Server Manager communication
     bool LookupRoom(const std::string& roomCode, 
@@ -79,6 +101,10 @@ private:
     // Object ID management
     Object* GetObjectById(uint32_t objectId);
     void CleanupObjectIds();
+    void ApplySmoothing(float deltaTime);
+    bool UpdateSmoothingState(uint32_t objectId, BodyComponent* body, const nlohmann::json& bodyJson);
+    void ClearSmoothingState(uint32_t objectId);
+    void ClearAllSmoothingStates();
 
     Engine* engine;
     SocketHandle socket;
@@ -96,6 +122,13 @@ private:
     // Input tracking
     uint32_t controlledObjectId;  // Object ID that this client controls
     std::mutex inputMutex;
+
+    // Smoothing
+    bool smoothingEnabled;
+    float hostSyncIntervalSeconds;
+    std::unordered_map<uint32_t, ObjectSmoothingState> smoothingStates;
+    std::mutex smoothingMutex;
+    std::atomic<uint64_t> smoothingRevisionCounter;
 
     // Heartbeat timing
     std::chrono::steady_clock::time_point lastHeartbeat;
