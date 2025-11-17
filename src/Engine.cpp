@@ -10,6 +10,7 @@
 #include "menus/MenuManager.h"
 #include "components/Component.h"
 #include "components/ViewGrabComponent.h"
+#include "PlayerManager.h"
 #include <cmath>
 #include <SDL_ttf.h>
 #include <fstream>
@@ -86,6 +87,9 @@ void Engine::init() {
 
     // Initialize input manager
     InputManager::getInstance().init();
+    
+    // Initialize default player assignments (keyboard -> player 1, first controller -> player 1)
+    PlayerManager::getInstance().initializeDefaultAssignments();
     
     // Initialize menu manager
     menuManager = std::make_unique<MenuManager>(this);

@@ -17,7 +17,7 @@
                 },
                 {
                     "type": "InputComponent",
-                    "inputSources": [-1]
+                    "playerId": 1
                 },
                 {
                     "type": "InteractComponent",
@@ -113,7 +113,7 @@
                 },
                 {
                     "type": "InputComponent",
-                    "inputSources": [-1]
+                    "playerId": 1
                 },
                 {
                     "type": "InteractComponent",

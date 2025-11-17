@@ -8,6 +8,7 @@
 #include "components/InputComponent.h"
 #include "BackgroundManager.h"
 #include "CompressionUtils.h"
+#include "PlayerManager.h"
 #include <iostream>
 #include <sstream>
 #include <cstring>
@@ -363,14 +364,14 @@ void HostManager::HandleClientConnect(const std::string& fromIP, uint16_t fromPo
         client.port = fromPort;
         client.lastHeartbeat = std::chrono::steady_clock::now();
         client.connected = true;
-        client.assignedObjectId = 0;  // Will be assigned below
+        client.assignedPlayerId = 0;  // Will be assigned below
         clients[clientKey] = client;
     }
 
     std::cout << "HostManager: Client connected from " << clientKey << std::endl;
     
-    // Assign an object to this client
-    uint32_t assignedObjectId = AssignObjectToClient(clientKey);
+    // Assign a player slot to this client
+    int assignedPlayerId = AssignPlayerToClient(clientKey);
     
     // Send initialization package
     try {
@@ -379,44 +380,40 @@ void HostManager::HandleClientConnect(const std::string& fromIP, uint16_t fromPo
         std::cerr << "HostManager: Error sending initialization package: " << e.what() << std::endl;
     }
     
-    // Send controlled object assignment
-    if (assignedObjectId != 0) {
-        SendControlledObjectAssignment(fromIP, fromPort, assignedObjectId);
+    // Send player assignment
+    if (assignedPlayerId > 0) {
+        SendPlayerAssignment(fromIP, fromPort, assignedPlayerId);
     }
 }
 
 void HostManager::HandleClientDisconnect(const std::string& fromIP, uint16_t fromPort) {
     std::string clientKey = fromIP + ":" + std::to_string(fromPort);
     
+    int assignedPlayerId = 0;
     {
         std::lock_guard<std::mutex> lock(clientsMutex);
         auto it = clients.find(clientKey);
         if (it != clients.end()) {
-            // Object assignment is released when client disconnects
+            // Player assignment is released when client disconnects
             // (can be reassigned to another client)
+            assignedPlayerId = it->second.assignedPlayerId;
             it->second.connected = false;
-            it->second.assignedObjectId = 0;
+            it->second.assignedPlayerId = 0;
         }
+    }
+    
+    // Unassign network ID from player in PlayerManager
+    if (assignedPlayerId > 0) {
+        PlayerManager::getInstance().unassignPlayer(assignedPlayerId);
     }
 
     std::cout << "HostManager: Client disconnected from " << clientKey << std::endl;
 }
 
 void HostManager::HandleClientInput(const std::string& fromIP, uint16_t fromPort, const ClientInputMessage& msg) {
-    // Find the object by ID
-    Object* obj = GetObjectById(msg.objectId);
-    if (!obj) {
-        return;
-    }
-
-    // Get InputComponent
-    InputComponent* input = obj->getComponent<InputComponent>();
-    if (!input) {
-        return;
-    }
-
-    // Route network input to InputComponent
-    input->setNetworkInput(
+    // Route network input to PlayerManager using the player ID from the message
+    PlayerManager::getInstance().setNetworkInput(
+        msg.playerId,
         msg.moveUp,
         msg.moveDown,
         msg.moveLeft,
@@ -869,75 +866,72 @@ nlohmann::json HostManager::SerializeObjectViewGrab(Object* obj) const {
     return viewGrab->toJson();
 }
 
-uint32_t HostManager::AssignObjectToClient(const std::string& clientKey) {
-    if (!engine) {
-        return 0;
-    }
-
-    // Get set of already assigned object IDs (lock clientsMutex)
-    std::unordered_set<uint32_t> assignedIds;
+int HostManager::AssignPlayerToClient(const std::string& clientKey) {
+    PlayerManager& playerManager = PlayerManager::getInstance();
+    
+    // Get set of already assigned player IDs (lock clientsMutex)
+    std::unordered_set<int> assignedPlayerIds;
     {
         std::lock_guard<std::mutex> lock(clientsMutex);
         for (const auto& [key, client] : clients) {
-            if (client.connected && client.assignedObjectId != 0) {
-                assignedIds.insert(client.assignedObjectId);
+            if (client.connected && client.assignedPlayerId > 0) {
+                assignedPlayerIds.insert(client.assignedPlayerId);
             }
         }
     }
-
-    // Find the first object with InputComponent (reserved for host)
-    uint32_t hostObjectId = 0;
-    bool foundHostObject = false;
-    for (const auto& obj : engine->getObjects()) {
-        if (!obj || obj->isMarkedForDeath()) {
+    
+    // Find the first vacant player slot (player ID without local input device)
+    // Start from player 2 (player 1 is reserved for host with keyboard)
+    for (int playerId = 2; playerId <= 8; ++playerId) {
+        // Skip if already assigned to another client
+        if (assignedPlayerIds.find(playerId) != assignedPlayerIds.end()) {
             continue;
         }
-
-        if (!obj->hasComponent<InputComponent>()) {
+        
+        // Check if this player has a local input device assigned
+        std::vector<int> inputDevices = playerManager.getPlayerInputDevices(playerId);
+        if (!inputDevices.empty()) {
+            // This player slot has a local input device, skip it
             continue;
         }
-
-        uint32_t objectId = GetOrAssignObjectId(obj.get());
-        if (objectId == 0) {
+        
+        // Check if this player has a network ID assigned (already taken by another client)
+        std::string networkId = playerManager.getPlayerNetworkId(playerId);
+        if (!networkId.empty()) {
+            // This player slot is already assigned to a network client, skip it
             continue;
         }
-
-        if (!foundHostObject) {
-            hostObjectId = objectId;
-            foundHostObject = true;
-            // Skip the first object (reserved for host)
-            continue;
-        }
-
-        // Check if this object is already assigned
-        if (assignedIds.find(objectId) != assignedIds.end()) {
-            continue;
-        }
-
-        // Assign this object to the client (lock clientsMutex again)
+        
+        // Found a vacant player slot! Assign it to this client
         {
             std::lock_guard<std::mutex> lock(clientsMutex);
             auto it = clients.find(clientKey);
             if (it != clients.end()) {
-                it->second.assignedObjectId = objectId;
-                return objectId;
+                it->second.assignedPlayerId = playerId;
+                
+                // Assign network ID to player ID in PlayerManager
+                std::string networkId = clientKey; // Use "IP:PORT" as network ID
+                playerManager.assignNetworkId(playerId, networkId);
+                
+                std::cout << "HostManager: Assigned player " << playerId << " to client " << clientKey << std::endl;
+                return playerId;
             }
         }
     }
-
-    std::cout << "HostManager: Warning - No available objects with InputComponent for client " << clientKey << std::endl;
+    
+    std::cout << "HostManager: Warning - No available player slots for client " << clientKey << std::endl;
     return 0;
 }
 
-void HostManager::SendControlledObjectAssignment(const std::string& clientIP, uint16_t clientPort, uint32_t objectId) {
-    AssignControlledObjectMessage msg;
-    msg.header.type = HostMessageType::ASSIGN_CONTROLLED_OBJECT;
+void HostManager::SendPlayerAssignment(const std::string& clientIP, uint16_t clientPort, int playerId) {
+    AssignPlayerMessage msg;
+    msg.header.type = HostMessageType::ASSIGN_PLAYER;
     memset(msg.header.reserved, 0, sizeof(msg.header.reserved));
-    msg.objectId = objectId;
+    msg.playerId = playerId;
     memset(msg.reserved, 0, sizeof(msg.reserved));
 
     SendToClient(clientIP, clientPort, &msg, sizeof(msg));
-    std::cout << "HostManager: Sent controlled object assignment (ID: " << objectId 
+    std::cout << "HostManager: Sent player assignment (Player ID: " << playerId 
              << ") to " << clientIP << ":" << clientPort << std::endl;
 }
 

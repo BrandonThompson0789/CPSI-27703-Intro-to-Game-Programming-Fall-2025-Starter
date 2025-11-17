@@ -24,7 +24,7 @@ enum class HostMessageType : uint8_t {
     OBJECT_DESTROY = 15,
     CLIENT_INPUT = 16,
     HEARTBEAT = 17,
-    ASSIGN_CONTROLLED_OBJECT = 18
+    ASSIGN_PLAYER = 18
 };
 
 // Message headers
@@ -93,7 +93,7 @@ struct ObjectDestroyMessage {
 // Client input message
 struct ClientInputMessage {
     HostMessageHeader header;
-    uint32_t objectId;  // Object ID that this input is for
+    int32_t playerId;  // Player ID that this input is for
     float moveUp;
     float moveDown;
     float moveLeft;
@@ -103,10 +103,10 @@ struct ClientInputMessage {
     float actionThrow;
 };
 
-// Assign controlled object message
-struct AssignControlledObjectMessage {
+// Assign player message
+struct AssignPlayerMessage {
     HostMessageHeader header;
-    uint32_t objectId;
+    int32_t playerId;  // Player ID assigned to this client
     char reserved[4];
 };
 
@@ -116,7 +116,7 @@ struct ClientInfo {
     uint16_t port;
     std::chrono::steady_clock::time_point lastHeartbeat;
     bool connected;
-    uint32_t assignedObjectId;  // Object ID that this client controls
+    int assignedPlayerId;  // Player ID assigned to this client
 };
 
 struct ServerDataConfig {
@@ -168,9 +168,9 @@ private:
     void HandleClientHeartbeat(const std::string& fromIP, uint16_t fromPort);
     void CleanupDisconnectedClients();
     
-    // Object assignment
-    uint32_t AssignObjectToClient(const std::string& clientKey);
-    void SendControlledObjectAssignment(const std::string& clientIP, uint16_t clientPort, uint32_t objectId);
+    // Player assignment
+    int AssignPlayerToClient(const std::string& clientKey);
+    void SendPlayerAssignment(const std::string& clientIP, uint16_t clientPort, int playerId);
 
     // Object synchronization
     void SendInitializationPackage(const std::string& clientIP, uint16_t clientPort);

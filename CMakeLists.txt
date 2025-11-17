@@ -32,6 +32,8 @@ add_executable(demo
     src/InputManager.cpp
     src/InputConfig.h
     src/InputConfig.cpp
+    src/PlayerManager.h
+    src/PlayerManager.cpp
     src/SoundManager.h
     src/SoundManager.cpp
     src/ObjectSerializer.h

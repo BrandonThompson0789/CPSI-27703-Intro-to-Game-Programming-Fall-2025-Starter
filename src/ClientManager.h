@@ -63,9 +63,9 @@ public:
     std::string GetHostIP() const { return hostIP; }
     uint16_t GetHostPort() const { return hostPort; }
 
-    // Set which object ID this client controls (for sending input)
-    void SetControlledObjectId(uint32_t objectId) { controlledObjectId = objectId; }
-    uint32_t GetControlledObjectId() const { return controlledObjectId; }
+    // Set which player ID this client controls (for sending input)
+    void SetPlayerId(int playerId) { assignedPlayerId = playerId; }
+    int GetPlayerId() const { return assignedPlayerId; }
 
     void SetSmoothingEnabled(bool enabled);
     bool IsSmoothingEnabled() const { return smoothingEnabled; }
@@ -120,7 +120,7 @@ private:
     std::mutex objectIdsMutex;
 
     // Input tracking
-    uint32_t controlledObjectId;  // Object ID that this client controls
+    int assignedPlayerId;  // Player ID assigned to this client
     std::mutex inputMutex;
 
     // Smoothing

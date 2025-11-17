@@ -232,9 +232,9 @@ void MenuManager::render() {
             }
             
             std::string displayText = item.text;
-            if (!item.enabled) {
+            /*if (!item.enabled) {
                 displayText += " (Disabled)";
-            }
+            }*/
             
             SDL_Surface* textSurface = TTF_RenderUTF8_Blended(font, displayText.c_str(), color);
             if (textSurface) {

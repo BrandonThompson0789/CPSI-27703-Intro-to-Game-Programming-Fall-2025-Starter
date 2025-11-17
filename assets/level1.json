@@ -33,6 +33,7 @@
                 },
                 {
                     "type": "InputComponent",
+                    "playerId": 1,
                     "configName": "default"
                 }
             ]
@@ -48,6 +49,7 @@
                 },
                 {
                     "type": "InputComponent",
+                    "playerId": 2,
                     "configName": "arrows"
                 }
             ]

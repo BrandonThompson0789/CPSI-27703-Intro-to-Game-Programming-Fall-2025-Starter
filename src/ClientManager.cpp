@@ -9,6 +9,7 @@
 #include "BackgroundManager.h"
 #include "CollisionManager.h"
 #include "CompressionUtils.h"
+#include "PlayerManager.h"
 #include <iostream>
 #include <sstream>
 #include <cstring>
@@ -42,7 +43,7 @@ ClientManager::ClientManager(Engine* engine)
     , hostPort(0)
     , roomCode("")
     , isConnected(false)
-    , controlledObjectId(0)
+    , assignedPlayerId(0)
     , smoothingEnabled(true)
     , hostSyncIntervalSeconds(0.02f)
     , smoothingRevisionCounter(0)
@@ -306,13 +307,16 @@ void ClientManager::ProcessIncomingMessages() {
                 }
                 break;
 
-            case HostMessageType::ASSIGN_CONTROLLED_OBJECT:
-                if (received >= static_cast<int>(sizeof(AssignControlledObjectMessage))) {
-                    const AssignControlledObjectMessage* msg = reinterpret_cast<const AssignControlledObjectMessage*>(buffer);
-                    controlledObjectId = msg->objectId;
-                    std::cout << "ClientManager: Assigned to control object ID: " << controlledObjectId << std::endl;
+            case HostMessageType::ASSIGN_PLAYER:
+                if (received >= static_cast<int>(sizeof(AssignPlayerMessage))) {
+                    const AssignPlayerMessage* msg = reinterpret_cast<const AssignPlayerMessage*>(buffer);
+                    assignedPlayerId = msg->playerId;
+                    std::cout << "ClientManager: Assigned to player ID: " << assignedPlayerId << std::endl;
+                    
+                    // Assign keyboard to this player (client uses keyboard by default)
+                    PlayerManager::getInstance().assignInputDevice(assignedPlayerId, INPUT_SOURCE_KEYBOARD);
                 } else {
-                    std::cerr << "ClientManager: ASSIGN_CONTROLLED_OBJECT message too small: " << received << " bytes" << std::endl;
+                    std::cerr << "ClientManager: ASSIGN_PLAYER message too small: " << received << " bytes" << std::endl;
                 }
                 break;
 
@@ -645,27 +649,27 @@ void ClientManager::DestroyObject(uint32_t objectId) {
 }
 
 void ClientManager::SendInput() {
-    if (controlledObjectId == 0 || !engine) {
+    if (assignedPlayerId <= 0) {
         return;
     }
 
-    // Get input from InputManager for the controlled object
-    InputManager& inputManager = InputManager::getInstance();
+    // Get input from PlayerManager for the assigned player
+    PlayerManager& playerManager = PlayerManager::getInstance();
     
-    // Get input values (using keyboard as default, can be configured)
-    float moveUp = inputManager.getInputValue(INPUT_SOURCE_KEYBOARD, GameAction::MOVE_UP);
-    float moveDown = inputManager.getInputValue(INPUT_SOURCE_KEYBOARD, GameAction::MOVE_DOWN);
-    float moveLeft = inputManager.getInputValue(INPUT_SOURCE_KEYBOARD, GameAction::MOVE_LEFT);
-    float moveRight = inputManager.getInputValue(INPUT_SOURCE_KEYBOARD, GameAction::MOVE_RIGHT);
-    float actionWalk = inputManager.getInputValue(INPUT_SOURCE_KEYBOARD, GameAction::ACTION_WALK);
-    float actionInteract = inputManager.getInputValue(INPUT_SOURCE_KEYBOARD, GameAction::ACTION_INTERACT);
-    float actionThrow = inputManager.getInputValue(INPUT_SOURCE_KEYBOARD, GameAction::ACTION_THROW);
+    // Get input values from PlayerManager
+    float moveUp = playerManager.getInputValue(assignedPlayerId, GameAction::MOVE_UP);
+    float moveDown = playerManager.getInputValue(assignedPlayerId, GameAction::MOVE_DOWN);
+    float moveLeft = playerManager.getInputValue(assignedPlayerId, GameAction::MOVE_LEFT);
+    float moveRight = playerManager.getInputValue(assignedPlayerId, GameAction::MOVE_RIGHT);
+    float actionWalk = playerManager.getInputValue(assignedPlayerId, GameAction::ACTION_WALK);
+    float actionInteract = playerManager.getInputValue(assignedPlayerId, GameAction::ACTION_INTERACT);
+    float actionThrow = playerManager.getInputValue(assignedPlayerId, GameAction::ACTION_THROW);
 
     // Send input message
     ClientInputMessage msg;
     msg.header.type = HostMessageType::CLIENT_INPUT;
     memset(msg.header.reserved, 0, sizeof(msg.header.reserved));
-    msg.objectId = controlledObjectId;
+    msg.playerId = assignedPlayerId;
     msg.moveUp = moveUp;
     msg.moveDown = moveDown;
     msg.moveLeft = moveLeft;

@@ -2,20 +2,19 @@
 #define INPUT_COMPONENT_H
 
 #include "Component.h"
-#include "../InputManager.h"
-#include <vector>
+#include "../PlayerManager.h"
 #include <nlohmann/json.hpp>
 
 class InputComponent : public Component {
 public:
-    // Constructor - specify which input source(s) this component listens to
-    // inputSource: -1 for keyboard/mouse, 0-3 for controllers
-    InputComponent(Object& parent, int inputSource = INPUT_SOURCE_KEYBOARD);
-    
-    // Constructor - multiple input sources (listens to all, returns highest value)
-    InputComponent(Object& parent, const std::vector<int>& inputSources);
+    // Constructor - specify which player ID this component uses
+    // playerId: player ID that should be assigned to an input device or network ID via PlayerManager
+    // Default is player 1 (keyboard is assigned to player 1 by default)
+    InputComponent(Object& parent, int playerId = 1);
     
     // Constructor from JSON
+    // Expects "playerId" field (defaults to 1 if not specified)
+    // Optional "configName" field to set player's input config
     InputComponent(Object& parent, const nlohmann::json& data);
     
     virtual ~InputComponent() = default;
@@ -28,11 +27,7 @@ public:
     std::string getTypeName() const override { return "InputComponent"; }
     
     // Get input value for a specific action (0.0 to 1.0)
-    // When multiple sources are configured, returns the highest value
     float getInput(GameAction action) const;
-    
-    // Get input value from a specific source (useful when multiple sources are configured)
-    float getInputFromSource(int source, GameAction action) const;
     
     // Convenience methods for common actions
     float getMoveUp() const { return getInput(GameAction::MOVE_UP); }
@@ -43,61 +38,28 @@ public:
     float getActionInteract() const { return getInput(GameAction::ACTION_INTERACT); }
     float getActionThrow() const { return getInput(GameAction::ACTION_THROW); }
     
-    // Check if button is pressed (value > 0.5) from any source
+    // Check if button is pressed (value > 0.5)
     bool isPressed(GameAction action) const;
     
-    // Get primary input source (first in list)
-    int getInputSource() const { return inputSources.empty() ? INPUT_SOURCE_KEYBOARD : inputSources[0]; }
+    // Get player ID
+    int getPlayerId() const { return playerId; }
     
-    // Get all input sources
-    const std::vector<int>& getInputSources() const { return inputSources; }
+    // Set player ID
+    void setPlayerId(int id) { playerId = id; }
     
-    // Set input source (replaces all sources with a single source)
-    void setInputSource(int source);
-    
-    // Set multiple input sources
-    void setInputSources(const std::vector<int>& sources);
-    
-    // Add an input source to the list
-    void addInputSource(int source);
-    
-    // Remove an input source from the list
-    void removeInputSource(int source);
-    
-    // Check if any input source is active/connected
+    // Check if player is active (has input assigned and is providing input)
     bool isActive() const;
     
-    // Check if a specific input source is active
-    bool isSourceActive(int source) const;
+    // Get config name (from PlayerManager)
+    std::string getConfigName() const;
     
-    // Get which source is currently providing input (highest value)
-    int getActiveSource() const;
-    
-    // Get config name
-    const std::string& getConfigName() const { return configName; }
-    
-    // Set config name (empty string = use default config for input source)
-    void setConfigName(const std::string& name) { configName = name; }
-    
-    // Network input support
-    // Set network input values (used for multiplayer - overrides local input when set)
-    void setNetworkInput(float moveUp, float moveDown, float moveLeft, float moveRight,
-                        float actionWalk, float actionInteract, float actionThrow);
-    
-    // Clear network input (revert to local input)
-    void clearNetworkInput();
-    
-    // Check if network input is active
-    bool hasNetworkInput() const { return networkInputActive; }
+    // Set config name (empty string = use default config)
+    // This sets the config name in PlayerManager for this player
+    void setConfigName(const std::string& name);
     
 private:
-    std::vector<int> inputSources;
-    InputManager& inputManager;
-    std::string configName; // Config identifier (empty = use default config for input source)
-    
-    // Network input storage
-    bool networkInputActive;
-    float networkInputValues[7]; // MOVE_UP, MOVE_DOWN, MOVE_LEFT, MOVE_RIGHT, ACTION_WALK, ACTION_INTERACT, ACTION_THROW
+    int playerId;
+    PlayerManager& playerManager;
 };
 
 #endif // INPUT_COMPONENT_H
