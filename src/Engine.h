@@ -16,6 +16,7 @@ class CollisionManager;
 class BackgroundManager;
 class HostManager;
 class ClientManager;
+class MenuManager;
 
 class Engine {
     public:
@@ -32,6 +33,7 @@ class Engine {
         BackgroundManager* getBackgroundManager() { return backgroundManager.get(); }
         HostManager* getHostManager() { return hostManager.get(); }
         ClientManager* getClientManager() { return clientManager.get(); }
+        MenuManager* getMenuManager() { return menuManager.get(); }
         
         // Start hosting (returns room code on success, empty string on failure)
         std::string startHosting(uint16_t hostPort = 8889, const std::string& serverManagerIP = "127.0.0.1", uint16_t serverManagerPort = 8888);
@@ -45,6 +47,12 @@ class Engine {
         
         // Physics world access
         b2WorldId getPhysicsWorld() { return physicsWorldId; }
+        
+        // Renderer access (for menu system)
+        SDL_Renderer* getRenderer() const { return renderer; }
+        
+        // Quit the engine (sets running to false)
+        void quit() { running = false; }
         
         static int screenWidth;
         static int screenHeight;
@@ -103,6 +111,7 @@ class Engine {
         std::unique_ptr<BackgroundManager> backgroundManager;
         std::unique_ptr<HostManager> hostManager;
         std::unique_ptr<ClientManager> clientManager;
+        std::unique_ptr<MenuManager> menuManager;
 
         CameraState cameraState;
         CameraState cameraTarget;

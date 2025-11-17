@@ -1,5 +1,6 @@
 #include "Engine.h"
 #include "InputManager.h"
+#include "menus/MenuManager.h"
 #include "components/BodyComponent.h"
 #include "components/InputComponent.h"
 #include <iostream>
@@ -56,6 +57,9 @@ int main(int argc, char* argv[]) {
     InputManager::getInstance().loadNamedConfig("arrows", "assets/input_config_arrows.json");
     InputManager::getInstance().loadNamedConfig("default", "assets/input_config.json");
     
+    // Show main menu if neither host nor client mode
+    bool showMainMenu = !hostMode && !clientMode;
+    
     // Connect as client if requested (don't load level - will be received from host)
     if (clientMode) {
         std::cout << "\n=== Starting Client Mode ===" << std::endl;
@@ -103,7 +107,15 @@ int main(int argc, char* argv[]) {
         }
     }
     
-    std::cout << "Press ESC to quit" << std::endl;
+    // Open main menu if neither host nor client mode
+    if (showMainMenu && e.getMenuManager()) {
+        e.getMenuManager()->openMenu("main");
+        std::cout << "Main Menu opened" << std::endl;
+    }
+    
+    if (!showMainMenu) {
+        std::cout << "Press ESC to quit" << std::endl;
+    }
 
     e.run();
     e.cleanup();

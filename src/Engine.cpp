@@ -7,6 +7,7 @@
 #include "BackgroundManager.h"
 #include "HostManager.h"
 #include "ClientManager.h"
+#include "menus/MenuManager.h"
 #include "components/Component.h"
 #include "components/ViewGrabComponent.h"
 #include <cmath>
@@ -86,6 +87,10 @@ void Engine::init() {
     // Initialize input manager
     InputManager::getInstance().init();
     
+    // Initialize menu manager
+    menuManager = std::make_unique<MenuManager>(this);
+    menuManager->init();
+    
     std::cout << "SDL and Box2D initialized successfully!" << std::endl;
 }
 
@@ -126,15 +131,23 @@ void Engine::run() {
 void Engine::processEvents() {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
+        // Let menu manager handle events first if menu is active
+        if (menuManager && menuManager->isMenuActive()) {
+            menuManager->handleEvent(event);
+        }
+        
         switch (event.type) {
             case SDL_QUIT:
                 running = false;
                 break;
 
             case SDL_KEYDOWN:
-                if (event.key.repeat == 0 && event.key.keysym.scancode == SDL_SCANCODE_F1) {
-                    debugDraw.toggle();
-                    std::cout << "Box2D debug draw " << (debugDraw.isEnabled() ? "enabled" : "disabled") << std::endl;
+                // Only handle F1 debug toggle if menu is not active
+                if (!menuManager || !menuManager->isMenuActive()) {
+                    if (event.key.repeat == 0 && event.key.keysym.scancode == SDL_SCANCODE_F1) {
+                        debugDraw.toggle();
+                        std::cout << "Box2D debug draw " << (debugDraw.isEnabled() ? "enabled" : "disabled") << std::endl;
+                    }
                 }
                 break;
 
@@ -159,11 +172,7 @@ void Engine::processEvents() {
         }
     }
     
-    // Check for escape key to quit
-    const Uint8* state = SDL_GetKeyboardState(nullptr);
-    if (state[SDL_SCANCODE_ESCAPE]) {
-        running = false;
-    }
+    // Escape key quit is now handled by pause action (no longer directly quit)
     
     // Update input manager to poll all input sources
     InputManager::getInstance().update();
@@ -171,6 +180,46 @@ void Engine::processEvents() {
 
 void Engine::update(float deltaTime) {
     lastDeltaTime = deltaTime;
+
+    // Update menu manager (always update, even if paused)
+    if (menuManager) {
+        menuManager->update(deltaTime);
+    }
+    
+    // Check if game should be paused (menu active)
+    bool shouldPause = menuManager && menuManager->shouldPauseGame();
+    
+    if (shouldPause) {
+        // Don't update game objects when menu is active (except network input if hosting)
+        // Still update network managers even when paused
+        if (hostManager && hostManager->IsHosting()) {
+            hostManager->Update(deltaTime);
+        }
+        if (clientManager && clientManager->IsConnected()) {
+            clientManager->Update(deltaTime);
+        }
+        return;
+    }
+    
+    // Check for pause input when game is running (no menu active)
+    InputManager& inputMgr = InputManager::getInstance();
+    float pause = inputMgr.getInputValue(INPUT_SOURCE_KEYBOARD, GameAction::ACTION_PAUSE);
+    for (int i = 0; i < 4; ++i) {
+        if (inputMgr.isInputSourceActive(i)) {
+            float p = inputMgr.getInputValue(i, GameAction::ACTION_PAUSE);
+            if (p > pause) pause = p;
+        }
+    }
+    
+    static bool lastPauseState = false;
+    bool currentPauseState = (pause > 0.5f);
+    if (currentPauseState && !lastPauseState) {
+        // Open pause menu
+        if (menuManager) {
+            menuManager->openMenu("pause");
+        }
+    }
+    lastPauseState = currentPauseState;
 
     // Step the Box2D physics simulation (v3.x API)
     // subStepCount controls accuracy (4 is default, higher = more accurate but slower)
@@ -232,13 +281,13 @@ void Engine::update(float deltaTime) {
         }
     }
 
-    // Update HostManager
-    if (hostManager && hostManager->IsHosting()) {
+    // Update HostManager (only when not paused - network updates handled in pause block)
+    if (hostManager && hostManager->IsHosting() && !shouldPause) {
         hostManager->Update(deltaTime);
     }
 
-    // Update ClientManager
-    if (clientManager && clientManager->IsConnected()) {
+    // Update ClientManager (only when not paused - network updates handled in pause block)
+    if (clientManager && clientManager->IsConnected() && !shouldPause) {
         clientManager->Update(deltaTime);
     }
 }
@@ -263,6 +312,11 @@ void Engine::render() {
     if (debugDraw.isEnabled() && B2_IS_NON_NULL(physicsWorldId)) {
         b2World_Draw(physicsWorldId, debugDraw.getInterface());
         debugDraw.renderLabels(objects);
+    }
+    
+    // Render menus on top of everything
+    if (menuManager) {
+        menuManager->render();
     }
 }
 
@@ -411,6 +465,10 @@ void Engine::cleanup() {
     if (clientManager) {
         clientManager->Disconnect();
         clientManager.reset();
+    }
+    if (menuManager) {
+        menuManager->cleanup();
+        menuManager.reset();
     }
     if (renderer) {
         SDL_DestroyRenderer(renderer);

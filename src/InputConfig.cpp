@@ -131,6 +131,7 @@ void InputConfig::loadDefaults() {
     setKeyboardMapping(GameAction::ACTION_WALK, {SDL_SCANCODE_LSHIFT, SDL_SCANCODE_RSHIFT});
     setKeyboardMapping(GameAction::ACTION_INTERACT, {SDL_SCANCODE_SPACE, SDL_SCANCODE_E});
     setKeyboardMapping(GameAction::ACTION_THROW, {SDL_SCANCODE_F, SDL_SCANCODE_Q});
+    setKeyboardMapping(GameAction::ACTION_PAUSE, {SDL_SCANCODE_ESCAPE, SDL_SCANCODE_RETURN});
     
     // Default controller mappings
     setControllerAxisMapping(GameAction::MOVE_UP, SDL_CONTROLLER_AXIS_LEFTY, false); // Negative Y
@@ -140,6 +141,7 @@ void InputConfig::loadDefaults() {
     setControllerAxisMapping(GameAction::ACTION_WALK, SDL_CONTROLLER_AXIS_TRIGGERLEFT, true, true); // Trigger (full range)
     setControllerButtonMapping(GameAction::ACTION_INTERACT, {SDL_CONTROLLER_BUTTON_A});
     setControllerButtonMapping(GameAction::ACTION_THROW, {SDL_CONTROLLER_BUTTON_X, SDL_CONTROLLER_BUTTON_B});
+    setControllerButtonMapping(GameAction::ACTION_PAUSE, {SDL_CONTROLLER_BUTTON_START});
     
     deadzone = 0.15f;
     dpadAsAxis = true;

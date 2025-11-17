@@ -17,6 +17,7 @@ enum class GameAction {
     ACTION_WALK,
     ACTION_INTERACT,
     ACTION_THROW,
+    ACTION_PAUSE,
     // Add more actions as needed
     NUM_ACTIONS
 };
@@ -91,6 +92,12 @@ public:
     // Convert GameAction enum to string
     static std::string actionToString(GameAction action);
     
+    // Mouse input methods
+    void getMousePosition(int& x, int& y) const;
+    bool isMouseButtonPressed(Uint8 button) const;
+    bool wasMouseButtonPressedThisFrame(Uint8 button) const;
+    bool wasMouseButtonReleasedThisFrame(Uint8 button) const;
+    
 private:
     InputManager();
     ~InputManager();
@@ -113,6 +120,11 @@ private:
     
     // Raw device state storage (for on-demand computation with named configs)
     const Uint8* keyboardState; // Raw keyboard state (updated each frame)
+    
+    // Mouse state
+    int mouseX, mouseY;
+    Uint32 mouseButtonState;
+    Uint32 mouseButtonStatePrevious;
     
     // Controller raw state (updated each frame)
     struct ControllerRawState {

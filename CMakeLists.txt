@@ -90,6 +90,18 @@ add_executable(demo
     src/CompressionUtils.cpp
     src/server_manager/NetworkUtils.h
     src/server_manager/NetworkUtils.cpp
+    src/menus/Menu.h
+    src/menus/Menu.cpp
+    src/menus/MenuManager.h
+    src/menus/MenuManager.cpp
+    src/menus/MainMenu.h
+    src/menus/MainMenu.cpp
+    src/menus/QuitConfirmMenu.h
+    src/menus/QuitConfirmMenu.cpp
+    src/menus/MultiplayerMenu.h
+    src/menus/MultiplayerMenu.cpp
+    src/menus/PauseMenu.h
+    src/menus/PauseMenu.cpp
 )
 
 # Link libraries

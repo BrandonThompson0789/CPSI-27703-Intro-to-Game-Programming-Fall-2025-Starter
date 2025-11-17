@@ -24,6 +24,12 @@ InputManager::InputManager() {
         controllerState.axes.fill(0);
     }
     
+    // Initialize mouse state
+    mouseX = 0;
+    mouseY = 0;
+    mouseButtonState = 0;
+    mouseButtonStatePrevious = 0;
+    
     // Create config with defaults
     config = std::make_unique<InputConfig>();
     subsystemInitialized = false;
@@ -447,6 +453,7 @@ GameAction InputManager::stringToAction(const std::string& actionName) {
     if (actionName == "action_walk") return GameAction::ACTION_WALK;
     if (actionName == "action_interact") return GameAction::ACTION_INTERACT;
     if (actionName == "action_throw") return GameAction::ACTION_THROW;
+    if (actionName == "action_pause") return GameAction::ACTION_PAUSE;
     
     return GameAction::NUM_ACTIONS; // Invalid action
 }
@@ -460,6 +467,7 @@ std::string InputManager::actionToString(GameAction action) {
         case GameAction::ACTION_WALK: return "action_walk";
         case GameAction::ACTION_INTERACT: return "action_interact";
         case GameAction::ACTION_THROW: return "action_throw";
+        case GameAction::ACTION_PAUSE: return "action_pause";
         default: return "unknown";
     }
 }
@@ -467,6 +475,10 @@ std::string InputManager::actionToString(GameAction action) {
 void InputManager::updateRawDeviceState() {
     // Update keyboard state
     keyboardState = SDL_GetKeyboardState(nullptr);
+    
+    // Update mouse state
+    mouseButtonStatePrevious = mouseButtonState;
+    mouseButtonState = SDL_GetMouseState(&mouseX, &mouseY);
     
     // Update controller raw state
     for (int i = 0; i < 4; ++i) {
@@ -583,5 +595,24 @@ float InputManager::computeInputValue(int inputSource, GameAction action, const 
         
         return 0.0f;
     }
+}
+
+void InputManager::getMousePosition(int& x, int& y) const {
+    x = mouseX;
+    y = mouseY;
+}
+
+bool InputManager::isMouseButtonPressed(Uint8 button) const {
+    return (mouseButtonState & SDL_BUTTON(button)) != 0;
+}
+
+bool InputManager::wasMouseButtonPressedThisFrame(Uint8 button) const {
+    Uint32 buttonMask = SDL_BUTTON(button);
+    return (mouseButtonState & buttonMask) != 0 && (mouseButtonStatePrevious & buttonMask) == 0;
+}
+
+bool InputManager::wasMouseButtonReleasedThisFrame(Uint8 button) const {
+    Uint32 buttonMask = SDL_BUTTON(button);
+    return (mouseButtonState & buttonMask) == 0 && (mouseButtonStatePrevious & buttonMask) != 0;
 }
 
