@@ -35,7 +35,7 @@
     },
     "metadata": {
         "currentLevel": "level1",
-        "lastSaved": "2025-11-18T12:11:06",
+        "lastSaved": "2025-11-18T14:41:45",
         "levelProgress": {
             "progression": 0
         },
@@ -48,19 +48,18 @@
                 {
                     "alpha": 255,
                     "angle": 0.0,
-                    "animating": true,
+                    "animating": false,
                     "animationSpeed": 12.0,
                     "animationSpeedScale": 0.019999999552965164,
-                    "animationTimer": 0.11094093322753906,
-                    "completedLoops": 9,
-                    "currentFrame": 3,
+                    "animationTimer": 0.0,
+                    "currentFrame": 0,
                     "flipFlags": 0,
                     "looping": true,
                     "movingSpriteName": "player_walking",
                     "posX": 0.0,
                     "posY": 0.0,
                     "scaleAnimationWithSpeed": true,
-                    "spriteName": "player_walking",
+                    "spriteName": "player_standing",
                     "stillSpriteName": "player_standing",
                     "type": "SpriteComponent"
                 },
@@ -108,7 +107,7 @@
                     "type": "SoundComponent"
                 },
                 {
-                    "angle": -84.35383605957031,
+                    "angle": 60.35963821411133,
                     "angularDamping": 8.0,
                     "bodyType": "dynamic",
                     "bullet": false,
@@ -124,12 +123,12 @@
                     },
                     "gravityScale": 1.0,
                     "linearDamping": 6.0,
-                    "posX": 313.44708251953125,
-                    "posY": 300.4226379394531,
+                    "posX": 242.62120056152344,
+                    "posY": 405.29217529296875,
                     "type": "BodyComponent",
-                    "velAngle": 0.35507628321647644,
-                    "velX": -6.979404926300049,
-                    "velY": 0.03674359619617462
+                    "velAngle": 0.054207924753427505,
+                    "velX": 0.3673621118068695,
+                    "velY": -0.13344943523406982
                 },
                 {
                     "maxAngularVelocity": 3.1415927410125732,
@@ -173,113 +172,6 @@
                 }
             ],
             "name": "player1"
-        },
-        {
-            "components": [
-                {
-                    "alpha": 255,
-                    "angle": 0.0,
-                    "animating": false,
-                    "animationSpeed": 10.0,
-                    "animationTimer": 0.0,
-                    "currentFrame": 0,
-                    "flipFlags": 0,
-                    "looping": false,
-                    "posX": 0.0,
-                    "posY": 0.0,
-                    "spriteName": "vaccumba",
-                    "type": "SpriteComponent"
-                },
-                {
-                    "playerId": 2,
-                    "type": "InputComponent"
-                },
-                {
-                    "allowedSenses": [
-                        "distance"
-                    ],
-                    "interactThreshold": 0.5,
-                    "type": "InteractComponent"
-                },
-                {
-                    "collections": {
-                        "explode": {
-                            "collection": "explode",
-                            "volume": 1.0
-                        }
-                    },
-                    "type": "SoundComponent"
-                },
-                {
-                    "angle": 167.2562255859375,
-                    "angularDamping": 8.0,
-                    "bodyType": "dynamic",
-                    "bullet": false,
-                    "fixedRotation": false,
-                    "fixture": {
-                        "density": 0.5,
-                        "friction": 0.30000001192092896,
-                        "isSensor": false,
-                        "material": "metal",
-                        "radius": 14.999999046325684,
-                        "restitution": 0.0,
-                        "shape": "circle"
-                    },
-                    "gravityScale": 1.0,
-                    "linearDamping": 6.0,
-                    "posX": 230.6317138671875,
-                    "posY": 295.4202575683594,
-                    "type": "BodyComponent",
-                    "velAngle": 0.0,
-                    "velX": -20.142810821533203,
-                    "velY": -1.0304020643234253
-                },
-                {
-                    "maxAngularVelocity": 0.6000000238418579,
-                    "moveSoundRateScale": 0.019999999552965164,
-                    "moveSpeed": 80.0,
-                    "rotationResponsiveness": 0.6000000238418579,
-                    "rotationStopThresholdDegrees": 5.0,
-                    "type": "TankMovementBehaviorComponent"
-                },
-                {
-                    "minHalfExtent": 24.0,
-                    "paddingX": 320.0,
-                    "paddingY": 220.0,
-                    "type": "ViewGrabComponent"
-                },
-                {
-                    "currentHP": 10.0,
-                    "damageMultiplier": 1.0,
-                    "destroyOnDeath": true,
-                    "impactResistance": 0.20000000298023224,
-                    "maxHP": 10.0,
-                    "receiveCollisionDamage": true,
-                    "regenDelay": 0.0,
-                    "regenPerSecond": 0.0,
-                    "type": "HealthComponent"
-                },
-                {
-                    "affectDynamic": true,
-                    "affectKinematic": true,
-                    "affectStatic": true,
-                    "baseDamage": 1.0,
-                    "enabled": true,
-                    "kineticScale": 6.0,
-                    "maxDamage": -1.0,
-                    "minApproachSpeed": 0.0,
-                    "type": "CollisionDamageComponent"
-                },
-                {
-                    "explosionHeight": 64.0,
-                    "explosionSprite": "explosion",
-                    "explosionWidth": 64.0,
-                    "loopsBeforeDeath": 2,
-                    "randomizeAngleEachFrame": true,
-                    "type": "ExplodeOnDeathComponent"
-                }
-            ],
-            "name": "player2"
         },
         {
             "components": [
@@ -579,172 +471,6 @@
                 }
             ],
             "name": "crate_no_damage_received"
-        },
-        {
-            "components": [
-                {
-                    "angle": -12.444629669189453,
-                    "angularDamping": 2.0,
-                    "bodyType": "dynamic",
-                    "bullet": false,
-                    "fixedRotation": false,
-                    "fixture": {
-                        "density": 1.0,
-                        "friction": 0.30000001192092896,
-                        "height": 32.0,
-                        "isSensor": false,
-                        "material": "wood",
-                        "restitution": 0.0,
-                        "shape": "box",
-                        "width": 32.0
-                    },
-                    "gravityScale": 1.0,
-                    "linearDamping": 2.0,
-                    "posX": 146.90640258789063,
-                    "posY": 421.10394287109375,
-                    "type": "BodyComponent",
-                    "velAngle": 0.0,
-                    "velX": 0.0,
-                    "velY": 0.0
-                },
-                {
-                    "currentHP": 60.0,
-                    "damageMultiplier": 1.0,
-                    "destroyOnDeath": true,
-                    "impactResistance": 0.20000000298023224,
-                    "maxHP": 60.0,
-                    "receiveCollisionDamage": true,
-                    "regenDelay": 0.0,
-                    "regenPerSecond": 0.0,
-                    "type": "HealthComponent"
-                },
-                {
-                    "affectDynamic": true,
-                    "affectKinematic": true,
-                    "affectStatic": true,
-                    "baseDamage": 1.0,
-                    "enabled": true,
-                    "kineticScale": 6.0,
-                    "maxDamage": -1.0,
-                    "minApproachSpeed": 0.0,
-                    "type": "CollisionDamageComponent"
-                },
-                {
-                    "alpha": 255,
-                    "angle": 0.0,
-                    "animating": false,
-                    "animationSpeed": 10.0,
-                    "animationTimer": 0.0,
-                    "currentFrame": 0,
-                    "flipFlags": 0,
-                    "looping": false,
-                    "posX": 0.0,
-                    "posY": 0.0,
-                    "spriteName": "crate",
-                    "type": "SpriteComponent"
-                },
-                {
-                    "explosionHeight": 64.0,
-                    "explosionSprite": "explosion",
-                    "explosionWidth": 64.0,
-                    "loopsBeforeDeath": 2,
-                    "randomizeAngleEachFrame": true,
-                    "type": "ExplodeOnDeathComponent"
-                },
-                {
-                    "collections": {
-                        "explode": {
-                            "collection": "explode",
-                            "volume": 1.0
-                        }
-                    },
-                    "type": "SoundComponent"
-                }
-            ],
-            "name": "crate"
-        },
-        {
-            "components": [
-                {
-                    "angle": -6.807506561279297,
-                    "angularDamping": 2.0,
-                    "bodyType": "dynamic",
-                    "bullet": false,
-                    "fixedRotation": false,
-                    "fixture": {
-                        "density": 1.0,
-                        "friction": 0.30000001192092896,
-                        "height": 32.0,
-                        "isSensor": false,
-                        "material": "wood",
-                        "restitution": 0.0,
-                        "shape": "box",
-                        "width": 32.0
-                    },
-                    "gravityScale": 1.0,
-                    "linearDamping": 2.0,
-                    "posX": 148.19882202148438,
-                    "posY": 459.6773986816406,
-                    "type": "BodyComponent",
-                    "velAngle": 0.0,
-                    "velX": 0.0,
-                    "velY": 0.0
-                },
-                {
-                    "currentHP": 60.0,
-                    "damageMultiplier": 1.0,
-                    "destroyOnDeath": true,
-                    "impactResistance": 0.20000000298023224,
-                    "maxHP": 60.0,
-                    "receiveCollisionDamage": true,
-                    "regenDelay": 0.0,
-                    "regenPerSecond": 0.0,
-                    "type": "HealthComponent"
-                },
-                {
-                    "affectDynamic": true,
-                    "affectKinematic": true,
-                    "affectStatic": true,
-                    "baseDamage": 1.0,
-                    "enabled": true,
-                    "kineticScale": 6.0,
-                    "maxDamage": -1.0,
-                    "minApproachSpeed": 0.0,
-                    "type": "CollisionDamageComponent"
-                },
-                {
-                    "alpha": 255,
-                    "angle": 0.0,
-                    "animating": false,
-                    "animationSpeed": 10.0,
-                    "animationTimer": 0.0,
-                    "currentFrame": 0,
-                    "flipFlags": 0,
-                    "looping": false,
-                    "posX": 0.0,
-                    "posY": 0.0,
-                    "spriteName": "crate",
-                    "type": "SpriteComponent"
-                },
-                {
-                    "explosionHeight": 64.0,
-                    "explosionSprite": "explosion",
-                    "explosionWidth": 64.0,
-                    "loopsBeforeDeath": 2,
-                    "randomizeAngleEachFrame": true,
-                    "type": "ExplodeOnDeathComponent"
-                },
-                {
-                    "collections": {
-                        "explode": {
-                            "collection": "explode",
-                            "volume": 1.0
-                        }
-                    },
-                    "type": "SoundComponent"
-                }
-            ],
-            "name": "crate"
         },
         {
             "components": [
@@ -1324,7 +1050,7 @@
         {
             "components": [
                 {
-                    "angle": 26.33657455444336,
+                    "angle": 38.27766418457031,
                     "angularDamping": 2.0,
                     "bodyType": "dynamic",
                     "bullet": false,
@@ -1341,15 +1067,15 @@
                     },
                     "gravityScale": 1.0,
                     "linearDamping": 2.0,
-                    "posX": 365.9248962402344,
-                    "posY": 197.01475524902344,
+                    "posX": 369.3995056152344,
+                    "posY": 191.32420349121094,
                     "type": "BodyComponent",
                     "velAngle": 0.0,
                     "velX": 0.0,
                     "velY": 0.0
                 },
                 {
-                    "currentHP": 60.0,
+                    "currentHP": 57.617767333984375,
                     "damageMultiplier": 1.0,
                     "destroyOnDeath": true,
                     "impactResistance": 0.20000000298023224,
@@ -1407,7 +1133,7 @@
         {
             "components": [
                 {
-                    "angle": 0.0,
+                    "angle": 73.06670379638672,
                     "angularDamping": 2.0,
                     "bodyType": "dynamic",
                     "bullet": false,
@@ -1424,8 +1150,8 @@
                     },
                     "gravityScale": 1.0,
                     "linearDamping": 2.0,
-                    "posX": 500.0,
-                    "posY": 250.0,
+                    "posX": 495.9500732421875,
+                    "posY": 236.06500244140625,
                     "type": "BodyComponent",
                     "velAngle": 0.0,
                     "velX": 0.0,
@@ -1490,7 +1216,7 @@
         {
             "components": [
                 {
-                    "angle": 4.109375476837158,
+                    "angle": -115.20052337646484,
                     "angularDamping": 2.0,
                     "bodyType": "dynamic",
                     "bullet": false,
@@ -1507,15 +1233,15 @@
                     },
                     "gravityScale": 1.0,
                     "linearDamping": 2.0,
-                    "posX": 467.4574890136719,
-                    "posY": 297.9287414550781,
+                    "posX": -56.985450744628906,
+                    "posY": 454.3215637207031,
                     "type": "BodyComponent",
                     "velAngle": 0.0,
                     "velX": 0.0,
                     "velY": 0.0
                 },
                 {
-                    "currentHP": 150.0,
+                    "currentHP": 114.90815734863281,
                     "damageMultiplier": 1.0,
                     "destroyOnDeath": true,
                     "impactResistance": 0.5,
@@ -1694,7 +1420,7 @@
                             "objectData": {
                                 "template": "crate_basic"
                             },
-                            "remainingSpawns": 3,
+                            "remainingSpawns": 0,
                             "template": "crate_basic"
                         },
                         {
@@ -1709,7 +1435,7 @@
                                     }
                                 ]
                             },
-                            "remainingSpawns": 2,
+                            "remainingSpawns": 0,
                             "template": "crate_basic"
                         }
                     ],
@@ -1718,6 +1444,836 @@
                 }
             ],
             "name": "object_spawner"
+        },
+        {
+            "components": [
+                {
+                    "angle": 1.1772630214691162,
+                    "angularDamping": 2.0,
+                    "bodyType": "dynamic",
+                    "bullet": false,
+                    "fixedRotation": false,
+                    "fixture": {
+                        "density": 2.0,
+                        "friction": 0.30000001192092896,
+                        "height": 32.0,
+                        "isSensor": false,
+                        "material": "wood",
+                        "restitution": 0.0,
+                        "shape": "box",
+                        "width": 32.0
+                    },
+                    "gravityScale": 1.0,
+                    "linearDamping": 2.0,
+                    "posX": 200.14895629882813,
+                    "posY": 298.6568298339844,
+                    "type": "BodyComponent",
+                    "velAngle": 0.0,
+                    "velX": 0.0,
+                    "velY": 0.0
+                },
+                {
+                    "currentHP": 60.0,
+                    "damageMultiplier": 1.0,
+                    "destroyOnDeath": true,
+                    "impactResistance": 0.20000000298023224,
+                    "maxHP": 60.0,
+                    "receiveCollisionDamage": true,
+                    "regenDelay": 0.0,
+                    "regenPerSecond": 0.0,
+                    "type": "HealthComponent"
+                },
+                {
+                    "affectDynamic": true,
+                    "affectKinematic": true,
+                    "affectStatic": true,
+                    "baseDamage": 1.0,
+                    "enabled": true,
+                    "kineticScale": 6.0,
+                    "maxDamage": -1.0,
+                    "minApproachSpeed": 0.0,
+                    "type": "CollisionDamageComponent"
+                },
+                {
+                    "alpha": 255,
+                    "angle": 0.0,
+                    "animating": false,
+                    "animationSpeed": 10.0,
+                    "animationTimer": 0.0,
+                    "currentFrame": 0,
+                    "flipFlags": 0,
+                    "looping": false,
+                    "posX": 0.0,
+                    "posY": 0.0,
+                    "spriteName": "crate",
+                    "type": "SpriteComponent"
+                },
+                {
+                    "explosionHeight": 64.0,
+                    "explosionSprite": "explosion",
+                    "explosionWidth": 64.0,
+                    "loopsBeforeDeath": 2,
+                    "randomizeAngleEachFrame": true,
+                    "type": "ExplodeOnDeathComponent"
+                },
+                {
+                    "collections": {
+                        "explode": {
+                            "collection": "explode",
+                            "volume": 1.0
+                        }
+                    },
+                    "type": "SoundComponent"
+                }
+            ],
+            "name": "crate"
+        },
+        {
+            "components": [
+                {
+                    "angle": 0.388886034488678,
+                    "angularDamping": 2.0,
+                    "bodyType": "dynamic",
+                    "bullet": false,
+                    "fixedRotation": false,
+                    "fixture": {
+                        "density": 1.0,
+                        "friction": 0.30000001192092896,
+                        "height": 32.0,
+                        "isSensor": false,
+                        "material": "wood",
+                        "restitution": 0.0,
+                        "shape": "box",
+                        "width": 32.0
+                    },
+                    "gravityScale": 1.0,
+                    "linearDamping": 2.0,
+                    "posX": 269.3341064453125,
+                    "posY": 302.566650390625,
+                    "type": "BodyComponent",
+                    "velAngle": 0.0,
+                    "velX": 0.0,
+                    "velY": 0.0
+                },
+                {
+                    "currentHP": 60.0,
+                    "damageMultiplier": 1.0,
+                    "destroyOnDeath": true,
+                    "impactResistance": 0.20000000298023224,
+                    "maxHP": 60.0,
+                    "receiveCollisionDamage": true,
+                    "regenDelay": 0.0,
+                    "regenPerSecond": 0.0,
+                    "type": "HealthComponent"
+                },
+                {
+                    "affectDynamic": true,
+                    "affectKinematic": true,
+                    "affectStatic": true,
+                    "baseDamage": 1.0,
+                    "enabled": true,
+                    "kineticScale": 6.0,
+                    "maxDamage": -1.0,
+                    "minApproachSpeed": 0.0,
+                    "type": "CollisionDamageComponent"
+                },
+                {
+                    "alpha": 255,
+                    "angle": 0.0,
+                    "animating": false,
+                    "animationSpeed": 10.0,
+                    "animationTimer": 0.0,
+                    "currentFrame": 0,
+                    "flipFlags": 0,
+                    "looping": false,
+                    "posX": 0.0,
+                    "posY": 0.0,
+                    "spriteName": "crate",
+                    "type": "SpriteComponent"
+                },
+                {
+                    "explosionHeight": 64.0,
+                    "explosionSprite": "explosion",
+                    "explosionWidth": 64.0,
+                    "loopsBeforeDeath": 2,
+                    "randomizeAngleEachFrame": true,
+                    "type": "ExplodeOnDeathComponent"
+                },
+                {
+                    "collections": {
+                        "explode": {
+                            "collection": "explode",
+                            "volume": 1.0
+                        }
+                    },
+                    "type": "SoundComponent"
+                }
+            ],
+            "name": "crate"
+        },
+        {
+            "components": [
+                {
+                    "angle": -6.345060348510742,
+                    "angularDamping": 2.0,
+                    "bodyType": "dynamic",
+                    "bullet": false,
+                    "fixedRotation": false,
+                    "fixture": {
+                        "density": 1.0,
+                        "friction": 0.30000001192092896,
+                        "height": 32.0,
+                        "isSensor": false,
+                        "material": "wood",
+                        "restitution": 0.0,
+                        "shape": "box",
+                        "width": 32.0
+                    },
+                    "gravityScale": 1.0,
+                    "linearDamping": 2.0,
+                    "posX": 361.42718505859375,
+                    "posY": 299.754638671875,
+                    "type": "BodyComponent",
+                    "velAngle": 0.0,
+                    "velX": 0.0,
+                    "velY": 0.0
+                },
+                {
+                    "currentHP": 60.0,
+                    "damageMultiplier": 1.0,
+                    "destroyOnDeath": true,
+                    "impactResistance": 0.20000000298023224,
+                    "maxHP": 60.0,
+                    "receiveCollisionDamage": true,
+                    "regenDelay": 0.0,
+                    "regenPerSecond": 0.0,
+                    "type": "HealthComponent"
+                },
+                {
+                    "affectDynamic": true,
+                    "affectKinematic": true,
+                    "affectStatic": true,
+                    "baseDamage": 1.0,
+                    "enabled": true,
+                    "kineticScale": 6.0,
+                    "maxDamage": -1.0,
+                    "minApproachSpeed": 0.0,
+                    "type": "CollisionDamageComponent"
+                },
+                {
+                    "alpha": 255,
+                    "angle": 0.0,
+                    "animating": false,
+                    "animationSpeed": 10.0,
+                    "animationTimer": 0.0,
+                    "currentFrame": 0,
+                    "flipFlags": 0,
+                    "looping": false,
+                    "posX": 0.0,
+                    "posY": 0.0,
+                    "spriteName": "crate",
+                    "type": "SpriteComponent"
+                },
+                {
+                    "explosionHeight": 64.0,
+                    "explosionSprite": "explosion",
+                    "explosionWidth": 64.0,
+                    "loopsBeforeDeath": 2,
+                    "randomizeAngleEachFrame": true,
+                    "type": "ExplodeOnDeathComponent"
+                },
+                {
+                    "collections": {
+                        "explode": {
+                            "collection": "explode",
+                            "volume": 1.0
+                        }
+                    },
+                    "type": "SoundComponent"
+                }
+            ],
+            "name": "crate"
+        },
+        {
+            "components": [
+                {
+                    "angle": -7.570188045501709,
+                    "angularDamping": 2.0,
+                    "bodyType": "dynamic",
+                    "bullet": false,
+                    "fixedRotation": false,
+                    "fixture": {
+                        "density": 2.0,
+                        "friction": 0.30000001192092896,
+                        "height": 32.0,
+                        "isSensor": false,
+                        "material": "wood",
+                        "restitution": 0.0,
+                        "shape": "box",
+                        "width": 32.0
+                    },
+                    "gravityScale": 1.0,
+                    "linearDamping": 2.0,
+                    "posX": 219.93865966796875,
+                    "posY": 249.74951171875,
+                    "type": "BodyComponent",
+                    "velAngle": 0.0,
+                    "velX": 0.0,
+                    "velY": 0.0
+                },
+                {
+                    "currentHP": 60.0,
+                    "damageMultiplier": 1.0,
+                    "destroyOnDeath": true,
+                    "impactResistance": 0.20000000298023224,
+                    "maxHP": 60.0,
+                    "receiveCollisionDamage": true,
+                    "regenDelay": 0.0,
+                    "regenPerSecond": 0.0,
+                    "type": "HealthComponent"
+                },
+                {
+                    "affectDynamic": true,
+                    "affectKinematic": true,
+                    "affectStatic": true,
+                    "baseDamage": 1.0,
+                    "enabled": true,
+                    "kineticScale": 6.0,
+                    "maxDamage": -1.0,
+                    "minApproachSpeed": 0.0,
+                    "type": "CollisionDamageComponent"
+                },
+                {
+                    "alpha": 255,
+                    "angle": 0.0,
+                    "animating": false,
+                    "animationSpeed": 10.0,
+                    "animationTimer": 0.0,
+                    "currentFrame": 0,
+                    "flipFlags": 0,
+                    "looping": false,
+                    "posX": 0.0,
+                    "posY": 0.0,
+                    "spriteName": "crate",
+                    "type": "SpriteComponent"
+                },
+                {
+                    "explosionHeight": 64.0,
+                    "explosionSprite": "explosion",
+                    "explosionWidth": 64.0,
+                    "loopsBeforeDeath": 2,
+                    "randomizeAngleEachFrame": true,
+                    "type": "ExplodeOnDeathComponent"
+                },
+                {
+                    "collections": {
+                        "explode": {
+                            "collection": "explode",
+                            "volume": 1.0
+                        }
+                    },
+                    "type": "SoundComponent"
+                }
+            ],
+            "name": "crate"
+        },
+        {
+            "components": [
+                {
+                    "angle": -6.236099720001221,
+                    "angularDamping": 2.0,
+                    "bodyType": "dynamic",
+                    "bullet": false,
+                    "fixedRotation": false,
+                    "fixture": {
+                        "density": 1.0,
+                        "friction": 0.30000001192092896,
+                        "height": 32.0,
+                        "isSensor": false,
+                        "material": "wood",
+                        "restitution": 0.0,
+                        "shape": "box",
+                        "width": 32.0
+                    },
+                    "gravityScale": 1.0,
+                    "linearDamping": 2.0,
+                    "posX": 299.4681701660156,
+                    "posY": 249.2808380126953,
+                    "type": "BodyComponent",
+                    "velAngle": 0.0,
+                    "velX": 0.0,
+                    "velY": 0.0
+                },
+                {
+                    "currentHP": 60.0,
+                    "damageMultiplier": 1.0,
+                    "destroyOnDeath": true,
+                    "impactResistance": 0.20000000298023224,
+                    "maxHP": 60.0,
+                    "receiveCollisionDamage": true,
+                    "regenDelay": 0.0,
+                    "regenPerSecond": 0.0,
+                    "type": "HealthComponent"
+                },
+                {
+                    "affectDynamic": true,
+                    "affectKinematic": true,
+                    "affectStatic": true,
+                    "baseDamage": 1.0,
+                    "enabled": true,
+                    "kineticScale": 6.0,
+                    "maxDamage": -1.0,
+                    "minApproachSpeed": 0.0,
+                    "type": "CollisionDamageComponent"
+                },
+                {
+                    "alpha": 255,
+                    "angle": 0.0,
+                    "animating": false,
+                    "animationSpeed": 10.0,
+                    "animationTimer": 0.0,
+                    "currentFrame": 0,
+                    "flipFlags": 0,
+                    "looping": false,
+                    "posX": 0.0,
+                    "posY": 0.0,
+                    "spriteName": "crate",
+                    "type": "SpriteComponent"
+                },
+                {
+                    "explosionHeight": 64.0,
+                    "explosionSprite": "explosion",
+                    "explosionWidth": 64.0,
+                    "loopsBeforeDeath": 2,
+                    "randomizeAngleEachFrame": true,
+                    "type": "ExplodeOnDeathComponent"
+                },
+                {
+                    "collections": {
+                        "explode": {
+                            "collection": "explode",
+                            "volume": 1.0
+                        }
+                    },
+                    "type": "SoundComponent"
+                }
+            ],
+            "name": "crate"
+        },
+        {
+            "components": [
+                {
+                    "angle": 4.962372779846191,
+                    "angularDamping": 2.0,
+                    "bodyType": "dynamic",
+                    "bullet": false,
+                    "fixedRotation": false,
+                    "fixture": {
+                        "density": 2.0,
+                        "friction": 0.30000001192092896,
+                        "height": 32.0,
+                        "isSensor": false,
+                        "material": "wood",
+                        "restitution": 0.0,
+                        "shape": "box",
+                        "width": 32.0
+                    },
+                    "gravityScale": 1.0,
+                    "linearDamping": 2.0,
+                    "posX": 235.95928955078125,
+                    "posY": 301.23388671875,
+                    "type": "BodyComponent",
+                    "velAngle": 0.0,
+                    "velX": 0.0,
+                    "velY": 0.0
+                },
+                {
+                    "currentHP": 60.0,
+                    "damageMultiplier": 1.0,
+                    "destroyOnDeath": true,
+                    "impactResistance": 0.20000000298023224,
+                    "maxHP": 60.0,
+                    "receiveCollisionDamage": true,
+                    "regenDelay": 0.0,
+                    "regenPerSecond": 0.0,
+                    "type": "HealthComponent"
+                },
+                {
+                    "affectDynamic": true,
+                    "affectKinematic": true,
+                    "affectStatic": true,
+                    "baseDamage": 1.0,
+                    "enabled": true,
+                    "kineticScale": 6.0,
+                    "maxDamage": -1.0,
+                    "minApproachSpeed": 0.0,
+                    "type": "CollisionDamageComponent"
+                },
+                {
+                    "alpha": 255,
+                    "angle": 0.0,
+                    "animating": false,
+                    "animationSpeed": 10.0,
+                    "animationTimer": 0.0,
+                    "currentFrame": 0,
+                    "flipFlags": 0,
+                    "looping": false,
+                    "posX": 0.0,
+                    "posY": 0.0,
+                    "spriteName": "crate",
+                    "type": "SpriteComponent"
+                },
+                {
+                    "explosionHeight": 64.0,
+                    "explosionSprite": "explosion",
+                    "explosionWidth": 64.0,
+                    "loopsBeforeDeath": 2,
+                    "randomizeAngleEachFrame": true,
+                    "type": "ExplodeOnDeathComponent"
+                },
+                {
+                    "collections": {
+                        "explode": {
+                            "collection": "explode",
+                            "volume": 1.0
+                        }
+                    },
+                    "type": "SoundComponent"
+                }
+            ],
+            "name": "crate"
+        },
+        {
+            "components": [
+                {
+                    "angle": 4.884339332580566,
+                    "angularDamping": 2.0,
+                    "bodyType": "dynamic",
+                    "bullet": false,
+                    "fixedRotation": false,
+                    "fixture": {
+                        "density": 1.0,
+                        "friction": 0.30000001192092896,
+                        "height": 32.0,
+                        "isSensor": false,
+                        "material": "wood",
+                        "restitution": 0.0,
+                        "shape": "box",
+                        "width": 32.0
+                    },
+                    "gravityScale": 1.0,
+                    "linearDamping": 2.0,
+                    "posX": 326.3317565917969,
+                    "posY": 299.85205078125,
+                    "type": "BodyComponent",
+                    "velAngle": 0.0,
+                    "velX": 0.0,
+                    "velY": 0.0
+                },
+                {
+                    "currentHP": 60.0,
+                    "damageMultiplier": 1.0,
+                    "destroyOnDeath": true,
+                    "impactResistance": 0.20000000298023224,
+                    "maxHP": 60.0,
+                    "receiveCollisionDamage": true,
+                    "regenDelay": 0.0,
+                    "regenPerSecond": 0.0,
+                    "type": "HealthComponent"
+                },
+                {
+                    "affectDynamic": true,
+                    "affectKinematic": true,
+                    "affectStatic": true,
+                    "baseDamage": 1.0,
+                    "enabled": true,
+                    "kineticScale": 6.0,
+                    "maxDamage": -1.0,
+                    "minApproachSpeed": 0.0,
+                    "type": "CollisionDamageComponent"
+                },
+                {
+                    "alpha": 255,
+                    "angle": 0.0,
+                    "animating": false,
+                    "animationSpeed": 10.0,
+                    "animationTimer": 0.0,
+                    "currentFrame": 0,
+                    "flipFlags": 0,
+                    "looping": false,
+                    "posX": 0.0,
+                    "posY": 0.0,
+                    "spriteName": "crate",
+                    "type": "SpriteComponent"
+                },
+                {
+                    "explosionHeight": 64.0,
+                    "explosionSprite": "explosion",
+                    "explosionWidth": 64.0,
+                    "loopsBeforeDeath": 2,
+                    "randomizeAngleEachFrame": true,
+                    "type": "ExplodeOnDeathComponent"
+                },
+                {
+                    "collections": {
+                        "explode": {
+                            "collection": "explode",
+                            "volume": 1.0
+                        }
+                    },
+                    "type": "SoundComponent"
+                }
+            ],
+            "name": "crate"
+        },
+        {
+            "components": [
+                {
+                    "angle": 5.2018723487854,
+                    "angularDamping": 2.0,
+                    "bodyType": "dynamic",
+                    "bullet": false,
+                    "fixedRotation": false,
+                    "fixture": {
+                        "density": 2.0,
+                        "friction": 0.30000001192092896,
+                        "height": 32.0,
+                        "isSensor": false,
+                        "material": "wood",
+                        "restitution": 0.0,
+                        "shape": "box",
+                        "width": 32.0
+                    },
+                    "gravityScale": 1.0,
+                    "linearDamping": 2.0,
+                    "posX": 410.9552917480469,
+                    "posY": 299.0081787109375,
+                    "type": "BodyComponent",
+                    "velAngle": 0.0,
+                    "velX": 0.0,
+                    "velY": 0.0
+                },
+                {
+                    "currentHP": 60.0,
+                    "damageMultiplier": 1.0,
+                    "destroyOnDeath": true,
+                    "impactResistance": 0.20000000298023224,
+                    "maxHP": 60.0,
+                    "receiveCollisionDamage": true,
+                    "regenDelay": 0.0,
+                    "regenPerSecond": 0.0,
+                    "type": "HealthComponent"
+                },
+                {
+                    "affectDynamic": true,
+                    "affectKinematic": true,
+                    "affectStatic": true,
+                    "baseDamage": 1.0,
+                    "enabled": true,
+                    "kineticScale": 6.0,
+                    "maxDamage": -1.0,
+                    "minApproachSpeed": 0.0,
+                    "type": "CollisionDamageComponent"
+                },
+                {
+                    "alpha": 255,
+                    "angle": 0.0,
+                    "animating": false,
+                    "animationSpeed": 10.0,
+                    "animationTimer": 0.0,
+                    "currentFrame": 0,
+                    "flipFlags": 0,
+                    "looping": false,
+                    "posX": 0.0,
+                    "posY": 0.0,
+                    "spriteName": "crate",
+                    "type": "SpriteComponent"
+                },
+                {
+                    "explosionHeight": 64.0,
+                    "explosionSprite": "explosion",
+                    "explosionWidth": 64.0,
+                    "loopsBeforeDeath": 2,
+                    "randomizeAngleEachFrame": true,
+                    "type": "ExplodeOnDeathComponent"
+                },
+                {
+                    "collections": {
+                        "explode": {
+                            "collection": "explode",
+                            "volume": 1.0
+                        }
+                    },
+                    "type": "SoundComponent"
+                }
+            ],
+            "name": "crate"
+        },
+        {
+            "components": [
+                {
+                    "angle": 3.2746129035949707,
+                    "angularDamping": 2.0,
+                    "bodyType": "dynamic",
+                    "bullet": false,
+                    "fixedRotation": false,
+                    "fixture": {
+                        "density": 1.0,
+                        "friction": 0.30000001192092896,
+                        "height": 32.0,
+                        "isSensor": false,
+                        "material": "wood",
+                        "restitution": 0.0,
+                        "shape": "box",
+                        "width": 32.0
+                    },
+                    "gravityScale": 1.0,
+                    "linearDamping": 2.0,
+                    "posX": 264.8255310058594,
+                    "posY": 250.2353973388672,
+                    "type": "BodyComponent",
+                    "velAngle": 0.0,
+                    "velX": 0.0,
+                    "velY": 0.0
+                },
+                {
+                    "currentHP": 60.0,
+                    "damageMultiplier": 1.0,
+                    "destroyOnDeath": true,
+                    "impactResistance": 0.20000000298023224,
+                    "maxHP": 60.0,
+                    "receiveCollisionDamage": true,
+                    "regenDelay": 0.0,
+                    "regenPerSecond": 0.0,
+                    "type": "HealthComponent"
+                },
+                {
+                    "affectDynamic": true,
+                    "affectKinematic": true,
+                    "affectStatic": true,
+                    "baseDamage": 1.0,
+                    "enabled": true,
+                    "kineticScale": 6.0,
+                    "maxDamage": -1.0,
+                    "minApproachSpeed": 0.0,
+                    "type": "CollisionDamageComponent"
+                },
+                {
+                    "alpha": 255,
+                    "angle": 0.0,
+                    "animating": false,
+                    "animationSpeed": 10.0,
+                    "animationTimer": 0.0,
+                    "currentFrame": 0,
+                    "flipFlags": 0,
+                    "looping": false,
+                    "posX": 0.0,
+                    "posY": 0.0,
+                    "spriteName": "crate",
+                    "type": "SpriteComponent"
+                },
+                {
+                    "explosionHeight": 64.0,
+                    "explosionSprite": "explosion",
+                    "explosionWidth": 64.0,
+                    "loopsBeforeDeath": 2,
+                    "randomizeAngleEachFrame": true,
+                    "type": "ExplodeOnDeathComponent"
+                },
+                {
+                    "collections": {
+                        "explode": {
+                            "collection": "explode",
+                            "volume": 1.0
+                        }
+                    },
+                    "type": "SoundComponent"
+                }
+            ],
+            "name": "crate"
+        },
+        {
+            "components": [
+                {
+                    "angle": 12.83909797668457,
+                    "angularDamping": 2.0,
+                    "bodyType": "dynamic",
+                    "bullet": false,
+                    "fixedRotation": false,
+                    "fixture": {
+                        "density": 1.0,
+                        "friction": 0.30000001192092896,
+                        "height": 32.0,
+                        "isSensor": false,
+                        "material": "wood",
+                        "restitution": 0.0,
+                        "shape": "box",
+                        "width": 32.0
+                    },
+                    "gravityScale": 1.0,
+                    "linearDamping": 2.0,
+                    "posX": 346.07745361328125,
+                    "posY": 251.0378875732422,
+                    "type": "BodyComponent",
+                    "velAngle": 0.0,
+                    "velX": 0.0,
+                    "velY": 0.0
+                },
+                {
+                    "currentHP": 60.0,
+                    "damageMultiplier": 1.0,
+                    "destroyOnDeath": true,
+                    "impactResistance": 0.20000000298023224,
+                    "maxHP": 60.0,
+                    "receiveCollisionDamage": true,
+                    "regenDelay": 0.0,
+                    "regenPerSecond": 0.0,
+                    "type": "HealthComponent"
+                },
+                {
+                    "affectDynamic": true,
+                    "affectKinematic": true,
+                    "affectStatic": true,
+                    "baseDamage": 1.0,
+                    "enabled": true,
+                    "kineticScale": 6.0,
+                    "maxDamage": -1.0,
+                    "minApproachSpeed": 0.0,
+                    "type": "CollisionDamageComponent"
+                },
+                {
+                    "alpha": 255,
+                    "angle": 0.0,
+                    "animating": false,
+                    "animationSpeed": 10.0,
+                    "animationTimer": 0.0,
+                    "currentFrame": 0,
+                    "flipFlags": 0,
+                    "looping": false,
+                    "posX": 0.0,
+                    "posY": 0.0,
+                    "spriteName": "crate",
+                    "type": "SpriteComponent"
+                },
+                {
+                    "explosionHeight": 64.0,
+                    "explosionSprite": "explosion",
+                    "explosionWidth": 64.0,
+                    "loopsBeforeDeath": 2,
+                    "randomizeAngleEachFrame": true,
+                    "type": "ExplodeOnDeathComponent"
+                },
+                {
+                    "collections": {
+                        "explode": {
+                            "collection": "explode",
+                            "volume": 1.0
+                        }
+                    },
+                    "type": "SoundComponent"
+                }
+            ],
+            "name": "crate"
         }
     ]
 }

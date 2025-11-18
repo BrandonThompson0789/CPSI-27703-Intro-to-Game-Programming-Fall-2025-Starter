@@ -195,6 +195,9 @@ void Engine::update(float deltaTime) {
         menuManager->update(deltaTime);
     }
     
+    // Update message display system (always update, even when paused)
+    updateMessages(deltaTime);
+    
     // Check if game should be paused (menu active)
     bool shouldPause = menuManager && menuManager->shouldPauseGame();
     
@@ -327,6 +330,9 @@ void Engine::render() {
     if (menuManager) {
         menuManager->render();
     }
+    
+    // Render messages on top of everything (including menus)
+    renderMessages();
 }
 
 void Engine::onWindowResized(int width, int height) {
@@ -515,6 +521,7 @@ Engine::Engine() {
     cameraTarget = cameraState;
     cameraInitialized = false;
     lastDeltaTime = getDeltaTime();
+    currentMessage = nullptr;
 }
 
 Engine::~Engine() {
@@ -593,7 +600,11 @@ void Engine::loadFile(const std::string& filename) {
 }
 
 bool Engine::saveGame(const std::string& saveFilePath) {
-    return SaveManager::getInstance().saveGame(this, saveFilePath);
+    bool success = SaveManager::getInstance().saveGame(this, saveFilePath);
+    if (success) {
+        displayMessage("Game saved");
+    }
+    return success;
 }
 
 bool Engine::loadGame(const std::string& saveFilePath) {
@@ -838,4 +849,102 @@ void Engine::disconnectClient() {
 
 bool Engine::isClient() const {
     return clientManager && clientManager->IsConnected();
+}
+
+void Engine::displayMessage(const std::string& message) {
+    messageQueue.push(Message(message, DEFAULT_MESSAGE_DURATION));
+    std::cout << "Engine: Queued message: " << message << std::endl;
+}
+
+void Engine::updateMessages(float deltaTime) {
+    // If no current message and queue has messages, start displaying the next one
+    if (!currentMessage && !messageQueue.empty()) {
+        currentMessage = std::make_unique<Message>(messageQueue.front());
+        messageQueue.pop();
+        std::cout << "Engine: Displaying message: " << currentMessage->text << std::endl;
+    }
+    
+    // Update current message timer
+    if (currentMessage) {
+        currentMessage->elapsedTime += deltaTime;
+        
+        // If message has been displayed long enough, clear it
+        if (currentMessage->elapsedTime >= currentMessage->displayTime) {
+            std::cout << "Engine: Message expired: " << currentMessage->text << std::endl;
+            currentMessage.reset();
+        }
+    }
+}
+
+void Engine::renderMessages() {
+    if (!currentMessage || !renderer) {
+        return;
+    }
+    
+    // Only render if TTF is initialized
+    if (!TTF_WasInit()) {
+        std::cerr << "Engine::renderMessages: TTF not initialized" << std::endl;
+        return;
+    }
+    
+    // Load font (larger for better visibility)
+    TTF_Font* font = TTF_OpenFont("assets/fonts/ARIAL.TTF", 28);
+    if (!font) {
+        return;
+    }
+    
+    // Render text
+    SDL_Color textColor = {255, 255, 255, 255};
+    SDL_Surface* textSurface = TTF_RenderUTF8_Blended(font, currentMessage->text.c_str(), textColor);
+    if (!textSurface) {
+        TTF_CloseFont(font);
+        return;
+    }
+    
+    SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
+    if (!textTexture) {
+        SDL_FreeSurface(textSurface);
+        TTF_CloseFont(font);
+        return;
+    }
+    
+    // Calculate message position (anchored to bottom center)
+    int marginBottom = 60;
+    int textWidth = textSurface->w;
+    int textHeight = textSurface->h;
+    int bgPadding = 20;
+    
+    int bgX = (screenWidth - textWidth) / 2 - bgPadding;
+    int bgY = screenHeight - marginBottom - textHeight - bgPadding;
+    int bgW = textWidth + bgPadding * 2;
+    int bgH = textHeight + bgPadding * 2;
+    
+    // Ensure we're using the correct blend mode
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+    
+    // Draw semi-transparent background (more opaque for better visibility)
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 240);
+    SDL_Rect bgRect = {bgX, bgY, bgW, bgH};
+    SDL_RenderFillRect(renderer, &bgRect);
+    
+    // Draw border (thicker for better visibility)
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    SDL_RenderDrawRect(renderer, &bgRect);
+    // Draw a second border line for thickness
+    SDL_Rect borderRect = {bgRect.x - 1, bgRect.y - 1, bgRect.w + 2, bgRect.h + 2};
+    SDL_RenderDrawRect(renderer, &borderRect);
+    
+    // Draw text with proper blend mode
+    SDL_SetTextureBlendMode(textTexture, SDL_BLENDMODE_BLEND);
+    SDL_Rect textRect;
+    textRect.x = bgX + bgPadding;
+    textRect.y = bgY + bgPadding;
+    textRect.w = textWidth;
+    textRect.h = textHeight;
+    SDL_RenderCopy(renderer, textTexture, nullptr, &textRect);
+    
+    // Cleanup
+    SDL_DestroyTexture(textTexture);
+    SDL_FreeSurface(textSurface);
+    TTF_CloseFont(font);
 }

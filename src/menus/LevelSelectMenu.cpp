@@ -17,6 +17,11 @@ LevelSelectMenu::LevelSelectMenu(MenuManager* manager)
       selectedButtonIndex(0), hoveredButtonIndex(-1), inButtonMode(false) {
     setTitle("Select Level");
     setupLevels();
+    loadCachedResources();
+}
+
+LevelSelectMenu::~LevelSelectMenu() {
+    unloadCachedResources();
 }
 
 void LevelSelectMenu::setupLevels() {
@@ -131,7 +136,9 @@ void LevelSelectMenu::onOpen() {
     SaveManager& saveMgr = SaveManager::getInstance();
     int progression = saveMgr.getLevelProgression();
     
+    bool unlockStatusChanged = false;
     for (auto& level : levels) {
+        bool wasUnlocked = level.unlocked;
         if (level.order <= progression) {
             level.unlocked = true;
         } else if (level.order == progression + 10) {
@@ -139,6 +146,14 @@ void LevelSelectMenu::onOpen() {
         } else {
             level.unlocked = false;
         }
+        if (wasUnlocked != level.unlocked) {
+            unlockStatusChanged = true;
+        }
+    }
+    
+    // Reload textures if unlock status changed (thumbnails may need to change)
+    if (unlockStatusChanged) {
+        reloadLevelTextures();
     }
     
     // Select first level by default (even if locked)
@@ -376,6 +391,208 @@ void LevelSelectMenu::handleMouse(int mouseX, int mouseY, bool mousePressed) {
     }
 }
 
+void LevelSelectMenu::loadCachedResources() {
+    if (!menuManager || !menuManager->getEngine()) {
+        return;
+    }
+    
+    SDL_Renderer* renderer = menuManager->getEngine()->getRenderer();
+    if (!renderer) {
+        return;
+    }
+    
+    // Load fonts once
+    if (TTF_WasInit()) {
+        titleFont = TTF_OpenFont("assets/fonts/ARIAL.TTF", 36);
+        levelFont = TTF_OpenFont("assets/fonts/ARIAL.TTF", 20);
+        buttonFont = TTF_OpenFont("assets/fonts/ARIAL.TTF", 24);
+    }
+    
+    // Pre-render title texture
+    if (titleFont) {
+        SDL_Color white = {255, 255, 255, 255};
+        SDL_Surface* titleSurface = TTF_RenderUTF8_Blended(titleFont, getTitle().c_str(), white);
+        if (titleSurface) {
+            titleTextTexture = SDL_CreateTextureFromSurface(renderer, titleSurface);
+            titleTextWidth = titleSurface->w;
+            titleTextHeight = titleSurface->h;
+            SDL_FreeSurface(titleSurface);
+        }
+    }
+    
+    // Pre-render button text textures
+    if (buttonFont) {
+        SDL_Color white = {255, 255, 255, 255};
+        
+        // Play button
+        SDL_Surface* playSurface = TTF_RenderUTF8_Blended(buttonFont, "Play", white);
+        if (playSurface) {
+            playButtonTexture = SDL_CreateTextureFromSurface(renderer, playSurface);
+            playButtonTextWidth = playSurface->w;
+            SDL_FreeSurface(playSurface);
+        }
+        
+        // Continue button
+        SDL_Surface* continueSurface = TTF_RenderUTF8_Blended(buttonFont, "Continue", white);
+        if (continueSurface) {
+            continueButtonTexture = SDL_CreateTextureFromSurface(renderer, continueSurface);
+            continueButtonTextWidth = continueSurface->w;
+            SDL_FreeSurface(continueSurface);
+        }
+        
+        // Restart button
+        SDL_Surface* restartSurface = TTF_RenderUTF8_Blended(buttonFont, "Restart", white);
+        if (restartSurface) {
+            restartButtonTexture = SDL_CreateTextureFromSurface(renderer, restartSurface);
+            restartButtonTextWidth = restartSurface->w;
+            SDL_FreeSurface(restartSurface);
+        }
+        
+        // Back button
+        SDL_Surface* backSurface = TTF_RenderUTF8_Blended(buttonFont, "Back", white);
+        if (backSurface) {
+            backButtonTexture = SDL_CreateTextureFromSurface(renderer, backSurface);
+            backButtonTextWidth = backSurface->w;
+            SDL_FreeSurface(backSurface);
+        }
+    }
+    
+    // Pre-render "LOCKED" text
+    if (levelFont) {
+        SDL_Color lockColor = {200, 200, 200, 255};
+        SDL_Surface* lockedSurface = TTF_RenderUTF8_Blended(levelFont, "LOCKED", lockColor);
+        if (lockedSurface) {
+            lockedTextTexture = SDL_CreateTextureFromSurface(renderer, lockedSurface);
+            lockedTextWidth = lockedSurface->w;
+            lockedTextHeight = lockedSurface->h;
+            SDL_FreeSurface(lockedSurface);
+        }
+    }
+    
+    // Load level textures
+    reloadLevelTextures();
+}
+
+void LevelSelectMenu::unloadCachedResources() {
+    // Unload fonts
+    if (titleFont) {
+        TTF_CloseFont(titleFont);
+        titleFont = nullptr;
+    }
+    if (levelFont) {
+        TTF_CloseFont(levelFont);
+        levelFont = nullptr;
+    }
+    if (buttonFont) {
+        TTF_CloseFont(buttonFont);
+        buttonFont = nullptr;
+    }
+    
+    // Unload title texture
+    if (titleTextTexture) {
+        SDL_DestroyTexture(titleTextTexture);
+        titleTextTexture = nullptr;
+    }
+    
+    // Unload button textures
+    if (playButtonTexture) {
+        SDL_DestroyTexture(playButtonTexture);
+        playButtonTexture = nullptr;
+    }
+    if (continueButtonTexture) {
+        SDL_DestroyTexture(continueButtonTexture);
+        continueButtonTexture = nullptr;
+    }
+    if (restartButtonTexture) {
+        SDL_DestroyTexture(restartButtonTexture);
+        restartButtonTexture = nullptr;
+    }
+    if (backButtonTexture) {
+        SDL_DestroyTexture(backButtonTexture);
+        backButtonTexture = nullptr;
+    }
+    if (lockedTextTexture) {
+        SDL_DestroyTexture(lockedTextTexture);
+        lockedTextTexture = nullptr;
+    }
+    
+    // Unload level textures
+    for (auto& level : levels) {
+        if (level.thumbnailTexture) {
+            SDL_DestroyTexture(level.thumbnailTexture);
+            level.thumbnailTexture = nullptr;
+        }
+        if (level.titleTexture) {
+            SDL_DestroyTexture(level.titleTexture);
+            level.titleTexture = nullptr;
+        }
+    }
+}
+
+void LevelSelectMenu::reloadLevelTextures() {
+    if (!menuManager || !menuManager->getEngine()) {
+        return;
+    }
+    
+    SDL_Renderer* renderer = menuManager->getEngine()->getRenderer();
+    if (!renderer) {
+        return;
+    }
+    
+    // Unload existing level textures
+    for (auto& level : levels) {
+        if (level.thumbnailTexture) {
+            SDL_DestroyTexture(level.thumbnailTexture);
+            level.thumbnailTexture = nullptr;
+        }
+        if (level.titleTexture) {
+            SDL_DestroyTexture(level.titleTexture);
+            level.titleTexture = nullptr;
+        }
+    }
+    
+    // Load thumbnails and pre-render title textures
+    for (auto& level : levels) {
+        // Load thumbnail texture
+        if (level.unlocked) {
+            // Try to load thumbnail from specified path
+            SDL_Surface* thumbSurface = IMG_Load(level.thumbnailPath.c_str());
+            if (thumbSurface) {
+                level.thumbnailTexture = SDL_CreateTextureFromSurface(renderer, thumbSurface);
+                SDL_FreeSurface(thumbSurface);
+            }
+            
+            // If specified thumbnail failed, try default
+            if (!level.thumbnailTexture && level.thumbnailPath != "assets/textures/level_default.png") {
+                SDL_Surface* defaultSurface = IMG_Load("assets/textures/level_default.png");
+                if (defaultSurface) {
+                    level.thumbnailTexture = SDL_CreateTextureFromSurface(renderer, defaultSurface);
+                    SDL_FreeSurface(defaultSurface);
+                }
+            }
+        } else {
+            // Locked levels always use default thumbnail
+            SDL_Surface* defaultSurface = IMG_Load("assets/textures/level_default.png");
+            if (defaultSurface) {
+                level.thumbnailTexture = SDL_CreateTextureFromSurface(renderer, defaultSurface);
+                SDL_FreeSurface(defaultSurface);
+            }
+        }
+        
+        // Pre-render level title texture
+        if (levelFont) {
+            SDL_Color textColor = level.unlocked ? SDL_Color{255, 255, 255, 255} : SDL_Color{150, 150, 150, 255};
+            SDL_Surface* textSurface = TTF_RenderUTF8_Blended(levelFont, level.title.c_str(), textColor);
+            if (textSurface) {
+                level.titleTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
+                level.titleTextureWidth = textSurface->w;
+                level.titleTextureHeight = textSurface->h;
+                SDL_FreeSurface(textSurface);
+            }
+        }
+    }
+}
+
 bool LevelSelectMenu::render() {
     if (!menuManager || !menuManager->getEngine()) {
         return true;  // Indicate we handled rendering (even if nothing was drawn)
@@ -395,34 +612,14 @@ bool LevelSelectMenu::render() {
     SDL_Rect bgRect = {0, 0, screenWidth, screenHeight};
     SDL_RenderFillRect(renderer, &bgRect);
     
-    // Load fonts
-    TTF_Font* titleFont = nullptr;
-    TTF_Font* levelFont = nullptr;
-    TTF_Font* buttonFont = nullptr;
-    
-    if (TTF_WasInit()) {
-        titleFont = TTF_OpenFont("assets/fonts/ARIAL.TTF", 36);
-        levelFont = TTF_OpenFont("assets/fonts/ARIAL.TTF", 20);
-        buttonFont = TTF_OpenFont("assets/fonts/ARIAL.TTF", 24);
-    }
-    
-    // Draw title
-    if (titleFont) {
-        SDL_Color white = {255, 255, 255, 255};
-        SDL_Surface* titleSurface = TTF_RenderUTF8_Blended(titleFont, getTitle().c_str(), white);
-        if (titleSurface) {
-            SDL_Texture* titleTexture = SDL_CreateTextureFromSurface(renderer, titleSurface);
-            if (titleTexture) {
-                SDL_Rect titleRect;
-                titleRect.w = titleSurface->w;
-                titleRect.h = titleSurface->h;
-                titleRect.x = (screenWidth - titleRect.w) / 2;
-                titleRect.y = 40;
-                SDL_RenderCopy(renderer, titleTexture, nullptr, &titleRect);
-                SDL_DestroyTexture(titleTexture);
-            }
-            SDL_FreeSurface(titleSurface);
-        }
+    // Draw title (using pre-rendered texture)
+    if (titleTextTexture) {
+        SDL_Rect titleRect;
+        titleRect.w = titleTextWidth;
+        titleRect.h = titleTextHeight;
+        titleRect.x = (screenWidth - titleRect.w) / 2;
+        titleRect.y = 40;
+        SDL_RenderCopy(renderer, titleTextTexture, nullptr, &titleRect);
     }
     
     // Draw level panels
@@ -481,60 +678,21 @@ bool LevelSelectMenu::render() {
                 SDL_RenderDrawRect(renderer, &borderRect);
             }
             
-            // Draw thumbnail
+            // Draw thumbnail (using cached texture)
             int thumbX = panelCenterX;
             int thumbY = levelAreaY + 30;
             
-            SDL_Texture* thumbnail = nullptr;
-            bool thumbnailLoaded = false;
-            uint8_t thumbnailAlpha = 255;  // Full opacity by default
-            
-            if (isUnlocked) {
-                // Try to load thumbnail from specified path
-                SDL_Surface* thumbSurface = IMG_Load(level.thumbnailPath.c_str());
-                if (thumbSurface) {
-                    thumbnail = SDL_CreateTextureFromSurface(renderer, thumbSurface);
-                    SDL_FreeSurface(thumbSurface);
-                    if (thumbnail) {
-                        thumbnailLoaded = true;
-                    }
-                }
-                
-                // If specified thumbnail failed, try default
-                if (!thumbnailLoaded && level.thumbnailPath != "assets/textures/level_default.png") {
-                    SDL_Surface* defaultSurface = IMG_Load("assets/textures/level_default.png");
-                    if (defaultSurface) {
-                        thumbnail = SDL_CreateTextureFromSurface(renderer, defaultSurface);
-                        SDL_FreeSurface(defaultSurface);
-                        if (thumbnail) {
-                            thumbnailLoaded = true;
-                        }
-                    }
-                }
-            } else {
-                // Locked levels always use default thumbnail and are semi-transparent
-                SDL_Surface* defaultSurface = IMG_Load("assets/textures/level_default.png");
-                if (defaultSurface) {
-                    thumbnail = SDL_CreateTextureFromSurface(renderer, defaultSurface);
-                    SDL_FreeSurface(defaultSurface);
-                    if (thumbnail) {
-                        thumbnailLoaded = true;
-                        thumbnailAlpha = 128;  // 50% opacity for locked levels
-                    }
-                }
-            }
-            
-            if (thumbnailLoaded && thumbnail) {
+            if (level.thumbnailTexture) {
                 SDL_Rect thumbRect;
                 thumbRect.w = THUMBNAIL_WIDTH;
                 thumbRect.h = THUMBNAIL_HEIGHT;
                 thumbRect.x = thumbX - thumbRect.w / 2;
                 thumbRect.y = thumbY - thumbRect.h / 2;
                 
-                // Set alpha modulation for transparency
-                SDL_SetTextureAlphaMod(thumbnail, thumbnailAlpha);
-                SDL_RenderCopy(renderer, thumbnail, nullptr, &thumbRect);
-                SDL_DestroyTexture(thumbnail);
+                // Set alpha modulation for transparency (locked levels are semi-transparent)
+                uint8_t thumbnailAlpha = isUnlocked ? 255 : 128;
+                SDL_SetTextureAlphaMod(level.thumbnailTexture, thumbnailAlpha);
+                SDL_RenderCopy(renderer, level.thumbnailTexture, nullptr, &thumbRect);
             } else {
                 // Draw placeholder if thumbnail not found
                 SDL_Rect placeholderRect;
@@ -550,42 +708,24 @@ bool LevelSelectMenu::render() {
                 SDL_RenderFillRect(renderer, &placeholderRect);
             }
             
-            // Draw level title
-            if (levelFont) {
-                SDL_Color textColor = isUnlocked ? SDL_Color{255, 255, 255, 255} : SDL_Color{150, 150, 150, 255};
-                SDL_Surface* textSurface = TTF_RenderUTF8_Blended(levelFont, level.title.c_str(), textColor);
-                if (textSurface) {
-                    SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
-                    if (textTexture) {
-                        SDL_Rect textRect;
-                        textRect.w = textSurface->w;
-                        textRect.h = textSurface->h;
-                        textRect.x = panelCenterX - textRect.w / 2;
-                        textRect.y = levelAreaY + THUMBNAIL_HEIGHT + 40;
-                        SDL_RenderCopy(renderer, textTexture, nullptr, &textRect);
-                        SDL_DestroyTexture(textTexture);
-                    }
-                    SDL_FreeSurface(textSurface);
-                }
+            // Draw level title (using pre-rendered texture)
+            if (level.titleTexture) {
+                SDL_Rect textRect;
+                textRect.w = level.titleTextureWidth;
+                textRect.h = level.titleTextureHeight;
+                textRect.x = panelCenterX - textRect.w / 2;
+                textRect.y = levelAreaY + THUMBNAIL_HEIGHT + 40;
+                SDL_RenderCopy(renderer, level.titleTexture, nullptr, &textRect);
             }
             
-            // Draw lock icon if locked
-            if (!isUnlocked && levelFont) {
-                SDL_Color lockColor = {200, 200, 200, 255};
-                SDL_Surface* lockSurface = TTF_RenderUTF8_Blended(levelFont, "LOCKED", lockColor);
-                if (lockSurface) {
-                    SDL_Texture* lockTexture = SDL_CreateTextureFromSurface(renderer, lockSurface);
-                    if (lockTexture) {
-                        SDL_Rect lockRect;
-                        lockRect.w = lockSurface->w;
-                        lockRect.h = lockSurface->h;
-                        lockRect.x = thumbX - lockRect.w / 2;
-                        lockRect.y = thumbY - lockRect.h / 2;
-                        SDL_RenderCopy(renderer, lockTexture, nullptr, &lockRect);
-                        SDL_DestroyTexture(lockTexture);
-                    }
-                    SDL_FreeSurface(lockSurface);
-                }
+            // Draw lock icon if locked (using pre-rendered texture)
+            if (!isUnlocked && lockedTextTexture) {
+                SDL_Rect lockRect;
+                lockRect.w = lockedTextWidth;
+                lockRect.h = lockedTextHeight;
+                lockRect.x = thumbX - lockRect.w / 2;
+                lockRect.y = thumbY - lockRect.h / 2;
+                SDL_RenderCopy(renderer, lockedTextTexture, nullptr, &lockRect);
             }
         }
     }
@@ -614,22 +754,13 @@ bool LevelSelectMenu::render() {
             SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
             SDL_RenderDrawRect(renderer, &continueRect);
             
-            if (buttonFont) {
-                SDL_Color white = {255, 255, 255, 255};
-                SDL_Surface* textSurface = TTF_RenderUTF8_Blended(buttonFont, "Continue", white);
-                if (textSurface) {
-                    SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
-                    if (textTexture) {
-                        SDL_Rect textRect;
-                        textRect.w = textSurface->w;
-                        textRect.h = textSurface->h;
-                        textRect.x = buttonStartX + (buttonWidth - textRect.w) / 2;
-                        textRect.y = buttonAreaY + (buttonHeight - textRect.h) / 2;
-                        SDL_RenderCopy(renderer, textTexture, nullptr, &textRect);
-                        SDL_DestroyTexture(textTexture);
-                    }
-                    SDL_FreeSurface(textSurface);
-                }
+            // Draw Continue button text (using pre-rendered texture)
+            if (continueButtonTexture) {
+                SDL_Rect textRect;
+                SDL_QueryTexture(continueButtonTexture, nullptr, nullptr, &textRect.w, &textRect.h);
+                textRect.x = buttonStartX + (buttonWidth - textRect.w) / 2;
+                textRect.y = buttonAreaY + (buttonHeight - textRect.h) / 2;
+                SDL_RenderCopy(renderer, continueButtonTexture, nullptr, &textRect);
             }
             
             // Restart button
@@ -642,22 +773,13 @@ bool LevelSelectMenu::render() {
             SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
             SDL_RenderDrawRect(renderer, &restartRect);
             
-            if (buttonFont) {
-                SDL_Color white = {255, 255, 255, 255};
-                SDL_Surface* textSurface = TTF_RenderUTF8_Blended(buttonFont, "Restart", white);
-                if (textSurface) {
-                    SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
-                    if (textTexture) {
-                        SDL_Rect textRect;
-                        textRect.w = textSurface->w;
-                        textRect.h = textSurface->h;
-                        textRect.x = restartX + (buttonWidth - textRect.w) / 2;
-                        textRect.y = buttonAreaY + (buttonHeight - textRect.h) / 2;
-                        SDL_RenderCopy(renderer, textTexture, nullptr, &textRect);
-                        SDL_DestroyTexture(textTexture);
-                    }
-                    SDL_FreeSurface(textSurface);
-                }
+            // Draw Restart button text (using pre-rendered texture)
+            if (restartButtonTexture) {
+                SDL_Rect textRect;
+                SDL_QueryTexture(restartButtonTexture, nullptr, nullptr, &textRect.w, &textRect.h);
+                textRect.x = restartX + (buttonWidth - textRect.w) / 2;
+                textRect.y = buttonAreaY + (buttonHeight - textRect.h) / 2;
+                SDL_RenderCopy(renderer, restartButtonTexture, nullptr, &textRect);
             }
         } else {
             // Draw Play button (disabled if level is locked)
@@ -676,22 +798,20 @@ bool LevelSelectMenu::render() {
             SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
             SDL_RenderDrawRect(renderer, &playRect);
             
-            if (buttonFont) {
-                SDL_Color textColor = playDisabled ? SDL_Color{150, 150, 150, 255} : SDL_Color{255, 255, 255, 255};
-                SDL_Surface* textSurface = TTF_RenderUTF8_Blended(buttonFont, "Play", textColor);
-                if (textSurface) {
-                    SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
-                    if (textTexture) {
-                        SDL_Rect textRect;
-                        textRect.w = textSurface->w;
-                        textRect.h = textSurface->h;
-                        textRect.x = playX + (buttonWidth - textRect.w) / 2;
-                        textRect.y = buttonAreaY + (buttonHeight - textRect.h) / 2;
-                        SDL_RenderCopy(renderer, textTexture, nullptr, &textRect);
-                        SDL_DestroyTexture(textTexture);
-                    }
-                    SDL_FreeSurface(textSurface);
+            // Draw Play button text (using pre-rendered texture, with alpha modulation for disabled state)
+            if (playButtonTexture) {
+                SDL_Rect textRect;
+                SDL_QueryTexture(playButtonTexture, nullptr, nullptr, &textRect.w, &textRect.h);
+                textRect.x = playX + (buttonWidth - textRect.w) / 2;
+                textRect.y = buttonAreaY + (buttonHeight - textRect.h) / 2;
+                
+                // Apply alpha modulation for disabled state
+                if (playDisabled) {
+                    SDL_SetTextureAlphaMod(playButtonTexture, 150);  // Dimmed for disabled
+                } else {
+                    SDL_SetTextureAlphaMod(playButtonTexture, 255);  // Full opacity
                 }
+                SDL_RenderCopy(renderer, playButtonTexture, nullptr, &textRect);
             }
         }
         
@@ -711,29 +831,15 @@ bool LevelSelectMenu::render() {
         SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
         SDL_RenderDrawRect(renderer, &backRect);
         
-        if (buttonFont) {
-            SDL_Color white = {255, 255, 255, 255};
-            SDL_Surface* textSurface = TTF_RenderUTF8_Blended(buttonFont, "Back", white);
-            if (textSurface) {
-                SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
-                if (textTexture) {
-                    SDL_Rect textRect;
-                    textRect.w = textSurface->w;
-                    textRect.h = textSurface->h;
-                    textRect.x = backX + (buttonWidth - textRect.w) / 2;
-                    textRect.y = buttonAreaY + (buttonHeight - textRect.h) / 2;
-                    SDL_RenderCopy(renderer, textTexture, nullptr, &textRect);
-                    SDL_DestroyTexture(textTexture);
-                }
-                SDL_FreeSurface(textSurface);
-            }
+        // Draw Back button text (using pre-rendered texture)
+        if (backButtonTexture) {
+            SDL_Rect textRect;
+            SDL_QueryTexture(backButtonTexture, nullptr, nullptr, &textRect.w, &textRect.h);
+            textRect.x = backX + (buttonWidth - textRect.w) / 2;
+            textRect.y = buttonAreaY + (buttonHeight - textRect.h) / 2;
+            SDL_RenderCopy(renderer, backButtonTexture, nullptr, &textRect);
         }
     }
-    
-    // Clean up fonts
-    if (titleFont) TTF_CloseFont(titleFont);
-    if (levelFont) TTF_CloseFont(levelFont);
-    if (buttonFont) TTF_CloseFont(buttonFont);
     
     return true;  // Indicate we handled rendering
 }

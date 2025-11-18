@@ -8,6 +8,7 @@
 #include <memory>
 #include <unordered_map>
 #include <string>
+#include <queue>
 #include <nlohmann/json.hpp>
 #include "Object.h"
 #include "Box2DDebugDraw.h"
@@ -88,6 +89,9 @@ class Engine {
         // Template support for object spawning
         nlohmann::json buildObjectDefinition(const nlohmann::json& objectData) const;
         
+        // Display a message to the user (queued, displayed one at a time at bottom of screen)
+        void displayMessage(const std::string& message);
+        
     private:
         void loadObjectTemplates(const std::string& filename);
         static void mergeJsonObjects(nlohmann::json& target, const nlohmann::json& overrides);
@@ -98,6 +102,8 @@ class Engine {
         void render();
         void onWindowResized(int width, int height);
         static float getDeltaTime();
+        void updateMessages(float deltaTime);
+        void renderMessages();
         SDL_Window* window;
         SDL_Renderer* renderer;
         bool running;
@@ -122,6 +128,19 @@ class Engine {
         static constexpr float MIN_CAMERA_HEIGHT = 450.0f;
         static constexpr float CAMERA_SMOOTHING_RATE = 8.0f;
         float lastDeltaTime = 1.0f / 60.0f;
+        
+        // Message display system
+        struct Message {
+            std::string text;
+            float displayTime;  // How long to display (in seconds)
+            float elapsedTime;   // How long it's been displayed
+            
+            Message(const std::string& msg, float duration = 3.0f)
+                : text(msg), displayTime(duration), elapsedTime(0.0f) {}
+        };
+        std::queue<Message> messageQueue;
+        std::unique_ptr<Message> currentMessage;
+        static constexpr float DEFAULT_MESSAGE_DURATION = 3.0f;
 };
 
 #endif // ENGINE_H
