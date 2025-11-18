@@ -1,4 +1,7 @@
 ﻿{
+    "title": "Level 1: The Beginning",
+    "order": 10,
+    "thumbnail": "assets/textures/level1.png",
     "background": {
         "layers": [
             {

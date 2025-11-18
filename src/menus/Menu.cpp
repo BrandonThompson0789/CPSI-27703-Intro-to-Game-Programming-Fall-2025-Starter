@@ -105,6 +105,10 @@ void Menu::addItem(const std::string& text, bool selectable, std::function<void(
     items.emplace_back(text, selectable, callback);
 }
 
+void Menu::addItem(const std::string& text, bool selectable, bool enabled, std::function<void()> callback) {
+    items.emplace_back(text, selectable, enabled, callback);
+}
+
 void Menu::addItem(const std::string& text, std::function<void()> callback) {
     items.emplace_back(text, true, callback);
 }

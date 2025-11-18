@@ -1,0 +1,448 @@
+﻿{
+    "title": "Level 2: The Placeholder",
+    "order": 20,
+    "thumbnail": "assets/textures/level1.png",
+    "background": {
+        "layers": [
+            {
+                "spriteName": "level1_background",
+                "tiled": false,
+                "offsetX": 1200.0,
+                "offsetY": 1200.0,
+                "parallaxX": 0.0,
+                "parallaxY": 0.0,
+                "depth": 1.0
+            },
+            {
+                "spriteName": "grass",
+                "tiled": true,
+                "tileWidth": 32.0,
+                "tileHeight": 32.0,
+                "parallaxX": 0.0,
+                "parallaxY": 0.0,
+                "depth": 0.0
+            }
+        ]
+    },
+    "objects": [
+        {
+            "name": "player1",
+            "template": "player_default",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 400.0,
+                    "posY": 300.0
+                },
+                {
+                    "type": "InputComponent",
+                    "playerId": 1,
+                    "configName": "default"
+                }
+            ]
+        },
+        {
+            "name": "player2",
+            "template": "player_vaccumba",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 440.0,
+                    "posY": 300.0
+                },
+                {
+                    "type": "InputComponent",
+                    "playerId": 2,
+                    "configName": "arrows"
+                }
+            ]
+        },
+        {
+            "name": "interact_sensor_pad",
+            "template": "sensor_pad_interact",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 360.0,
+                    "posY": 540.0
+                },
+                {
+                    "type": "SpriteComponent",
+                    "posX": 360.0,
+                    "posY": 340.0
+                }
+            ]
+        },{
+            "name": "object_spawner_trigger",
+            "template": "sensor_pad_interact",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 160.0,
+                    "posY": 500.0
+                },
+                {
+                    "type": "SensorComponent",
+                    "requireInteractInput": true,
+                    "requireCollision": true,
+                    "holdDuration": 0,
+                    "targetObjects": [
+                        "object_spawner"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "distance_sensor_pad",
+            "template": "sensor_pad_distance",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 720.0,
+                    "posY": 340.0
+                }
+            ]
+        },
+        {
+            "template": "crate_basic_no_damage_given",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 150.0,
+                    "posY": 200.0
+                }
+            ]
+        },
+        {
+            "template": "crate_basic_no_damage_received",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 650.0,
+                    "posY": 200.0
+                }
+            ]
+        },
+        {
+            "template": "crate_basic",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 150.0,
+                    "posY": 450.0
+                }
+            ]
+        },
+        {
+            "template": "crate_basic",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 150.0,
+                    "posY": 450.0
+                }
+            ]
+        },
+        {
+            "template": "brick_rail_circular"
+        },
+        {
+            "name": "test crate",
+            "template": "crate_basic",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 650.0,
+                    "posY": 450.0
+                }
+            ]
+        },
+        {
+            "template": "tree",
+            "components": [
+                {
+                    "type": "SpriteComponent",
+                    "posX": 100.0,
+                    "posY": 100.0
+                }
+            ]
+        },
+        {
+            "template": "tree",
+            "components": [
+                {
+                    "type": "SpriteComponent",
+                    "posX": 700.0,
+                    "posY": 100.0
+                }
+            ]
+        },
+        {
+            "template": "tree",
+            "components": [
+                {
+                    "type": "SpriteComponent",
+                    "posX": 100.0,
+                    "posY": 500.0
+                }
+            ]
+        },
+        {
+            "template": "tree",
+            "components": [
+                {
+                    "type": "SpriteComponent",
+                    "posX": 700.0,
+                    "posY": 500.0
+                }
+            ]
+        },
+        {
+            "name": "invisible_wall_1",
+            "template": "invisible_wall",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 304.0,
+                    "posY": 790.0,
+                    "fixture": {
+                        "width": 32.0,
+                        "height": 639.0
+                    }
+                }
+            ]
+        },
+        {
+            "name": "invisible_wall_2",
+            "template": "invisible_wall",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 597.5,
+                    "posY": 1094.0,
+                    "fixture": {
+                        "width": 618.0,
+                        "height": 32.0
+                    }
+                }
+            ]
+        },
+        {
+            "name": "invisible_wall_3",
+            "template": "invisible_wall",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 709.5,
+                    "posY": 486.0,
+                    "fixture": {
+                        "width": 618.0,
+                        "height": 32.0
+                    }
+                }
+            ]
+        },
+        {
+            "name": "invisible_wall_4",
+            "template": "invisible_wall",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 1003.0,
+                    "posY": 790.0,
+                    "fixture": {
+                        "width": 32.0,
+                        "height": 639.0
+                    }
+                }
+            ]
+        },
+        {
+            "name": "invisible_wall_5",
+            "template": "invisible_wall",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 891.0,
+                    "posY": 1398.0,
+                    "fixture": {
+                        "width": 32.0,
+                        "height": 639.0
+                    }
+                }
+            ]
+        },
+        {
+            "name": "invisible_wall_6",
+            "template": "invisible_wall",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 1184.5,
+                    "posY": 1702.0,
+                    "fixture": {
+                        "width": 618.0,
+                        "height": 32.0
+                    }
+                }
+            ]
+        },
+        {
+            "name": "invisible_wall_7",
+            "template": "invisible_wall",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 1296.5,
+                    "posY": 1094.0,
+                    "fixture": {
+                        "width": 618.0,
+                        "height": 32.0
+                    }
+                }
+            ]
+        },
+        {
+            "name": "invisible_wall_8",
+            "template": "invisible_wall",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 1590.0,
+                    "posY": 1398.0,
+                    "fixture": {
+                        "width": 32.0,
+                        "height": 639.0
+                    }
+                }
+            ]
+        },
+        {
+            "name": "crate1",
+            "template": "crate_basic",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 400.0,
+                    "posY": 200.0
+                }
+            ]
+        },
+        {
+            "name": "crate2",
+            "template": "crate_basic",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 500.0,
+                    "posY": 250.0,
+                    "fixture": {
+                        "density": 0.5
+                    }
+                }
+            ]
+        },
+        {
+            "name": "heavy_crate",
+            "template": "crate_basic",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 450.0,
+                    "posY": 300.0,
+                    "fixture": {
+                        "width": 48.0,
+                        "height": 48.0,
+                        "density": 3.0
+                    }
+                },
+                {
+                    "type": "HealthComponent",
+                    "maxHP": 150.0,
+                    "currentHP": 150.0,
+                    "impactResistance": 0.5
+                },
+                {
+                    "type": "CollisionDamageComponent",
+                    "baseDamage": 3.0,
+                    "kineticScale": 8.0
+                },
+                {
+                    "type": "SpriteComponent",
+                    "width": 48,
+                    "height": 48
+                },
+                {
+                    "type": "ExplodeOnDeathComponent",
+                    "explosionSprite": "explosion",
+                    "explosionWidth": 96.0,
+                    "explosionHeight": 96.0,
+                    "loopsBeforeDeath": 2,
+                    "randomizeAngleEachFrame": true
+                }
+            ]
+        },
+        {
+            "template": "brick_pillar",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 400.0,
+                    "posY": 160.0
+                }
+            ]
+        },
+        {
+            "name": "object_spawner",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 200.0,
+                    "posY": 300.0,
+                    "bodyType": "static",
+                    "fixture": {
+                        "shape": "circle",
+                        "radius": 20.0,
+                        "isSensor": true
+                    }
+                },
+                {
+                    "type": "SpriteComponent",
+                    "spriteName": "tree"
+                },
+                {
+                    "type": "ObjectSpawnerComponent",
+                    "spawnInOrder": false,
+                    "useNextPosition": true,
+                    "spawnableObjects": [
+                        {
+                            "template": "crate_basic",
+                            "maxSpawns": 3
+                        },
+                        {
+                            "template": "crate_basic",
+                            "objectData": {
+                                "components": [
+                                    {
+                                        "type": "BodyComponent",
+                                        "fixture": {
+                                            "density": 2.0
+                                        }
+                                    }
+                                ]
+                            },
+                            "maxSpawns": 2
+                        }
+                    ],
+                    "spawnLocations": [
+                        {"x": 250.0, "y": 300.0},
+                        {"x": 300.0, "y": 300.0},
+                        {"x": 350.0, "y": 300.0},
+                        {"x": 250.0, "y": 250.0},
+                        {"x": 300.0, "y": 250.0}
+                    ]
+                }
+            ]
+        }
+    ]
+}

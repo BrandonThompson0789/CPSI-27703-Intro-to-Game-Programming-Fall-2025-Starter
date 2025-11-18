@@ -97,6 +97,7 @@ void Engine::init() {
     menuManager->init();
     
     // Load overall save data (metadata, progress, settings) on game start
+    // This will create a default save file if one doesn't exist
     SaveManager::getInstance().loadSaveData("save.json");
     
     std::cout << "SDL and Box2D initialized successfully!" << std::endl;
@@ -541,7 +542,8 @@ void Engine::loadFile(const std::string& filename) {
     // Check if this is a save file (has metadata)
     // If so, extract just the level data (background + objects)
     nlohmann::json levelData = j;
-    if (j.contains("metadata")) {
+    bool isSaveFile = j.contains("metadata");
+    if (isSaveFile) {
         // This is a save file, extract level data
         levelData = nlohmann::json::object();
         if (j.contains("background")) {
@@ -549,6 +551,12 @@ void Engine::loadFile(const std::string& filename) {
         }
         if (j.contains("objects")) {
             levelData["objects"] = j["objects"];
+        }
+        
+        // If save file has no level data, it's invalid for loading
+        if (!levelData.contains("objects") || !levelData["objects"].is_array()) {
+            std::cerr << "Error: Save file does not contain level data (objects array)" << std::endl;
+            return;
         }
     }
 
@@ -589,8 +597,27 @@ bool Engine::saveGame(const std::string& saveFilePath) {
 }
 
 bool Engine::loadGame(const std::string& saveFilePath) {
+    // Check if save file exists and has level data
+    if (!SaveManager::getInstance().saveExists(saveFilePath)) {
+        std::cerr << "Engine::loadGame: Save file does not exist: " << saveFilePath << std::endl;
+        return false;
+    }
+    
+    // Store object count before loading
+    size_t objectsBefore = objects.size();
+    
     // Load the save file using loadFile (which handles save file format)
+    // This loads the level data (background + objects) from the save file
     loadFile(saveFilePath);
+    
+    // Check if objects were actually loaded (loadFile may return early if save has no level data)
+    if (objects.empty() && objectsBefore == 0) {
+        // No objects were loaded - save file probably has no level data
+        std::cerr << "Engine::loadGame: Save file has no level data" << std::endl;
+        // Still load metadata/progress data
+        SaveManager::getInstance().loadSaveData(saveFilePath);
+        return false;
+    }
     
     // Also load the metadata/progress data
     SaveManager::getInstance().loadSaveData(saveFilePath);

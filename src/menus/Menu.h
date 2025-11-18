@@ -17,6 +17,9 @@ struct MenuItem {
     
     MenuItem(const std::string& t, bool sel, std::function<void()> callback)
         : text(t), enabled(true), isSelectable(sel), onSelect(callback) {}
+    
+    MenuItem(const std::string& t, bool sel, bool en, std::function<void()> callback)
+        : text(t), enabled(en), isSelectable(sel), onSelect(callback) {}
 };
 
 // Base class for all menus
@@ -40,6 +43,9 @@ public:
     virtual void handleCancel();
     virtual void handleMouse(int mouseX, int mouseY, bool mousePressed);
     
+    // Custom rendering (returns true if custom rendering was done, false to use default)
+    virtual bool render() { return false; }
+    
     // Get menu items (for rendering)
     const std::vector<MenuItem>& getItems() const { return items; }
     int getSelectedIndex() const { return selectedIndex; }
@@ -59,6 +65,7 @@ protected:
     // Helper methods for derived classes
     void setTitle(const std::string& t) { title = t; }
     void addItem(const std::string& text, bool selectable, std::function<void()> callback);
+    void addItem(const std::string& text, bool selectable, bool enabled, std::function<void()> callback);
     void addItem(const std::string& text, std::function<void()> callback);
     void clearItems();
     

@@ -32,6 +32,7 @@ public:
     // Menu navigation
     void openMenu(const std::string& menuName);
     void closeMenu();
+    void closeAllMenus();  // Close all menus without opening main menu
     void returnToMainMenu();
     
     // Check if a menu is active

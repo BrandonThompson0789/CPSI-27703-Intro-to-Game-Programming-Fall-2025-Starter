@@ -7,6 +7,7 @@
 #include <ctime>
 #include <iomanip>
 #include <sstream>
+#include <filesystem>
 
 SaveManager& SaveManager::getInstance() {
     static SaveManager instance;
@@ -33,6 +34,15 @@ bool SaveManager::saveGame(Engine* engine, const std::string& saveFilePath) {
     metadata["lastSaved"] = ss.str();
     
     metadata["currentLevel"] = currentLevel.empty() ? "level1" : currentLevel;
+    
+    // Ensure levelProgress has progression field
+    if (!levelProgress.is_object()) {
+        levelProgress = nlohmann::json::object();
+    }
+    if (!levelProgress.contains("progression")) {
+        levelProgress["progression"] = 0;
+    }
+    
     metadata["levelProgress"] = levelProgress;
     metadata["settings"] = settings;
     
@@ -78,6 +88,13 @@ bool SaveManager::saveGame(Engine* engine, const std::string& saveFilePath) {
 }
 
 bool SaveManager::loadSaveData(const std::string& saveFilePath) {
+    // Ensure save file exists before trying to load
+    if (!saveExists(saveFilePath)) {
+        if (!ensureSaveFileExists(saveFilePath)) {
+            return false;
+        }
+    }
+    
     std::ifstream file(saveFilePath);
     if (!file.is_open()) {
         std::cerr << "SaveManager: Could not open save file: " << saveFilePath << std::endl;
@@ -129,5 +146,145 @@ void SaveManager::clear() {
     currentLevel.clear();
     levelProgress = nlohmann::json::object();
     settings = nlohmann::json::object();
+}
+
+bool SaveManager::ensureSaveFileExists(const std::string& saveFilePath) {
+    if (saveExists(saveFilePath)) {
+        return true;  // File already exists
+    }
+    
+    // Create default save file
+    nlohmann::json saveData;
+    nlohmann::json metadata;
+    metadata["version"] = "1.0";
+    
+    // Get current time
+    std::time_t now = std::time(nullptr);
+    std::tm* timeinfo = std::localtime(&now);
+    std::stringstream ss;
+    ss << std::put_time(timeinfo, "%Y-%m-%dT%H:%M:%S");
+    metadata["lastSaved"] = ss.str();
+    
+    metadata["currentLevel"] = "";
+    metadata["levelProgress"] = nlohmann::json::object();
+    metadata["levelProgress"]["progression"] = 0;  // Default progression is 0
+    metadata["settings"] = nlohmann::json::object();
+    
+    saveData["metadata"] = metadata;
+    saveData["background"] = nlohmann::json::object();
+    saveData["background"]["layers"] = nlohmann::json::array();
+    saveData["objects"] = nlohmann::json::array();
+    
+    // Write to file
+    std::ofstream file(saveFilePath);
+    if (!file.is_open()) {
+        std::cerr << "SaveManager: Could not create default save file: " << saveFilePath << std::endl;
+        return false;
+    }
+    
+    try {
+        file << saveData.dump(4);
+        file.close();
+        std::cout << "SaveManager: Created default save file: " << saveFilePath << std::endl;
+        
+        // Load the default data into memory
+        currentLevel = "";
+        levelProgress = metadata["levelProgress"];
+        settings = metadata["settings"];
+        
+        return true;
+    } catch (const std::exception& e) {
+        std::cerr << "SaveManager: Error creating default save file: " << e.what() << std::endl;
+        file.close();
+        return false;
+    }
+}
+
+int SaveManager::getLevelProgression() const {
+    if (levelProgress.is_object() && levelProgress.contains("progression") && levelProgress["progression"].is_number_integer()) {
+        return levelProgress["progression"].get<int>();
+    }
+    return 0;  // Default progression
+}
+
+void SaveManager::setLevelProgression(int progression) {
+    if (!levelProgress.is_object()) {
+        levelProgress = nlohmann::json::object();
+    }
+    levelProgress["progression"] = progression;
+}
+
+bool SaveManager::hasValidLevelData(const std::string& saveFilePath) const {
+    if (!saveExists(saveFilePath)) {
+        return false;
+    }
+    
+    std::ifstream file(saveFilePath);
+    if (!file.is_open()) {
+        return false;
+    }
+    
+    nlohmann::json saveData;
+    try {
+        file >> saveData;
+        file.close();
+    } catch (const nlohmann::json::exception& e) {
+        file.close();
+        return false;
+    }
+    
+    // Check if background exists and has layers (even if empty array, it's valid structure)
+    bool hasBackground = saveData.contains("background") && saveData["background"].is_object();
+    
+    // Check if objects exist and is an array with at least one object
+    bool hasObjects = saveData.contains("objects") && 
+                      saveData["objects"].is_array() && 
+                      saveData["objects"].size() > 0;
+    
+    // Valid level data means both background and objects are present
+    // Objects must have at least one item to be considered valid
+    return hasBackground && hasObjects;
+}
+
+bool SaveManager::hasNextLevelAvailable() const {
+    int progression = getLevelProgression();
+    if (progression <= 0) {
+        return false;
+    }
+    
+    // Look for a level with order > progression
+    std::string levelsDir = "assets/levels";
+    
+    try {
+        if (std::filesystem::exists(levelsDir) && std::filesystem::is_directory(levelsDir)) {
+            for (const auto& entry : std::filesystem::directory_iterator(levelsDir)) {
+                if (entry.is_regular_file() && entry.path().extension() == ".json") {
+                    std::string filePath = entry.path().string();
+                    std::ifstream file(filePath);
+                    if (file.is_open()) {
+                        nlohmann::json levelJson;
+                        try {
+                            file >> levelJson;
+                            file.close();
+                            
+                            if (levelJson.contains("order") && levelJson["order"].is_number_integer()) {
+                                int order = levelJson["order"].get<int>();
+                                if (order > progression) {
+                                    return true;  // Found a level with higher order
+                                }
+                            }
+                        } catch (...) {
+                            file.close();
+                        }
+                    }
+                }
+            }
+        }
+    } catch (const std::filesystem::filesystem_error& e) {
+        // Filesystem error, return false
+        return false;
+    }
+    
+    return false;  // No level found with order > progression
 }
 

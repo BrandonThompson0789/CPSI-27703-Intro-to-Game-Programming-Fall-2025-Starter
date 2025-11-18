@@ -35,9 +35,11 @@
     },
     "metadata": {
         "currentLevel": "level1",
-        "lastSaved": "2025-11-18T10:20:09",
-        "levelProgress": null,
-        "settings": null,
+        "lastSaved": "2025-11-18T12:11:06",
+        "levelProgress": {
+            "progression": 0
+        },
+        "settings": {},
         "version": "1.0"
     },
     "objects": [
@@ -49,9 +51,9 @@
                     "animating": true,
                     "animationSpeed": 12.0,
                     "animationSpeedScale": 0.019999999552965164,
-                    "animationTimer": 0.9777941107749939,
-                    "completedLoops": 2,
-                    "currentFrame": 2,
+                    "animationTimer": 0.11094093322753906,
+                    "completedLoops": 9,
+                    "currentFrame": 3,
                     "flipFlags": 0,
                     "looping": true,
                     "movingSpriteName": "player_walking",
@@ -106,7 +108,7 @@
                     "type": "SoundComponent"
                 },
                 {
-                    "angle": 7.245787620544434,
+                    "angle": -84.35383605957031,
                     "angularDamping": 8.0,
                     "bodyType": "dynamic",
                     "bullet": false,
@@ -122,12 +124,12 @@
                     },
                     "gravityScale": 1.0,
                     "linearDamping": 6.0,
-                    "posX": 344.4714660644531,
-                    "posY": 394.3108825683594,
+                    "posX": 313.44708251953125,
+                    "posY": 300.4226379394531,
                     "type": "BodyComponent",
-                    "velAngle": 10.044266700744629,
-                    "velX": -0.009877332486212254,
-                    "velY": -69.75762176513672
+                    "velAngle": 0.35507628321647644,
+                    "velX": -6.979404926300049,
+                    "velY": 0.03674359619617462
                 },
                 {
                     "maxAngularVelocity": 3.1415927410125732,
@@ -171,6 +173,113 @@
                 }
             ],
             "name": "player1"
+        },
+        {
+            "components": [
+                {
+                    "alpha": 255,
+                    "angle": 0.0,
+                    "animating": false,
+                    "animationSpeed": 10.0,
+                    "animationTimer": 0.0,
+                    "currentFrame": 0,
+                    "flipFlags": 0,
+                    "looping": false,
+                    "posX": 0.0,
+                    "posY": 0.0,
+                    "spriteName": "vaccumba",
+                    "type": "SpriteComponent"
+                },
+                {
+                    "playerId": 2,
+                    "type": "InputComponent"
+                },
+                {
+                    "allowedSenses": [
+                        "distance"
+                    ],
+                    "interactThreshold": 0.5,
+                    "type": "InteractComponent"
+                },
+                {
+                    "collections": {
+                        "explode": {
+                            "collection": "explode",
+                            "volume": 1.0
+                        }
+                    },
+                    "type": "SoundComponent"
+                },
+                {
+                    "angle": 167.2562255859375,
+                    "angularDamping": 8.0,
+                    "bodyType": "dynamic",
+                    "bullet": false,
+                    "fixedRotation": false,
+                    "fixture": {
+                        "density": 0.5,
+                        "friction": 0.30000001192092896,
+                        "isSensor": false,
+                        "material": "metal",
+                        "radius": 14.999999046325684,
+                        "restitution": 0.0,
+                        "shape": "circle"
+                    },
+                    "gravityScale": 1.0,
+                    "linearDamping": 6.0,
+                    "posX": 230.6317138671875,
+                    "posY": 295.4202575683594,
+                    "type": "BodyComponent",
+                    "velAngle": 0.0,
+                    "velX": -20.142810821533203,
+                    "velY": -1.0304020643234253
+                },
+                {
+                    "maxAngularVelocity": 0.6000000238418579,
+                    "moveSoundRateScale": 0.019999999552965164,
+                    "moveSpeed": 80.0,
+                    "rotationResponsiveness": 0.6000000238418579,
+                    "rotationStopThresholdDegrees": 5.0,
+                    "type": "TankMovementBehaviorComponent"
+                },
+                {
+                    "minHalfExtent": 24.0,
+                    "paddingX": 320.0,
+                    "paddingY": 220.0,
+                    "type": "ViewGrabComponent"
+                },
+                {
+                    "currentHP": 10.0,
+                    "damageMultiplier": 1.0,
+                    "destroyOnDeath": true,
+                    "impactResistance": 0.20000000298023224,
+                    "maxHP": 10.0,
+                    "receiveCollisionDamage": true,
+                    "regenDelay": 0.0,
+                    "regenPerSecond": 0.0,
+                    "type": "HealthComponent"
+                },
+                {
+                    "affectDynamic": true,
+                    "affectKinematic": true,
+                    "affectStatic": true,
+                    "baseDamage": 1.0,
+                    "enabled": true,
+                    "kineticScale": 6.0,
+                    "maxDamage": -1.0,
+                    "minApproachSpeed": 0.0,
+                    "type": "CollisionDamageComponent"
+                },
+                {
+                    "explosionHeight": 64.0,
+                    "explosionSprite": "explosion",
+                    "explosionWidth": 64.0,
+                    "loopsBeforeDeath": 2,
+                    "randomizeAngleEachFrame": true,
+                    "type": "ExplodeOnDeathComponent"
+                }
+            ],
+            "name": "player2"
         },
         {
             "components": [
@@ -327,7 +436,7 @@
         {
             "components": [
                 {
-                    "angle": -81.40170288085938,
+                    "angle": 0.0,
                     "angularDamping": 1.0,
                     "bodyType": "dynamic",
                     "bullet": false,
@@ -344,15 +453,15 @@
                     },
                     "gravityScale": 1.0,
                     "linearDamping": 1.5,
-                    "posX": 286.4378662109375,
-                    "posY": -74.8150863647461,
+                    "posX": 150.0,
+                    "posY": 200.0,
                     "type": "BodyComponent",
                     "velAngle": 0.0,
                     "velX": 0.0,
                     "velY": 0.0
                 },
                 {
-                    "currentHP": 42.48090362548828,
+                    "currentHP": 60.0,
                     "damageMultiplier": 1.0,
                     "destroyOnDeath": true,
                     "impactResistance": 0.20000000298023224,
@@ -474,7 +583,7 @@
         {
             "components": [
                 {
-                    "angle": -12.945791244506836,
+                    "angle": -12.444629669189453,
                     "angularDamping": 2.0,
                     "bodyType": "dynamic",
                     "bullet": false,
@@ -491,8 +600,8 @@
                     },
                     "gravityScale": 1.0,
                     "linearDamping": 2.0,
-                    "posX": 147.13780212402344,
-                    "posY": 421.3067932128906,
+                    "posX": 146.90640258789063,
+                    "posY": 421.10394287109375,
                     "type": "BodyComponent",
                     "velAngle": 0.0,
                     "velX": 0.0,
@@ -557,7 +666,7 @@
         {
             "components": [
                 {
-                    "angle": -7.388428211212158,
+                    "angle": -6.807506561279297,
                     "angularDamping": 2.0,
                     "bodyType": "dynamic",
                     "bullet": false,
@@ -574,8 +683,8 @@
                     },
                     "gravityScale": 1.0,
                     "linearDamping": 2.0,
-                    "posX": 148.06869506835938,
-                    "posY": 459.7524719238281,
+                    "posX": 148.19882202148438,
+                    "posY": 459.6773986816406,
                     "type": "BodyComponent",
                     "velAngle": 0.0,
                     "velX": 0.0,
@@ -1215,7 +1324,90 @@
         {
             "components": [
                 {
-                    "angle": -90.02249908447266,
+                    "angle": 26.33657455444336,
+                    "angularDamping": 2.0,
+                    "bodyType": "dynamic",
+                    "bullet": false,
+                    "fixedRotation": false,
+                    "fixture": {
+                        "density": 1.0,
+                        "friction": 0.30000001192092896,
+                        "height": 32.0,
+                        "isSensor": false,
+                        "material": "wood",
+                        "restitution": 0.0,
+                        "shape": "box",
+                        "width": 32.0
+                    },
+                    "gravityScale": 1.0,
+                    "linearDamping": 2.0,
+                    "posX": 365.9248962402344,
+                    "posY": 197.01475524902344,
+                    "type": "BodyComponent",
+                    "velAngle": 0.0,
+                    "velX": 0.0,
+                    "velY": 0.0
+                },
+                {
+                    "currentHP": 60.0,
+                    "damageMultiplier": 1.0,
+                    "destroyOnDeath": true,
+                    "impactResistance": 0.20000000298023224,
+                    "maxHP": 60.0,
+                    "receiveCollisionDamage": true,
+                    "regenDelay": 0.0,
+                    "regenPerSecond": 0.0,
+                    "type": "HealthComponent"
+                },
+                {
+                    "affectDynamic": true,
+                    "affectKinematic": true,
+                    "affectStatic": true,
+                    "baseDamage": 1.0,
+                    "enabled": true,
+                    "kineticScale": 6.0,
+                    "maxDamage": -1.0,
+                    "minApproachSpeed": 0.0,
+                    "type": "CollisionDamageComponent"
+                },
+                {
+                    "alpha": 255,
+                    "angle": 0.0,
+                    "animating": false,
+                    "animationSpeed": 10.0,
+                    "animationTimer": 0.0,
+                    "currentFrame": 0,
+                    "flipFlags": 0,
+                    "looping": false,
+                    "posX": 0.0,
+                    "posY": 0.0,
+                    "spriteName": "crate",
+                    "type": "SpriteComponent"
+                },
+                {
+                    "explosionHeight": 64.0,
+                    "explosionSprite": "explosion",
+                    "explosionWidth": 64.0,
+                    "loopsBeforeDeath": 2,
+                    "randomizeAngleEachFrame": true,
+                    "type": "ExplodeOnDeathComponent"
+                },
+                {
+                    "collections": {
+                        "explode": {
+                            "collection": "explode",
+                            "volume": 1.0
+                        }
+                    },
+                    "type": "SoundComponent"
+                }
+            ],
+            "name": "crate1"
+        },
+        {
+            "components": [
+                {
+                    "angle": 0.0,
                     "angularDamping": 2.0,
                     "bodyType": "dynamic",
                     "bullet": false,
@@ -1232,15 +1424,15 @@
                     },
                     "gravityScale": 1.0,
                     "linearDamping": 2.0,
-                    "posX": 336.01263427734375,
-                    "posY": 501.37030029296875,
+                    "posX": 500.0,
+                    "posY": 250.0,
                     "type": "BodyComponent",
                     "velAngle": 0.0,
                     "velX": 0.0,
                     "velY": 0.0
                 },
                 {
-                    "currentHP": 30.400001525878906,
+                    "currentHP": 60.0,
                     "damageMultiplier": 1.0,
                     "destroyOnDeath": true,
                     "impactResistance": 0.20000000298023224,
@@ -1298,7 +1490,7 @@
         {
             "components": [
                 {
-                    "angle": 110.72874450683594,
+                    "angle": 4.109375476837158,
                     "angularDamping": 2.0,
                     "bodyType": "dynamic",
                     "bullet": false,
@@ -1315,15 +1507,15 @@
                     },
                     "gravityScale": 1.0,
                     "linearDamping": 2.0,
-                    "posX": 421.9226379394531,
-                    "posY": -127.5236587524414,
+                    "posX": 467.4574890136719,
+                    "posY": 297.9287414550781,
                     "type": "BodyComponent",
                     "velAngle": 0.0,
                     "velX": 0.0,
                     "velY": 0.0
                 },
                 {
-                    "currentHP": 140.77874755859375,
+                    "currentHP": 150.0,
                     "damageMultiplier": 1.0,
                     "destroyOnDeath": true,
                     "impactResistance": 0.5,
@@ -1377,6 +1569,61 @@
                 }
             ],
             "name": "heavy_crate"
+        },
+        {
+            "components": [
+                {
+                    "angle": 0.0,
+                    "angularDamping": 0.30000001192092896,
+                    "bodyType": "static",
+                    "bullet": false,
+                    "fixedRotation": false,
+                    "fixture": {
+                        "density": 1.0,
+                        "friction": 0.30000001192092896,
+                        "height": 128.0,
+                        "isSensor": false,
+                        "restitution": 0.0,
+                        "shape": "box",
+                        "width": 16.0
+                    },
+                    "gravityScale": 1.0,
+                    "linearDamping": 0.5,
+                    "posX": 400.0,
+                    "posY": 159.99998474121094,
+                    "type": "BodyComponent",
+                    "velAngle": 0.0,
+                    "velX": 0.0,
+                    "velY": 0.0
+                },
+                {
+                    "currentHP": 10.0,
+                    "damageMultiplier": 1.0,
+                    "destroyOnDeath": true,
+                    "impactResistance": 0.5,
+                    "maxHP": 10.0,
+                    "receiveCollisionDamage": true,
+                    "regenDelay": 0.0,
+                    "regenPerSecond": 0.0,
+                    "type": "HealthComponent"
+                },
+                {
+                    "alpha": 255,
+                    "angle": 0.0,
+                    "animating": false,
+                    "animationSpeed": 10.0,
+                    "animationTimer": 0.0,
+                    "currentFrame": 0,
+                    "flipFlags": 0,
+                    "looping": false,
+                    "posX": 0.0,
+                    "posY": 0.0,
+                    "spriteName": "brick",
+                    "tiled": true,
+                    "type": "SpriteComponent"
+                }
+            ],
+            "name": "brick_pillar"
         },
         {
             "components": [

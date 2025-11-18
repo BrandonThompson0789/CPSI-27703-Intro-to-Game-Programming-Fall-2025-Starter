@@ -80,14 +80,14 @@ int main(int argc, char* argv[]) {
         }
     } else if (!hostMode) {
         // Only load level file if not in client mode (host mode loads it too)
-        e.loadFile("assets/level1.json");
+        e.loadFile("assets/levels/level1.json");
         std::cout << "Level loaded! Center object is controllable with keyboard/controller." << std::endl;
     }
     
     // Start hosting if requested
     if (hostMode) {
         // Load level for host
-        e.loadFile("assets/level1.json");
+        e.loadFile("assets/levels/level1.json");
         std::cout << "\n=== Starting Host Mode ===" << std::endl;
         std::cout << "Connecting to Server Manager at " << serverManagerIP << ":" << serverManagerPort << "..." << std::endl;
         

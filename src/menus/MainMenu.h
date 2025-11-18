@@ -8,6 +8,7 @@ public:
     MainMenu(MenuManager* manager);
     virtual ~MainMenu() = default;
     
+    void onOpen() override;
     void handleCancel() override;
     
 private:

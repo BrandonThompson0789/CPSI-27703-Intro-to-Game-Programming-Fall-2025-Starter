@@ -37,8 +37,23 @@ public:
     // Set current level
     void setCurrentLevel(const std::string& level) { currentLevel = level; }
     
+    // Get level progression (integer value)
+    int getLevelProgression() const;
+    
+    // Set level progression (integer value)
+    void setLevelProgression(int progression);
+    
     // Clear save data
     void clear();
+    
+    // Ensure save file exists (create default if it doesn't)
+    bool ensureSaveFileExists(const std::string& saveFilePath = "save.json");
+    
+    // Check if save file has valid level data (background and objects populated)
+    bool hasValidLevelData(const std::string& saveFilePath = "save.json") const;
+    
+    // Check if there's a level with order higher than current progression
+    bool hasNextLevelAvailable() const;
     
 private:
     SaveManager() = default;

@@ -6,6 +6,7 @@
 #include "QuitConfirmMenu.h"
 #include "MultiplayerMenu.h"
 #include "PauseMenu.h"
+#include "LevelSelectMenu.h"
 #include <SDL.h>
 #include <SDL_ttf.h>
 #include <iostream>
@@ -154,6 +155,11 @@ void MenuManager::render() {
         return;
     }
     
+    // Check if menu has custom rendering
+    if (currentMenu->render()) {
+        return;  // Menu handled its own rendering
+    }
+    
     SDL_Renderer* renderer = engine->getRenderer();
     if (!renderer) {
         return;
@@ -286,6 +292,17 @@ void MenuManager::closeMenu() {
     }
 }
 
+void MenuManager::closeAllMenus() {
+    // Close all menus
+    while (!menuStack.empty()) {
+        Menu* currentMenu = menuStack.top().get();
+        if (currentMenu) {
+            currentMenu->onClose();
+        }
+        menuStack.pop();
+    }
+}
+
 void MenuManager::returnToMainMenu() {
     // Close all menus
     while (!menuStack.empty()) {
@@ -318,6 +335,8 @@ std::unique_ptr<Menu> MenuManager::createMenu(const std::string& menuName) {
         return std::make_unique<MultiplayerMenu>(this);
     } else if (menuName == "pause") {
         return std::make_unique<PauseMenu>(this);
+    } else if (menuName == "level_select") {
+        return std::make_unique<LevelSelectMenu>(this);
     }
     
     return nullptr;

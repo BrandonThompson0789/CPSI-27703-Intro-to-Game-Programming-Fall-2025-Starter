@@ -106,6 +106,8 @@ add_executable(demo
     src/menus/MultiplayerMenu.cpp
     src/menus/PauseMenu.h
     src/menus/PauseMenu.cpp
+    src/menus/LevelSelectMenu.h
+    src/menus/LevelSelectMenu.cpp
 )
 
 # Link libraries
@@ -118,6 +120,13 @@ target_link_libraries(demo PRIVATE
     nlohmann_json::nlohmann_json
     ZLIB::ZLIB
 )
+
+# Link filesystem library (needed for std::filesystem)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS "9.0")
+    target_link_libraries(demo PRIVATE stdc++fs)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS "9.0")
+    target_link_libraries(demo PRIVATE c++fs)
+endif()
 
 # Link system libraries for networking (needed for HostManager)
 if(WIN32)
