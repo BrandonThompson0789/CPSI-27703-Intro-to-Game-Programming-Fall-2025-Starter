@@ -1,6 +1,8 @@
 #include "PauseMenu.h"
 #include "MenuManager.h"
 #include "../Engine.h"
+#include "../SaveManager.h"
+#include <iostream>
 
 PauseMenu::PauseMenu(MenuManager* manager)
     : Menu(manager) {
@@ -12,6 +14,7 @@ void PauseMenu::setupMenuItems() {
     clearItems();
     
     addItem("Resume", [this]() { onResume(); });
+    addItem("Save Game", [this]() { onSave(); });
     addItem("Settings", [this]() { onSettings(); });
     addItem("Quit to Menu", [this]() { onQuitToMenu(); });
     addItem("Quit to Desktop", [this]() { onQuitToDesktop(); });
@@ -25,6 +28,23 @@ void PauseMenu::handleCancel() {
 void PauseMenu::onResume() {
     if (menuManager) {
         menuManager->closeMenu();
+    }
+}
+
+void PauseMenu::onSave() {
+    if (!menuManager || !menuManager->getEngine()) {
+        return;
+    }
+    
+    Engine* engine = menuManager->getEngine();
+    
+    // Save the game
+    if (engine->saveGame("save.json")) {
+        std::cout << "PauseMenu: Game saved successfully" << std::endl;
+        // Optionally show a message or close the menu
+        // For now, we'll just save and keep the menu open
+    } else {
+        std::cerr << "PauseMenu: Failed to save game" << std::endl;
     }
 }
 

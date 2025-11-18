@@ -26,6 +26,8 @@ class Engine {
         void run();
         void cleanup();
         void loadFile(const std::string& filename);
+        bool saveGame(const std::string& saveFilePath = "save.json");
+        bool loadGame(const std::string& saveFilePath = "save.json");
         std::vector<std::unique_ptr<Object>>& getObjects() { return objects; }
         void queueObject(std::unique_ptr<Object> object);
         std::vector<std::unique_ptr<Object>>& getQueuedObjects() { return pendingObjects; }

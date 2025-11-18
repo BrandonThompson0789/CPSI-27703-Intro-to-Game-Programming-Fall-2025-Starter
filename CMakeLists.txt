@@ -90,6 +90,8 @@ add_executable(demo
     src/ClientManager.cpp
     src/CompressionUtils.h
     src/CompressionUtils.cpp
+    src/SaveManager.h
+    src/SaveManager.cpp
     src/server_manager/NetworkUtils.h
     src/server_manager/NetworkUtils.cpp
     src/menus/Menu.h

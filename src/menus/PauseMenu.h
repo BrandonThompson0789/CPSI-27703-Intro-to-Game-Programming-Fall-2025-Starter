@@ -13,6 +13,7 @@ public:
 private:
     void setupMenuItems();
     void onResume();
+    void onSave();
     void onSettings();
     void onQuitToMenu();
     void onQuitToDesktop();

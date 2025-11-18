@@ -11,6 +11,7 @@
 #include "components/Component.h"
 #include "components/ViewGrabComponent.h"
 #include "PlayerManager.h"
+#include "SaveManager.h"
 #include <cmath>
 #include <SDL_ttf.h>
 #include <fstream>
@@ -94,6 +95,9 @@ void Engine::init() {
     // Initialize menu manager
     menuManager = std::make_unique<MenuManager>(this);
     menuManager->init();
+    
+    // Load overall save data (metadata, progress, settings) on game start
+    SaveManager::getInstance().loadSaveData("save.json");
     
     std::cout << "SDL and Box2D initialized successfully!" << std::endl;
 }
@@ -534,6 +538,20 @@ void Engine::loadFile(const std::string& filename) {
         return;
     }
 
+    // Check if this is a save file (has metadata)
+    // If so, extract just the level data (background + objects)
+    nlohmann::json levelData = j;
+    if (j.contains("metadata")) {
+        // This is a save file, extract level data
+        levelData = nlohmann::json::object();
+        if (j.contains("background")) {
+            levelData["background"] = j["background"];
+        }
+        if (j.contains("objects")) {
+            levelData["objects"] = j["objects"];
+        }
+    }
+
     loadObjectTemplates("assets/objectData.json");
 
     // Clear existing objects
@@ -545,25 +563,39 @@ void Engine::loadFile(const std::string& filename) {
 
     // Load background configuration
     if (backgroundManager) {
-        backgroundManager->loadFromJson(j, this);
+        backgroundManager->loadFromJson(levelData, this);
     }
 
     // Set Engine instance so objects can access it
     Object::setEngine(this);
 
     // Load objects from JSON using the component library
-    if (!j.contains("objects") || !j["objects"].is_array()) {
+    if (!levelData.contains("objects") || !levelData["objects"].is_array()) {
         std::cerr << "Error: JSON file must contain an 'objects' array" << std::endl;
         return;
     }
 
-    for (const auto& objectData : j["objects"]) {
+    for (const auto& objectData : levelData["objects"]) {
         auto object = std::make_unique<Object>();
         object->fromJson(buildObjectDefinition(objectData));
         objects.push_back(std::move(object));
     }
 
     std::cout << "Loaded " << objects.size() << " objects from " << filename << std::endl;
+}
+
+bool Engine::saveGame(const std::string& saveFilePath) {
+    return SaveManager::getInstance().saveGame(this, saveFilePath);
+}
+
+bool Engine::loadGame(const std::string& saveFilePath) {
+    // Load the save file using loadFile (which handles save file format)
+    loadFile(saveFilePath);
+    
+    // Also load the metadata/progress data
+    SaveManager::getInstance().loadSaveData(saveFilePath);
+    
+    return true;
 }
 
 void Engine::queueObject(std::unique_ptr<Object> object) {

@@ -1,6 +1,7 @@
 #include "MainMenu.h"
 #include "MenuManager.h"
 #include "../Engine.h"
+#include "../SaveManager.h"
 #include <iostream>
 
 MainMenu::MainMenu(MenuManager* manager)
@@ -12,9 +13,9 @@ MainMenu::MainMenu(MenuManager* manager)
 void MainMenu::setupMenuItems() {
     clearItems();
     
-    // Continue (disabled for now)
-    addItem("Continue", false, [this]() { onContinue(); });
-    items.back().enabled = false;
+    // Continue - enable if save exists
+    bool hasSave = SaveManager::getInstance().saveExists();
+    addItem("Continue", hasSave, [this]() { onContinue(); });
     
     // Play
     addItem("Play", [this]() { onPlay(); });
@@ -30,7 +31,20 @@ void MainMenu::setupMenuItems() {
 }
 
 void MainMenu::onContinue() {
-    // Continue is disabled for now
+    if (!menuManager || !menuManager->getEngine()) {
+        return;
+    }
+    
+    Engine* engine = menuManager->getEngine();
+    
+    // Load the save game
+    if (engine->loadGame("save.json")) {
+        std::cout << "Continue: Loaded save game" << std::endl;
+        // Current level is already set from SaveManager when loading save data
+        menuManager->closeMenu();
+    } else {
+        std::cerr << "Continue: Failed to load save game" << std::endl;
+    }
 }
 
 void MainMenu::onPlay() {
@@ -40,6 +54,10 @@ void MainMenu::onPlay() {
     
     Engine* engine = menuManager->getEngine();
     engine->loadFile("assets/level1.json");
+    
+    // Update SaveManager with current level
+    SaveManager::getInstance().setCurrentLevel("level1");
+    
     menuManager->closeMenu();
 }
 
