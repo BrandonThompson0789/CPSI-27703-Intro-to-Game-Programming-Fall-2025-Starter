@@ -189,7 +189,11 @@ bool HostManager::RegisterWithServerManager() {
     memset(msg.header.reserved, 0, sizeof(msg.header.reserved));
     msg.hostPort = hostPort;
     msg.reserved[0] = 0;
-    msg.reserved[1] = 0;
+    
+    // Get local network IP (not localhost)
+    std::string localIP = NetworkUtils::GetLocalIP();
+    strncpy(msg.hostIP, localIP.c_str(), sizeof(msg.hostIP) - 1);
+    msg.hostIP[sizeof(msg.hostIP) - 1] = '\0';
 
     // Send registration message
     NetworkUtils::SendTo(socket, &msg, sizeof(msg), serverManagerIP, serverManagerPort);

@@ -43,7 +43,7 @@
         },
         {
             "name": "player2",
-            "template": "player_vaccumba",
+            "template": "player_default",
             "components": [
                 {
                     "type": "BodyComponent",
@@ -53,7 +53,7 @@
                 {
                     "type": "InputComponent",
                     "playerId": 2,
-                    "configName": "arrows"
+                    "configName": "default"
                 }
             ]
         },
@@ -416,22 +416,7 @@
                     "useNextPosition": true,
                     "spawnableObjects": [
                         {
-                            "template": "crate_basic",
-                            "maxSpawns": 3
-                        },
-                        {
-                            "template": "crate_basic",
-                            "objectData": {
-                                "components": [
-                                    {
-                                        "type": "BodyComponent",
-                                        "fixture": {
-                                            "density": 2.0
-                                        }
-                                    }
-                                ]
-                            },
-                            "maxSpawns": 2
+                            "template": "crate_basic"
                         }
                     ],
                     "spawnLocations": [

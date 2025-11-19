@@ -139,6 +139,9 @@ void ServerManager::HandleHostRegister(const std::string& fromIP, uint16_t fromP
         std::string roomCode = it->second;
         auto roomIt = m_rooms.find(roomCode);
         if (roomIt != m_rooms.end()) {
+            // Update host IP in case it changed (e.g., was localhost before)
+            roomIt->second.hostIP = std::string(msg.hostIP);
+            
             RegisterResponse response;
             response.header.type = MessageType::RESPONSE_REGISTER;
             memset(response.header.reserved, 0, sizeof(response.header.reserved));
@@ -158,7 +161,8 @@ void ServerManager::HandleHostRegister(const std::string& fromIP, uint16_t fromP
     
     RoomInfo room;
     room.roomCode = roomCode;
-    room.hostIP = fromIP;
+    // Use the IP from the message (local network IP) instead of fromIP (which might be localhost)
+    room.hostIP = std::string(msg.hostIP);
     room.hostPort = msg.hostPort;
     room.connectedPlayers = 0;
     room.lastPing = std::chrono::steady_clock::now();

@@ -94,7 +94,7 @@ private:
         
         // Network input storage (when network input is active)
         bool networkInputActive;
-        float networkInputValues[7]; // MOVE_UP, MOVE_DOWN, MOVE_LEFT, MOVE_RIGHT, ACTION_WALK, ACTION_INTERACT, ACTION_THROW
+        float networkInputValues[static_cast<size_t>(GameAction::NUM_ACTIONS)]; // Stores all game actions
     };
     
     std::unordered_map<int, PlayerInput> players;

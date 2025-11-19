@@ -53,7 +53,7 @@ bool PlayerManager::assignNetworkId(int playerId, const std::string& networkId) 
     
     // Initialize network input values to 0
     player.networkInputActive = false;
-    for (int i = 0; i < 7; ++i) {
+    for (size_t i = 0; i < static_cast<size_t>(GameAction::NUM_ACTIONS); ++i) {
         player.networkInputValues[i] = 0.0f;
     }
     
@@ -104,7 +104,7 @@ float PlayerManager::getInputValue(int playerId, GameAction action, const std::s
             default:
                 return 0.0f;
         }
-        if (index >= 0 && index < 7) {
+        if (index >= 0 && index < static_cast<int>(GameAction::NUM_ACTIONS)) {
             return player.networkInputValues[index];
         }
         return 0.0f;
@@ -191,7 +191,7 @@ void PlayerManager::clearNetworkInput(int playerId) {
     
     PlayerInput& player = it->second;
     player.networkInputActive = false;
-    for (int i = 0; i < 7; ++i) {
+    for (size_t i = 0; i < static_cast<size_t>(GameAction::NUM_ACTIONS); ++i) {
         player.networkInputValues[i] = 0.0f;
     }
 }

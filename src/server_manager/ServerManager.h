@@ -36,7 +36,8 @@ struct MessageHeader {
 struct HostRegisterMessage {
     MessageHeader header;
     uint16_t hostPort;
-    char reserved[2];
+    char reserved[1];
+    char hostIP[16]; // IPv4 max length (including null terminator)
 };
 
 struct HostHeartbeatMessage {
