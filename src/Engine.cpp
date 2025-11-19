@@ -301,6 +301,16 @@ void Engine::update(float deltaTime) {
     // Update ClientManager (only when not paused - network updates handled in pause block)
     if (clientManager && clientManager->IsConnected() && !shouldPause) {
         clientManager->Update(deltaTime);
+        
+        // If client is connected but hasn't received init package, open waiting menu
+        // (but only if no level is loaded and menu isn't already open)
+        if (!clientManager->HasReceivedInitPackage() && menuManager && objects.empty()) {
+            // Only open waiting menu if no menu is currently active
+            // (JoinMenu closes all menus when connection succeeds, so this will open after)
+            if (!menuManager->isMenuActive()) {
+                menuManager->openMenu("waiting_for_host");
+            }
+        }
     }
 }
 
@@ -597,6 +607,11 @@ void Engine::loadFile(const std::string& filename) {
     }
 
     std::cout << "Loaded " << objects.size() << " objects from " << filename << std::endl;
+    
+    // If hosting, send initialization package to all connected clients
+    if (hostManager && hostManager->IsHosting()) {
+        hostManager->SendInitializationPackageToAllClients();
+    }
 }
 
 bool Engine::saveGame(const std::string& saveFilePath) {

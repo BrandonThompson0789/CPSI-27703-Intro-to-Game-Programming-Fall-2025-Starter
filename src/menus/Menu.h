@@ -43,6 +43,10 @@ public:
     virtual void handleCancel();
     virtual void handleMouse(int mouseX, int mouseY, bool mousePressed);
     
+    // Handle text input (for menus that need text entry)
+    virtual void handleTextInput(const std::string& text) {}
+    virtual void handleBackspace() {}
+    
     // Custom rendering (returns true if custom rendering was done, false to use default)
     virtual bool render() { return false; }
     

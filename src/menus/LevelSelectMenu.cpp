@@ -1,6 +1,7 @@
 #include "LevelSelectMenu.h"
 #include "MenuManager.h"
 #include "../Engine.h"
+#include "../HostManager.h"
 #include "../SaveManager.h"
 #include "../SpriteManager.h"
 #include <SDL.h>
@@ -131,6 +132,9 @@ void LevelSelectMenu::onOpen() {
     selectedButtonIndex = 0;
     hoveredButtonIndex = -1;
     inButtonMode = false;
+    
+    // Update room code display if hosting
+    updateRoomCodeDisplay();
     
     // Refresh level unlock status (in case progression changed)
     SaveManager& saveMgr = SaveManager::getInstance();
@@ -300,6 +304,28 @@ void LevelSelectMenu::handleMouse(int mouseX, int mouseY, bool mousePressed) {
     
     int screenWidth = Engine::screenWidth;
     int screenHeight = Engine::screenHeight;
+    
+    // Check if mouse clicked on copy button
+    Engine* engine = menuManager->getEngine();
+    if (engine && engine->isHosting() && copyButtonTexture) {
+        HostManager* hostMgr = engine->getHostManager();
+        if (hostMgr && roomCodeTexture) {
+            int roomCodeX = 60;  // Moved 50 pixels to the right
+            int roomCodeY = 10;
+            int copyX = roomCodeX + 120 + roomCodeTextureWidth + 10;
+            int copyWidth = copyButtonTextureWidth + 10;
+            int copyHeight = copyButtonTextureHeight + 5;
+            
+            if (mouseX >= copyX && mouseX < copyX + copyWidth &&
+                mouseY >= roomCodeY && mouseY < roomCodeY + copyHeight && mousePressed) {
+                std::string roomCode = hostMgr->GetRoomCode();
+                if (!roomCode.empty()) {
+                    SDL_SetClipboardText(roomCode.c_str());
+                }
+                return;  // Don't process other mouse events
+            }
+        }
+    }
     
     // Check if mouse is over a level panel
     int levelAreaY = screenHeight / 2 - 100;
@@ -471,6 +497,9 @@ void LevelSelectMenu::loadCachedResources() {
     
     // Load level textures
     reloadLevelTextures();
+    
+    // Load room code resources if hosting
+    updateRoomCodeDisplay();
 }
 
 void LevelSelectMenu::unloadCachedResources() {
@@ -514,6 +543,14 @@ void LevelSelectMenu::unloadCachedResources() {
     if (lockedTextTexture) {
         SDL_DestroyTexture(lockedTextTexture);
         lockedTextTexture = nullptr;
+    }
+    if (roomCodeTexture) {
+        SDL_DestroyTexture(roomCodeTexture);
+        roomCodeTexture = nullptr;
+    }
+    if (copyButtonTexture) {
+        SDL_DestroyTexture(copyButtonTexture);
+        copyButtonTexture = nullptr;
     }
     
     // Unload level textures
@@ -620,6 +657,65 @@ bool LevelSelectMenu::render() {
         titleRect.x = (screenWidth - titleRect.w) / 2;
         titleRect.y = 40;
         SDL_RenderCopy(renderer, titleTextTexture, nullptr, &titleRect);
+    }
+    
+    // Draw room code if hosting
+    Engine* engine = menuManager->getEngine();
+    if (engine && engine->isHosting()) {
+        HostManager* hostMgr = engine->getHostManager();
+        if (hostMgr && roomCodeTexture) {
+            int roomCodeY = 10;
+            int roomCodeX = 60;  // Moved 50 pixels to the right
+            
+            // Draw room code label
+            if (buttonFont) {
+                SDL_Color white = {255, 255, 255, 255};
+                SDL_Surface* labelSurface = TTF_RenderUTF8_Blended(buttonFont, "Room Code:", white);
+                if (labelSurface) {
+                    SDL_Texture* labelTexture = SDL_CreateTextureFromSurface(renderer, labelSurface);
+                    if (labelTexture) {
+                        SDL_Rect labelRect;
+                        labelRect.w = labelSurface->w;
+                        labelRect.h = labelSurface->h;
+                        labelRect.x = roomCodeX;
+                        labelRect.y = roomCodeY;
+                        SDL_RenderCopy(renderer, labelTexture, nullptr, &labelRect);
+                        SDL_DestroyTexture(labelTexture);
+                    }
+                    SDL_FreeSurface(labelSurface);
+                }
+            }
+            
+            // Draw room code
+            SDL_Rect codeRect;
+            codeRect.w = roomCodeTextureWidth;
+            codeRect.h = roomCodeTextureHeight;
+            codeRect.x = roomCodeX + 120;
+            codeRect.y = roomCodeY;
+            SDL_RenderCopy(renderer, roomCodeTexture, nullptr, &codeRect);
+            
+            // Draw copy button
+            if (copyButtonTexture) {
+                int copyX = roomCodeX + 120 + roomCodeTextureWidth + 10;
+                int copyY = roomCodeY;
+                int copyWidth = copyButtonTextureWidth;
+                int copyHeight = copyButtonTextureHeight;
+                
+                SDL_Color copyColor = {100, 150, 200, 255};
+                SDL_SetRenderDrawColor(renderer, copyColor.r, copyColor.g, copyColor.b, copyColor.a);
+                SDL_Rect copyRect = {copyX, copyY, copyWidth + 10, copyHeight + 5};
+                SDL_RenderFillRect(renderer, &copyRect);
+                SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+                SDL_RenderDrawRect(renderer, &copyRect);
+                
+                SDL_Rect copyTextRect;
+                copyTextRect.w = copyButtonTextureWidth;
+                copyTextRect.h = copyButtonTextureHeight;
+                copyTextRect.x = copyX + 5;
+                copyTextRect.y = copyY + 2;
+                SDL_RenderCopy(renderer, copyButtonTexture, nullptr, &copyTextRect);
+            }
+        }
     }
     
     // Draw level panels
@@ -945,6 +1041,75 @@ int LevelSelectMenu::getMaxButtonCount() const {
     } else {
         // Locked level - Play (disabled), Back (2 buttons)
         return 2;
+    }
+}
+
+void LevelSelectMenu::updateRoomCodeDisplay() {
+    if (!menuManager || !menuManager->getEngine()) {
+        return;
+    }
+    
+    Engine* engine = menuManager->getEngine();
+    if (!engine || !engine->isHosting()) {
+        // Not hosting - clear room code textures
+        if (roomCodeTexture) {
+            SDL_DestroyTexture(roomCodeTexture);
+            roomCodeTexture = nullptr;
+        }
+        if (copyButtonTexture) {
+            SDL_DestroyTexture(copyButtonTexture);
+            copyButtonTexture = nullptr;
+        }
+        return;
+    }
+    
+    HostManager* hostMgr = engine->getHostManager();
+    if (!hostMgr) {
+        return;
+    }
+    
+    std::string roomCode = hostMgr->GetRoomCode();
+    if (roomCode.empty()) {
+        return;
+    }
+    
+    SDL_Renderer* renderer = engine->getRenderer();
+    if (!renderer) {
+        return;
+    }
+    
+    // Create room code texture
+    if (roomCodeTexture) {
+        SDL_DestroyTexture(roomCodeTexture);
+        roomCodeTexture = nullptr;
+    }
+    
+    if (buttonFont) {
+        SDL_Color white = {255, 255, 255, 255};
+        SDL_Surface* codeSurface = TTF_RenderUTF8_Blended(buttonFont, roomCode.c_str(), white);
+        if (codeSurface) {
+            roomCodeTexture = SDL_CreateTextureFromSurface(renderer, codeSurface);
+            roomCodeTextureWidth = codeSurface->w;
+            roomCodeTextureHeight = codeSurface->h;
+            SDL_FreeSurface(codeSurface);
+        }
+    }
+    
+    // Create copy button texture
+    if (copyButtonTexture) {
+        SDL_DestroyTexture(copyButtonTexture);
+        copyButtonTexture = nullptr;
+    }
+    
+    if (buttonFont) {
+        SDL_Color white = {255, 255, 255, 255};
+        SDL_Surface* copySurface = TTF_RenderUTF8_Blended(buttonFont, "Copy", white);
+        if (copySurface) {
+            copyButtonTexture = SDL_CreateTextureFromSurface(renderer, copySurface);
+            copyButtonTextureWidth = copySurface->w;
+            copyButtonTextureHeight = copySurface->h;
+            SDL_FreeSurface(copySurface);
+        }
     }
 }
 

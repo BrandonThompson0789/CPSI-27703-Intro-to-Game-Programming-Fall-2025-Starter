@@ -80,14 +80,14 @@ int main(int argc, char* argv[]) {
         }
     } else if (!hostMode) {
         // Only load level file if not in client mode (host mode loads it too)
-        e.loadFile("assets/levels/level1.json");
-        std::cout << "Level loaded! Center object is controllable with keyboard/controller." << std::endl;
+        //e.loadFile("assets/levels/level1.json");
+        //std::cout << "Level loaded! Center object is controllable with keyboard/controller." << std::endl;
     }
     
     // Start hosting if requested
     if (hostMode) {
-        // Load level for host
-        e.loadFile("assets/levels/level1.json");
+        // Don't load level automatically - wait for user to select a level
+        // The level will be loaded when the user selects it from the level select menu
         std::cout << "\n=== Starting Host Mode ===" << std::endl;
         std::cout << "Connecting to Server Manager at " << serverManagerIP << ":" << serverManagerPort << "..." << std::endl;
         
@@ -99,6 +99,10 @@ int main(int argc, char* argv[]) {
             std::cout << "Share this room code with clients to join your game!" << std::endl;
             std::cout << "Hosting on port: " << hostPort << std::endl;
             std::cout << "Waiting for clients to connect..." << std::endl;
+            // Open level select menu so host can choose a level
+            if (e.getMenuManager()) {
+                e.getMenuManager()->openMenu("level_select");
+            }
         } else {
             std::cerr << "ERROR: Failed to start hosting!" << std::endl;
             std::cerr << "Make sure the Server Manager is running." << std::endl;

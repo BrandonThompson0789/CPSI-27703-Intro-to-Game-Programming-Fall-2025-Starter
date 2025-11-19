@@ -358,7 +358,15 @@ void HostManager::HandleClientConnect(const std::string& fromIP, uint16_t fromPo
         auto it = clients.find(clientKey);
         if (it != clients.end() && it->second.connected) {
             // Client already connected, just send initialization again
-            SendInitializationPackage(fromIP, fromPort);
+            // Only send initialization package if level is already loaded (has objects)
+            // Otherwise, wait for level to be loaded and SendInitializationPackageToAllClients will be called
+            if (engine && !engine->getObjects().empty()) {
+                try {
+                    SendInitializationPackage(fromIP, fromPort);
+                } catch (const std::exception& e) {
+                    std::cerr << "HostManager: Error sending initialization package: " << e.what() << std::endl;
+                }
+            }
             return;
         }
 
@@ -377,16 +385,19 @@ void HostManager::HandleClientConnect(const std::string& fromIP, uint16_t fromPo
     // Assign a player slot to this client
     int assignedPlayerId = AssignPlayerToClient(clientKey);
     
-    // Send initialization package
-    try {
-        SendInitializationPackage(fromIP, fromPort);
-    } catch (const std::exception& e) {
-        std::cerr << "HostManager: Error sending initialization package: " << e.what() << std::endl;
-    }
-    
-    // Send player assignment
+    // Send player assignment first (client needs this to be considered connected)
     if (assignedPlayerId > 0) {
         SendPlayerAssignment(fromIP, fromPort, assignedPlayerId);
+    }
+    
+    // Only send initialization package if level is already loaded (has objects)
+    // Otherwise, wait for level to be loaded and SendInitializationPackageToAllClients will be called
+    if (engine && !engine->getObjects().empty()) {
+        try {
+            SendInitializationPackage(fromIP, fromPort);
+        } catch (const std::exception& e) {
+            std::cerr << "HostManager: Error sending initialization package: " << e.what() << std::endl;
+        }
     }
 }
 
@@ -454,6 +465,15 @@ void HostManager::CleanupDisconnectedClients() {
     for (const auto& key : toRemove) {
         clients.erase(key);
         std::cout << "HostManager: Removed disconnected client: " << key << std::endl;
+    }
+}
+
+void HostManager::SendInitializationPackageToAllClients() {
+    std::lock_guard<std::mutex> lock(clientsMutex);
+    for (const auto& [key, client] : clients) {
+        if (client.connected) {
+            SendInitializationPackage(client.ip, client.port);
+        }
     }
 }
 

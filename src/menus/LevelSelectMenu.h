@@ -38,6 +38,9 @@ public:
     // Custom rendering (override MenuManager's default rendering)
     bool render() override;
     
+    // Update room code display (called when hosting state changes)
+    void updateRoomCodeDisplay();
+    
 private:
     void setupLevels();
     void onPlay();
@@ -71,6 +74,8 @@ private:
     SDL_Texture* restartButtonTexture = nullptr;
     SDL_Texture* backButtonTexture = nullptr;
     SDL_Texture* lockedTextTexture = nullptr;
+    SDL_Texture* roomCodeTexture = nullptr;
+    SDL_Texture* copyButtonTexture = nullptr;
     int titleTextWidth = 0;
     int titleTextHeight = 0;
     int playButtonTextWidth = 0;
@@ -79,6 +84,10 @@ private:
     int backButtonTextWidth = 0;
     int lockedTextWidth = 0;
     int lockedTextHeight = 0;
+    int roomCodeTextureWidth = 0;
+    int roomCodeTextureHeight = 0;
+    int copyButtonTextureWidth = 0;
+    int copyButtonTextureHeight = 0;
     
     // UI constants
     static constexpr int THUMBNAIL_WIDTH = 200;

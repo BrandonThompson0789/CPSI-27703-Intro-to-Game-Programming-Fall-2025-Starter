@@ -43,6 +43,8 @@ ClientManager::ClientManager(Engine* engine)
     , hostPort(0)
     , roomCode("")
     , isConnected(false)
+    , hasReceivedInitPackage(false)
+    , hasVerifiedInputAfterInit(false)
     , assignedPlayerId(0)
     , smoothingEnabled(true)
     , hostSyncIntervalSeconds(0.02f)
@@ -110,7 +112,7 @@ bool ClientManager::Connect(const std::string& roomCodeParam,
     // Give the host a moment to process the message
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-    // Wait for initialization package (with timeout)
+    // Wait for player assignment (with timeout)
     auto startTime = std::chrono::steady_clock::now();
     const auto timeout = std::chrono::seconds(10);
 
@@ -132,6 +134,8 @@ bool ClientManager::Connect(const std::string& roomCodeParam,
         
         ProcessIncomingMessages();
         
+        // Connected when we receive player assignment (not initialization package)
+        // Initialization package will come later when host loads level
         if (isConnected) {
             std::cout << "ClientManager: Connected to host " << hostIP << ":" << hostPort << std::endl;
             return true;
@@ -140,7 +144,7 @@ bool ClientManager::Connect(const std::string& roomCodeParam,
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
 
-    std::cerr << "ClientManager: Timeout waiting for initialization package" << std::endl;
+    std::cerr << "ClientManager: Timeout waiting for connection" << std::endl;
     NetworkUtils::CloseSocket(socket);
     NetworkUtils::Cleanup();
     return false;
@@ -153,6 +157,29 @@ void ClientManager::Update(float deltaTime) {
 
     // Process incoming messages
     ProcessIncomingMessages();
+
+        // After init package is received, verify input assignment on objects that are now in the engine
+        // (objects are queued when created, then added to engine in next frame)
+        if (hasReceivedInitPackage && assignedPlayerId > 0 && engine && !hasVerifiedInputAfterInit) {
+            // Check objects in the engine (not just queued ones)
+            bool foundInputComponent = false;
+            for (auto& obj : engine->getObjects()) {
+                if (obj && obj->hasComponent<InputComponent>()) {
+                    InputComponent* inputComp = obj->getComponent<InputComponent>();
+                    if (inputComp && inputComp->getPlayerId() == assignedPlayerId) {
+                        foundInputComponent = true;
+                        break; // Found at least one, no need to check more
+                    }
+                }
+            }
+            
+            // If we found an InputComponent with our player ID, verify input is assigned
+            if (foundInputComponent) {
+                PlayerManager::getInstance().assignInputDevice(assignedPlayerId, INPUT_SOURCE_KEYBOARD);
+                std::cout << "ClientManager: Verified input assignment after objects added to engine (player ID " << assignedPlayerId << ")" << std::endl;
+                hasVerifiedInputAfterInit = true;
+            }
+        }
 
     // Log bandwidth statistics once per second
     auto now = std::chrono::steady_clock::now();
@@ -198,6 +225,7 @@ void ClientManager::Disconnect() {
     }
 
     isConnected = false;
+    hasReceivedInitPackage = false;
 
     if (socket != INVALID_SOCKET_HANDLE) {
         NetworkUtils::CloseSocket(socket);
@@ -291,6 +319,7 @@ void ClientManager::ProcessIncomingMessages() {
         switch (header->type) {
             case HostMessageType::INIT_PACKAGE:
                 HandleInitPackage(buffer, received);
+                hasReceivedInitPackage = true;
                 break;
 
             case HostMessageType::OBJECT_UPDATE:
@@ -311,6 +340,7 @@ void ClientManager::ProcessIncomingMessages() {
                 if (received >= static_cast<int>(sizeof(AssignPlayerMessage))) {
                     const AssignPlayerMessage* msg = reinterpret_cast<const AssignPlayerMessage*>(buffer);
                     assignedPlayerId = msg->playerId;
+                    isConnected = true;  // Connected when we receive player assignment
                     std::cout << "ClientManager: Assigned to player ID: " << assignedPlayerId << std::endl;
                     
                     // Assign keyboard to this player (client uses keyboard by default)
@@ -412,10 +442,19 @@ void ClientManager::HandleInitPackage(const void* data, size_t length) {
         }
 
         ClearAllSmoothingStates();
+        
+        // Reset verification flag when new init package is received
+        hasVerifiedInputAfterInit = false;
 
         // Set Engine instance
         if (engine) {
             Object::setEngine(engine);
+        }
+
+        // Ensure input device is assigned to our player ID (in case init package arrives before or after ASSIGN_PLAYER)
+        if (assignedPlayerId > 0) {
+            PlayerManager::getInstance().assignInputDevice(assignedPlayerId, INPUT_SOURCE_KEYBOARD);
+            std::cout << "ClientManager: Re-assigned keyboard to player ID " << assignedPlayerId << " after level load" << std::endl;
         }
 
         // Load objects from JSON
@@ -437,6 +476,25 @@ void ClientManager::HandleInitPackage(const void* data, size_t length) {
                 }
 
                 CreateObjectFromJson(objectId, objJson);
+            }
+        }
+
+        // After objects are created, update InputComponent player IDs in queued objects to match our assigned player ID
+        // This ensures that objects created with the client's assigned player ID have their InputComponents working
+        if (assignedPlayerId > 0 && engine) {
+            // Update InputComponents in queued objects (objects are queued before being added to engine)
+            for (auto& obj : engine->getQueuedObjects()) {
+                if (obj && obj->hasComponent<InputComponent>()) {
+                    InputComponent* inputComp = obj->getComponent<InputComponent>();
+                    if (inputComp) {
+                        // If this object's InputComponent has a player ID that matches our assigned player ID,
+                        // ensure the input device is assigned (already done above, but verify)
+                        if (inputComp->getPlayerId() == assignedPlayerId) {
+                            PlayerManager::getInstance().assignInputDevice(assignedPlayerId, INPUT_SOURCE_KEYBOARD);
+                            std::cout << "ClientManager: Verified input assignment for object with player ID " << assignedPlayerId << std::endl;
+                        }
+                    }
+                }
             }
         }
 

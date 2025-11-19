@@ -56,6 +56,9 @@ public:
     // Check if connected
     bool IsConnected() const { return isConnected; }
     
+    // Check if initialization package has been received
+    bool HasReceivedInitPackage() const { return hasReceivedInitPackage; }
+    
     // Get room code
     std::string GetRoomCode() const { return roomCode; }
     
@@ -114,6 +117,8 @@ private:
     uint16_t hostPort;
     std::string roomCode;
     bool isConnected;
+    bool hasReceivedInitPackage;
+    bool hasVerifiedInputAfterInit;  // Track if we've verified input after init package
 
     // Object ID tracking
     std::unordered_map<uint32_t, Object*> idToObject;

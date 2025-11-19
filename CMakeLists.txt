@@ -108,6 +108,12 @@ add_executable(demo
     src/menus/PauseMenu.cpp
     src/menus/LevelSelectMenu.h
     src/menus/LevelSelectMenu.cpp
+    src/menus/HostMenu.h
+    src/menus/HostMenu.cpp
+    src/menus/JoinMenu.h
+    src/menus/JoinMenu.cpp
+    src/menus/WaitingForHostMenu.h
+    src/menus/WaitingForHostMenu.cpp
 )
 
 # Link libraries

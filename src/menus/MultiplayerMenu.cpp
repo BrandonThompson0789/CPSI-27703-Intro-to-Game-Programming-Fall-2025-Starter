@@ -22,11 +22,15 @@ void MultiplayerMenu::handleCancel() {
 }
 
 void MultiplayerMenu::onHost() {
-    // Host does nothing for now
+    if (menuManager) {
+        menuManager->openMenu("host");
+    }
 }
 
 void MultiplayerMenu::onJoin() {
-    // Join does nothing for now
+    if (menuManager) {
+        menuManager->openMenu("join");
+    }
 }
 
 void MultiplayerMenu::onGoBack() {

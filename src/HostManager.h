@@ -152,6 +152,9 @@ public:
     // Object synchronization (called by Engine)
     void SendObjectCreate(Object* obj);
     void SendObjectDestroy(Object* obj);
+    
+    // Send initialization package to all connected clients (called when level is loaded)
+    void SendInitializationPackageToAllClients();
 
 private:
     // Server Manager communication

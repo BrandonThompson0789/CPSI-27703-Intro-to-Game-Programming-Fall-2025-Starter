@@ -7,6 +7,9 @@
 #include "MultiplayerMenu.h"
 #include "PauseMenu.h"
 #include "LevelSelectMenu.h"
+#include "HostMenu.h"
+#include "JoinMenu.h"
+#include "WaitingForHostMenu.h"
 #include <SDL.h>
 #include <SDL_ttf.h>
 #include <iostream>
@@ -269,8 +272,23 @@ void MenuManager::render() {
 void MenuManager::handleEvent(const SDL_Event& event) {
     if (!initialized) return;
     
-    // Menu-specific event handling if needed
-    // Most input is handled in update() via InputManager
+    Menu* currentMenu = getCurrentMenu();
+    if (!currentMenu) return;
+    
+    // Handle text input for menus that need it (like JoinMenu)
+    switch (event.type) {
+        case SDL_TEXTINPUT:
+            // Forward text input to current menu
+            currentMenu->handleTextInput(event.text.text);
+            break;
+            
+        case SDL_KEYDOWN:
+            // Handle backspace for text input
+            if (event.key.keysym.sym == SDLK_BACKSPACE && !event.key.repeat) {
+                currentMenu->handleBackspace();
+            }
+            break;
+    }
 }
 
 void MenuManager::openMenu(const std::string& menuName) {
@@ -337,6 +355,12 @@ std::unique_ptr<Menu> MenuManager::createMenu(const std::string& menuName) {
         return std::make_unique<PauseMenu>(this);
     } else if (menuName == "level_select") {
         return std::make_unique<LevelSelectMenu>(this);
+    } else if (menuName == "host") {
+        return std::make_unique<HostMenu>(this);
+    } else if (menuName == "join") {
+        return std::make_unique<JoinMenu>(this);
+    } else if (menuName == "waiting_for_host") {
+        return std::make_unique<WaitingForHostMenu>(this);
     }
     
     return nullptr;
