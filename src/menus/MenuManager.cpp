@@ -1,4 +1,5 @@
 #include "MenuManager.h"
+#include "LevelSelectMenu.h"
 #include "../Engine.h"
 #include "../InputManager.h"
 #include "Menu.h"
@@ -300,6 +301,17 @@ void MenuManager::openMenu(const std::string& menuName) {
     }
 }
 
+void MenuManager::openMenuWithLevelSelect(const std::string& levelId) {
+    // Create level select menu and set pending selection before opening
+    auto menu = std::make_unique<LevelSelectMenu>(this);
+    if (menu) {
+        menu->setPendingLevelSelection(levelId);
+        menu->onOpen();
+        menuStack.push(std::move(menu));
+        menuJustOpened = true;
+    }
+}
+
 void MenuManager::closeMenu() {
     if (!menuStack.empty()) {
         Menu* currentMenu = menuStack.top().get();
@@ -397,6 +409,28 @@ std::unique_ptr<Menu> MenuManager::createMenu(const std::string& menuName) {
     }
     
     return nullptr;
+}
+
+void MenuManager::selectLevelInLevelSelect(const std::string& levelId) {
+    if (menuStack.empty()) {
+        return;
+    }
+    
+    Menu* currentMenu = menuStack.top().get();
+    if (!currentMenu) {
+        return;
+    }
+    
+    // Try to cast to LevelSelectMenu
+    // We'll need to check the menu type or use dynamic_cast
+    // For now, let's check if it's a level select menu by checking the title
+    if (currentMenu->getTitle() == "Level Select") {
+        // Cast to LevelSelectMenu and call selectLevelById
+        LevelSelectMenu* levelSelectMenu = dynamic_cast<LevelSelectMenu*>(currentMenu);
+        if (levelSelectMenu) {
+            levelSelectMenu->selectLevelById(levelId);
+        }
+    }
 }
 
 Menu* MenuManager::getCurrentMenu() const {

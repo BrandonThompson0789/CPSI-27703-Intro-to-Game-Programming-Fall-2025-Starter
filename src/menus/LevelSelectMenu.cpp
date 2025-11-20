@@ -1374,6 +1374,32 @@ int LevelSelectMenu::getMaxButtonCount() const {
     }
 }
 
+void LevelSelectMenu::setPendingLevelSelection(const std::string& levelId) {
+    pendingLevelSelection = levelId;
+}
+
+void LevelSelectMenu::selectLevelById(const std::string& levelId) {
+    // Find the level by ID or file path
+    for (size_t i = 0; i < levels.size(); ++i) {
+        if (levels[i].id == levelId || levels[i].filePath.find(levelId) != std::string::npos) {
+            selectedLevelIndex = static_cast<int>(i);
+            // Calculate scroll offset to center selected level
+            int screenWidth = Engine::screenWidth;
+            scrollOffset = static_cast<float>(selectedLevelIndex) * (LEVEL_PANEL_WIDTH + LEVEL_SPACING) 
+                           - (screenWidth - LEVEL_PANEL_WIDTH) * 0.5f;
+            scrollOffset = std::max(0.0f, scrollOffset);
+            // Update cached save data for the selected level
+            updateCachedSaveData();
+            return;
+        }
+    }
+    // If not found, select first level
+    if (!levels.empty()) {
+        selectedLevelIndex = 0;
+        updateCachedSaveData();
+    }
+}
+
 void LevelSelectMenu::updateRoomCodeDisplay() {
     if (!menuManager || !menuManager->getEngine()) {
         return;

@@ -110,7 +110,8 @@ SDL_Texture* SpriteManager::getTexture(const std::string& textureName) {
 }
 
 void SpriteManager::renderSprite(const std::string& spriteName, int frame, float x, float y, 
-                                 float angle, SDL_RendererFlip flip, uint8_t alpha) {
+                                 float angle, SDL_RendererFlip flip, uint8_t alpha,
+                                 uint8_t colorR, uint8_t colorG, uint8_t colorB) {
     if (!renderer) {
         std::cerr << "SpriteManager: Renderer not initialized" << std::endl;
         return;
@@ -135,8 +136,9 @@ void SpriteManager::renderSprite(const std::string& spriteName, int frame, float
     float height = static_cast<float>(frameData.h);
     SDL_FRect dstRect = { x - width * 0.5f, y - height * 0.5f, width, height };
 
-    // Set texture alpha
+    // Set texture alpha and color mod
     SDL_SetTextureAlphaMod(texture, alpha);
+    SDL_SetTextureColorMod(texture, colorR, colorG, colorB);
 
     // Render with rotation and flip (angle provided in degrees)
     SDL_RenderCopyExF(renderer, texture, &srcRect, &dstRect, angle, nullptr, flip);
@@ -144,7 +146,8 @@ void SpriteManager::renderSprite(const std::string& spriteName, int frame, float
 
 void SpriteManager::renderSprite(const std::string& spriteName, int frame, float x, float y, 
                                  float width, float height, float angle, 
-                                 SDL_RendererFlip flip, uint8_t alpha) {
+                                 SDL_RendererFlip flip, uint8_t alpha,
+                                 uint8_t colorR, uint8_t colorG, uint8_t colorB) {
     if (!renderer) {
         std::cerr << "SpriteManager: Renderer not initialized" << std::endl;
         return;
@@ -169,8 +172,9 @@ void SpriteManager::renderSprite(const std::string& spriteName, int frame, float
     float clampedHeight = std::max(height, 1.0f);
     SDL_FRect dstRect = { x - clampedWidth * 0.5f, y - clampedHeight * 0.5f, clampedWidth, clampedHeight };
 
-    // Set texture alpha
+    // Set texture alpha and color mod
     SDL_SetTextureAlphaMod(texture, alpha);
+    SDL_SetTextureColorMod(texture, colorR, colorG, colorB);
 
     // Render with rotation and flip (angle provided in degrees)
     SDL_RenderCopyExF(renderer, texture, &srcRect, &dstRect, angle, nullptr, flip);
@@ -178,7 +182,8 @@ void SpriteManager::renderSprite(const std::string& spriteName, int frame, float
 
 void SpriteManager::renderSpriteTiled(const std::string& spriteName, int frame, float x, float y,
                                      float width, float height, float tileWidth, float tileHeight,
-                                     float angle, SDL_RendererFlip flip, uint8_t alpha) {
+                                     float angle, SDL_RendererFlip flip, uint8_t alpha,
+                                     uint8_t colorR, uint8_t colorG, uint8_t colorB) {
     if (!renderer) {
         std::cerr << "SpriteManager: Renderer not initialized" << std::endl;
         return;
@@ -202,8 +207,9 @@ void SpriteManager::renderSpriteTiled(const std::string& spriteName, int frame, 
     float actualTileWidth = (tileWidth > 0.0f) ? tileWidth : static_cast<float>(frameData.w);
     float actualTileHeight = (tileHeight > 0.0f) ? tileHeight : static_cast<float>(frameData.h);
     
-    // Set texture alpha
+    // Set texture alpha and color mod
     SDL_SetTextureAlphaMod(texture, alpha);
+    SDL_SetTextureColorMod(texture, colorR, colorG, colorB);
     
     float clampedWidth = std::max(width, 1.0f);
     float clampedHeight = std::max(height, 1.0f);

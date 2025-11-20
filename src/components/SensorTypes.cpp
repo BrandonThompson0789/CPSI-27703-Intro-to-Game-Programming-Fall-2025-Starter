@@ -37,6 +37,15 @@ SenseType parseSenseType(const std::string& value) {
     if (lowered == "interact" || lowered == "input" || lowered == "button") {
         return SenseType::InteractInput;
     }
+    if (lowered == "inputactivity" || lowered == "input_activity") {
+        return SenseType::InputActivity;
+    }
+    if (lowered == "boxzone" || lowered == "box_zone") {
+        return SenseType::BoxZone;
+    }
+    if (lowered == "globalvalue" || lowered == "global_value") {
+        return SenseType::GlobalValue;
+    }
     return SenseType::None;
 }
 
@@ -59,6 +68,12 @@ std::string senseTypeToString(SenseType type) {
             return "distance";
         case SenseType::InteractInput:
             return "interact";
+        case SenseType::InputActivity:
+            return "inputactivity";
+        case SenseType::BoxZone:
+            return "boxzone";
+        case SenseType::GlobalValue:
+            return "globalvalue";
         case SenseType::None:
         default:
             return "none";
@@ -75,6 +90,15 @@ std::vector<std::string> senseMaskToStrings(SenseTypeMask mask) {
     }
     if (senseMaskHas(mask, SenseType::InteractInput)) {
         values.push_back(senseTypeToString(SenseType::InteractInput));
+    }
+    if (senseMaskHas(mask, SenseType::InputActivity)) {
+        values.push_back(senseTypeToString(SenseType::InputActivity));
+    }
+    if (senseMaskHas(mask, SenseType::BoxZone)) {
+        values.push_back(senseTypeToString(SenseType::BoxZone));
+    }
+    if (senseMaskHas(mask, SenseType::GlobalValue)) {
+        values.push_back(senseTypeToString(SenseType::GlobalValue));
     }
     if (values.empty()) {
         values.push_back(senseTypeToString(SenseType::None));

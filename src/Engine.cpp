@@ -1,4 +1,5 @@
 #include "Engine.h"
+#include "GlobalValueManager.h"
 #include "SpriteManager.h"
 #include "InputManager.h"
 #include "SoundManager.h"
@@ -190,6 +191,14 @@ void Engine::processEvents() {
 
 void Engine::update(float deltaTime) {
     lastDeltaTime = deltaTime;
+
+    // Process any queued level loads first (before updating objects)
+    if (!pendingLevelLoad.empty()) {
+        std::string levelToLoad = pendingLevelLoad;
+        pendingLevelLoad.clear();  // Clear before loading to avoid recursion
+        loadFile(levelToLoad);
+        return;  // Skip rest of update this frame after loading new level
+    }
 
     // Update menu manager (always update, even if paused)
     if (menuManager) {
@@ -533,6 +542,7 @@ Engine::Engine() {
     cameraInitialized = false;
     lastDeltaTime = getDeltaTime();
     currentMessage = nullptr;
+    currentLevelOrder = 0;
 }
 
 Engine::~Engine() {
@@ -586,6 +596,16 @@ void Engine::loadFile(const std::string& filename) {
     if (collisionManager) {
         collisionManager->clearImpacts();
     }
+    
+    // Clear global values when loading a new level
+    GlobalValueManager::getInstance().clear();
+    
+    // Load initial global values from level file (if present)
+    if (j.contains("globalValues") && j["globalValues"].is_object()) {
+        GlobalValueManager& gvm = GlobalValueManager::getInstance();
+        gvm.fromJson(j["globalValues"]);
+        std::cout << "Engine: Loaded initial global values from level file" << std::endl;
+    }
 
     // Load background configuration
     if (backgroundManager) {
@@ -613,6 +633,12 @@ void Engine::loadFile(const std::string& filename) {
     std::filesystem::path filePath(filename);
     currentLoadedLevel = filePath.stem().string();
     
+    // Extract and store the level's order value
+    currentLevelOrder = 0;
+    if (j.contains("order") && j["order"].is_number_integer()) {
+        currentLevelOrder = j["order"].get<int>();
+    }
+    
     // If hosting, send initialization package to all connected clients
     // Only send if the loaded level is NOT level_mainmenu
     if (hostManager && hostManager->IsHosting() && currentLoadedLevel != "level_mainmenu") {
@@ -626,6 +652,10 @@ bool Engine::saveGame(const std::string& saveFilePath) {
         displayMessage("Game saved");
     }
     return success;
+}
+
+void Engine::queueLevelLoad(const std::string& levelPath) {
+    pendingLevelLoad = levelPath;
 }
 
 bool Engine::loadGame(const std::string& saveFilePath) {

@@ -2,6 +2,7 @@
 #include "Engine.h"
 #include "BackgroundManager.h"
 #include "Object.h"
+#include "GlobalValueManager.h"
 #include <fstream>
 #include <iostream>
 #include <ctime>
@@ -68,6 +69,10 @@ bool SaveManager::saveGame(Engine* engine, const std::string& saveFilePath) {
     }
     saveData["objects"] = objectsArray;
     
+    // Save global values
+    GlobalValueManager& gvm = GlobalValueManager::getInstance();
+    saveData["globalValues"] = gvm.toJson();
+    
     // Write to file
     std::ofstream file(saveFilePath);
     if (!file.is_open()) {
@@ -79,6 +84,68 @@ bool SaveManager::saveGame(Engine* engine, const std::string& saveFilePath) {
         file << saveData.dump(4); // Pretty print with 4-space indent
         file.close();
         std::cout << "SaveManager: Game saved successfully to " << saveFilePath << std::endl;
+        return true;
+    } catch (const std::exception& e) {
+        std::cerr << "SaveManager: Error writing save file: " << e.what() << std::endl;
+        file.close();
+        return false;
+    }
+}
+
+bool SaveManager::saveGameWithoutLevelData(Engine* engine, const std::string& saveFilePath) {
+    if (!engine) {
+        std::cerr << "SaveManager: Cannot save - Engine is null" << std::endl;
+        return false;
+    }
+    
+    nlohmann::json saveData;
+    
+    // Create metadata
+    nlohmann::json metadata;
+    metadata["version"] = "1.0";
+    
+    // Get current time as ISO 8601 string
+    std::time_t now = std::time(nullptr);
+    std::tm* timeinfo = std::localtime(&now);
+    std::stringstream ss;
+    ss << std::put_time(timeinfo, "%Y-%m-%dT%H:%M:%S");
+    metadata["lastSaved"] = ss.str();
+    
+    metadata["currentLevel"] = currentLevel.empty() ? "level1" : currentLevel;
+    
+    // Ensure levelProgress has progression field
+    if (!levelProgress.is_object()) {
+        levelProgress = nlohmann::json::object();
+    }
+    if (!levelProgress.contains("progression")) {
+        levelProgress["progression"] = 0;
+    }
+    
+    metadata["levelProgress"] = levelProgress;
+    metadata["settings"] = settings;
+    
+    saveData["metadata"] = metadata;
+    
+    // Don't save background or objects (level data cleared on win)
+    saveData["background"] = nlohmann::json::object();
+    saveData["background"]["layers"] = nlohmann::json::array();
+    saveData["objects"] = nlohmann::json::array();
+    
+    // Save global values
+    GlobalValueManager& gvm = GlobalValueManager::getInstance();
+    saveData["globalValues"] = gvm.toJson();
+    
+    // Write to file
+    std::ofstream file(saveFilePath);
+    if (!file.is_open()) {
+        std::cerr << "SaveManager: Could not open save file for writing: " << saveFilePath << std::endl;
+        return false;
+    }
+    
+    try {
+        file << saveData.dump(4); // Pretty print with 4-space indent
+        file.close();
+        std::cout << "SaveManager: Game saved (without level data) successfully to " << saveFilePath << std::endl;
         return true;
     } catch (const std::exception& e) {
         std::cerr << "SaveManager: Error writing save file: " << e.what() << std::endl;
@@ -125,6 +192,13 @@ bool SaveManager::loadSaveData(const std::string& saveFilePath) {
         
         if (metadata.contains("settings")) {
             settings = metadata["settings"];
+        }
+        
+        // Load global values from save file
+        if (saveData.contains("globalValues") && saveData["globalValues"].is_object()) {
+            GlobalValueManager& gvm = GlobalValueManager::getInstance();
+            gvm.fromJson(saveData["globalValues"]);
+            std::cout << "SaveManager: Loaded global values from save file" << std::endl;
         }
         
         std::cout << "SaveManager: Loaded save data (level: " << currentLevel << ")" << std::endl;

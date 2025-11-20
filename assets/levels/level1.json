@@ -428,6 +428,108 @@
                     ]
                 }
             ]
+        },
+        {
+            "name": "win_zone-level1",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 600.0,
+                    "posY": 400.0,
+                    "bodyType": "static",
+                    "fixture": {
+                        "width": 200.0,
+                        "height": 200.0,
+                        "isSensor": true
+                    }
+                },
+                {
+                    "type": "SpriteComponent",
+                    "spriteName": "square",
+                    "alpha": 100,
+                    "colorR": 0,
+                    "colorG": 255,
+                    "colorB": 0,
+                    "tiled": true
+                },
+                {
+                    "type": "SensorComponent",
+                    "requireBoxZone": true,
+                    "boxZone": {
+                        "minX": 500.0,
+                        "minY": 300.0,
+                        "maxX": 700.0,
+                        "maxY": 500.0,
+                        "requireFull": false
+                    },
+                    "allowedInstigators": [".*crate.*"],
+                    "useRegexForInstigators": true,
+                    "includeInteractComponent": false, 
+                    "targetObjects": ["win_zone_adjuster_positive"],
+                    "unsatisfiedTargetObjects": ["win_zone_adjuster_negative"]
+                }
+            ]
+        },
+        {
+            "name": "win_zone_adjuster_positive",
+            "components": [
+                {
+                    "type": "AdjustableComponent",
+                    "globalValueName": "winpoints",
+                    "operation": "add",
+                    "value": 1.0,
+                    "createIfNotExists": true
+                }
+            ]
+        },
+        {
+            "name": "win_zone_adjuster_negative",
+            "components": [
+                {
+                    "type": "AdjustableComponent",
+                    "globalValueName": "winpoints",
+                    "operation": "subtract",
+                    "value": 1.0,
+                    "createIfNotExists": true
+                }
+            ]
+        },
+        {
+            "name": "win_condition_sensor",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 640.0,
+                    "posY": 320.0,
+                    "bodyType": "static",
+                    "fixture": {
+                        "shape": "box",
+                        "width": 32.0,
+                        "height": 32.0,
+                        "isSensor": true
+                    }
+                },
+                {
+                    "type": "SensorComponent",
+                    "requireGlobalValue": true,
+                    "globalValue": {
+                        "name": "winpoints",
+                        "comparison": ">",
+                        "threshold": 10.0
+                    },
+                    "targetObjects": ["level_win_trigger"]
+                }
+            ]
+        },
+        {
+            "name": "level_win_trigger",
+            "components": [
+                {
+                    "type": "LevelWinComponent",
+                    "updateProgression": true,
+                    "progressionIncrement": 10
+                }
+            ]
         }
     ]
 }

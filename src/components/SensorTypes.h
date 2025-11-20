@@ -9,6 +9,9 @@ enum class SenseType : uint8_t {
     Collision = 1 << 0,
     Distance = 1 << 1,
     InteractInput = 1 << 2,
+    InputActivity = 1 << 3,
+    BoxZone = 1 << 4,
+    GlobalValue = 1 << 5,
 };
 
 using SenseTypeMask = uint8_t;

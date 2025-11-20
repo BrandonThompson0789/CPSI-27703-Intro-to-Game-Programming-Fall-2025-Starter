@@ -13,6 +13,9 @@ public:
     // Save current game state
     bool saveGame(Engine* engine, const std::string& saveFilePath = "save.json");
     
+    // Save game without level data (for level win - clears background and objects)
+    bool saveGameWithoutLevelData(Engine* engine, const std::string& saveFilePath = "save.json");
+    
     // Load overall save data (metadata, progress, settings)
     bool loadSaveData(const std::string& saveFilePath = "save.json");
     

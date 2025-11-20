@@ -7,12 +7,15 @@
 #include "components/SensorComponent.h"
 #include "components/RailComponent.h"
 #include "components/ObjectSpawnerComponent.h"
+#include "components/AdjustableComponent.h"
+#include "GlobalValueManager.h"
 
 #include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <sstream>
 #include <vector>
+#include <iomanip>
 
 namespace {
 constexpr int kCircleSegments = 16;
@@ -529,10 +532,27 @@ void Box2DDebugDraw::renderLabels(const std::vector<std::unique_ptr<Object>>& ob
         }
     }
 
-    // Second pass: Draw labels (health, name, sensor info, spawner info)
+    // Second pass: Draw box zones and labels (health, name, sensor info, spawner info)
     for (const auto& objectPtr : objects) {
         if (!objectPtr) {
             continue;
+        }
+        
+        // Draw box zones for sensors (before labels)
+        auto* sensor = objectPtr->getComponent<SensorComponent>();
+        if (sensor && sensor->requiresBoxZone()) {
+            float minX, minY, maxX, maxY;
+            sensor->getBoxZoneBounds(minX, minY, maxX, maxY);
+            
+            // Draw box zone rectangle
+            b2Vec2 vertices[4] = {
+                {minX * Engine::PIXELS_TO_METERS, minY * Engine::PIXELS_TO_METERS},
+                {maxX * Engine::PIXELS_TO_METERS, minY * Engine::PIXELS_TO_METERS},
+                {maxX * Engine::PIXELS_TO_METERS, maxY * Engine::PIXELS_TO_METERS},
+                {minX * Engine::PIXELS_TO_METERS, maxY * Engine::PIXELS_TO_METERS}
+            };
+            b2HexColor boxColor = sensor->boxZoneRequiresFull() ? static_cast<b2HexColor>(0x00FF00FF) : static_cast<b2HexColor>(0x00FF0080);  // Green, full opacity or half
+            drawPolygonImpl(vertices, 4, boxColor);
         }
 
         auto* body = objectPtr->getComponent<BodyComponent>();
@@ -610,8 +630,7 @@ void Box2DDebugDraw::renderLabels(const std::vector<std::unique_ptr<Object>>& ob
             currentLabelTop = barTop - spacing;
         }
 
-        // Draw sensor information
-        auto* sensor = objectPtr->getComponent<SensorComponent>();
+        // Draw sensor information (sensor already declared above for box zone drawing)
         if (sensor) {
             int conditionCount = sensor->getConditionCount();
             
@@ -624,9 +643,13 @@ void Box2DDebugDraw::renderLabels(const std::vector<std::unique_ptr<Object>>& ob
                 }
             }
             int satisfiedCount = sensor->getSatisfiedConditionCount(allObjectPtrs);
+            int satisfyingObjectCount = sensor->getSatisfyingObjectCount(allObjectPtrs);
 
             std::ostringstream sensorLabel;
             sensorLabel << "Sensor: " << satisfiedCount << "/" << conditionCount;
+            if (satisfyingObjectCount > 0) {
+                sensorLabel << " (" << satisfyingObjectCount << " object" << (satisfyingObjectCount != 1 ? "s" : "") << ")";
+            }
             if (sensor->hasDistanceCondition()) {
                 sensorLabel << " (range: " << static_cast<int>(std::round(sensor->getMaxDistance())) << ")";
             }
@@ -640,6 +663,75 @@ void Box2DDebugDraw::renderLabels(const std::vector<std::unique_ptr<Object>>& ob
             float sensorTop = currentLabelTop - static_cast<float>(sensorTextHeight);
             drawTextCentered(sensorLabel.str(), screenCenter.x, sensorTop, sensorTextColor);
             currentLabelTop = sensorTop - spacing;
+            
+            // Draw global value sensor info if applicable
+            if (sensor->requiresGlobalValue()) {
+                GlobalValueManager& gvm = GlobalValueManager::getInstance();
+                float currentValue = gvm.getValue(sensor->getGlobalValueName());
+                std::ostringstream gvLabel;
+                gvLabel << "GlobalValue: " << sensor->getGlobalValueName() << " = " 
+                        << std::fixed << std::setprecision(1) << currentValue
+                        << " " << sensor->getGlobalValueComparison() << " " 
+                        << sensor->getGlobalValueThreshold();
+                
+                int gvTextWidth = 0;
+                int gvTextHeight = 0;
+                if (TTF_SizeUTF8(labelFont, gvLabel.str().c_str(), &gvTextWidth, &gvTextHeight) != 0) {
+                    gvTextHeight = fontSize;
+                }
+                
+                float gvTop = currentLabelTop - static_cast<float>(gvTextHeight);
+                const SDL_Color gvTextColor{0, 255, 255, 255};  // Cyan
+                drawTextCentered(gvLabel.str(), screenCenter.x, gvTop, gvTextColor);
+                currentLabelTop = gvTop - spacing;
+            }
+            
+            // Draw box zone label if applicable
+            if (sensor->requiresBoxZone()) {
+                float minX, minY, maxX, maxY;
+                sensor->getBoxZoneBounds(minX, minY, maxX, maxY);
+                
+                std::ostringstream bzLabel;
+                bzLabel << "BoxZone: [" << static_cast<int>(minX) << "," << static_cast<int>(minY) 
+                        << "] to [" << static_cast<int>(maxX) << "," << static_cast<int>(maxY) << "]"
+                        << (sensor->boxZoneRequiresFull() ? " (full)" : " (partial)");
+                
+                int bzTextWidth = 0;
+                int bzTextHeight = 0;
+                if (TTF_SizeUTF8(labelFont, bzLabel.str().c_str(), &bzTextWidth, &bzTextHeight) != 0) {
+                    bzTextHeight = fontSize;
+                }
+                
+                float bzTop = currentLabelTop - static_cast<float>(bzTextHeight);
+                const SDL_Color bzTextColor{0, 255, 0, 255};  // Green
+                drawTextCentered(bzLabel.str(), screenCenter.x, bzTop, bzTextColor);
+                currentLabelTop = bzTop - spacing;
+            }
+        }
+        
+        // Draw AdjustableComponent info
+        auto* adjustable = objectPtr->getComponent<AdjustableComponent>();
+        if (adjustable) {
+            std::string valueName = adjustable->getGlobalValueName();
+            std::string operation = adjustable->getOperation();
+            float value = adjustable->getValue();
+            
+            if (!valueName.empty()) {
+                std::ostringstream adjLabel;
+                adjLabel << "Adjust: " << valueName << " " << operation << " " 
+                         << std::fixed << std::setprecision(1) << value;
+                
+                int adjTextWidth = 0;
+                int adjTextHeight = 0;
+                if (TTF_SizeUTF8(labelFont, adjLabel.str().c_str(), &adjTextWidth, &adjTextHeight) != 0) {
+                    adjTextHeight = fontSize;
+                }
+                
+                float adjTop = currentLabelTop - static_cast<float>(adjTextHeight);
+                const SDL_Color adjTextColor{255, 200, 0, 255};  // Orange/yellow
+                drawTextCentered(adjLabel.str(), screenCenter.x, adjTop, adjTextColor);
+                currentLabelTop = adjTop - spacing;
+            }
         }
 
         // Draw ObjectSpawnerComponent info

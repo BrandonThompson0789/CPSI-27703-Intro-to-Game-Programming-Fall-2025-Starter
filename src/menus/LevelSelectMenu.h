@@ -42,6 +42,12 @@ public:
     // Update room code display (called when hosting state changes)
     void updateRoomCodeDisplay();
     
+    // Select a level by its ID (e.g., "level1") or file path
+    void selectLevelById(const std::string& levelId);
+    
+    // Set a level to be selected when the menu opens (called before onOpen)
+    void setPendingLevelSelection(const std::string& levelId);
+    
 private:
     void setupLevels();
     void onPlay();
@@ -63,6 +69,7 @@ private:
     int selectedButtonIndex;  // 0 = Play/Continue, 1 = Restart (if shown), 2 = Back
     int hoveredButtonIndex;  // -1 = none, tracks which button mouse is hovering over
     bool inButtonMode;  // true when navigating buttons, false when navigating levels
+    std::string pendingLevelSelection;  // Level ID to select when menu opens
     std::map<SDL_Texture*, uint8_t> thumbnailAlphaCache;  // Cache per-thumbnail alpha to avoid unnecessary texture mod calls
     
     // Cached save data check result (expensive operation, cache per level select instance)

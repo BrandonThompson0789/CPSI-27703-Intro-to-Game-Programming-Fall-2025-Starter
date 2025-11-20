@@ -48,6 +48,9 @@ SpriteComponent::SpriteComponent(Object& parent, const nlohmann::json& data)
       animationTimer(0.0f),
       flipFlags(SDL_FLIP_NONE),
       alpha(255),
+      colorR(255),
+      colorG(255),
+      colorB(255),
       killAfterLoops(-1),
       completedLoops(0),
       randomizeAnglePerFrame(false),
@@ -67,6 +70,9 @@ SpriteComponent::SpriteComponent(Object& parent, const nlohmann::json& data)
     if (data.contains("animationTimer")) animationTimer = data["animationTimer"].get<float>();
     if (data.contains("flipFlags")) flipFlags = static_cast<SDL_RendererFlip>(data["flipFlags"].get<int>());
     if (data.contains("alpha")) alpha = data["alpha"].get<uint8_t>();
+    if (data.contains("colorR")) colorR = data["colorR"].get<uint8_t>();
+    if (data.contains("colorG")) colorG = data["colorG"].get<uint8_t>();
+    if (data.contains("colorB")) colorB = data["colorB"].get<uint8_t>();
     if (data.contains("killAfterLoops")) killAfterLoops = data["killAfterLoops"].get<int>();
     if (data.contains("completedLoops")) completedLoops = data["completedLoops"].get<int>();
     if (data.contains("randomizeAnglePerFrame")) randomizeAnglePerFrame = data["randomizeAnglePerFrame"].get<bool>();
@@ -102,6 +108,11 @@ nlohmann::json SpriteComponent::toJson() const {
     j["animationTimer"] = animationTimer;
     j["flipFlags"] = static_cast<int>(flipFlags);
     j["alpha"] = alpha;
+    if (colorR != 255 || colorG != 255 || colorB != 255) {
+        j["colorR"] = colorR;
+        j["colorG"] = colorG;
+        j["colorB"] = colorB;
+    }
     if (killAfterLoops >= 0) {
         j["killAfterLoops"] = killAfterLoops;
     }
@@ -258,7 +269,10 @@ void SpriteComponent::draw() {
             screenTileHeight,
             angle,
             flipFlags,
-            alpha
+            alpha,
+            colorR,
+            colorG,
+            colorB
         );
     } else if (actualRenderWidth > 0 && actualRenderHeight > 0) {
         SpriteManager::getInstance().renderSprite(
@@ -270,7 +284,10 @@ void SpriteComponent::draw() {
             screenHeight,
             angle,
             flipFlags,
-            alpha
+            alpha,
+            colorR,
+            colorG,
+            colorB
         );
     } else {
         // Normal rendering (use sprite's natural size)
@@ -283,7 +300,10 @@ void SpriteComponent::draw() {
             screenHeight,
             angle, 
             flipFlags, 
-            alpha
+            alpha,
+            colorR,
+            colorG,
+            colorB
         );
     }
 }

@@ -95,6 +95,12 @@ class Engine {
         // Get the currently loaded level filename (without path/extension)
         const std::string& getCurrentLoadedLevel() const { return currentLoadedLevel; }
         
+        // Get the currently loaded level's order value
+        int getCurrentLevelOrder() const { return currentLevelOrder; }
+        
+        // Queue a level to be loaded at the start of the next frame
+        void queueLevelLoad(const std::string& levelPath);
+        
     private:
         void loadObjectTemplates(const std::string& filename);
         static void mergeJsonObjects(nlohmann::json& target, const nlohmann::json& overrides);
@@ -147,6 +153,12 @@ class Engine {
         
         // Track the currently loaded level filename (base name without extension)
         std::string currentLoadedLevel;
+        
+        // Track the currently loaded level's order value
+        int currentLevelOrder;
+        
+        // Queued level to load at start of next frame (to avoid destroying objects during update)
+        std::string pendingLevelLoad;
 };
 
 #endif // ENGINE_H

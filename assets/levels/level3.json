@@ -43,7 +43,7 @@
         },
         {
             "name": "player2",
-            "template": "player_vaccumba",
+            "template": "player_default",
             "components": [
                 {
                     "type": "BodyComponent",
@@ -53,7 +53,7 @@
                 {
                     "type": "InputComponent",
                     "playerId": 2,
-                    "configName": "arrows"
+                    "configName": "default"
                 }
             ]
         },
@@ -416,22 +416,7 @@
                     "useNextPosition": true,
                     "spawnableObjects": [
                         {
-                            "template": "crate_basic",
-                            "maxSpawns": 3
-                        },
-                        {
-                            "template": "crate_basic",
-                            "objectData": {
-                                "components": [
-                                    {
-                                        "type": "BodyComponent",
-                                        "fixture": {
-                                            "density": 2.0
-                                        }
-                                    }
-                                ]
-                            },
-                            "maxSpawns": 2
+                            "template": "crate_basic"
                         }
                     ],
                     "spawnLocations": [
@@ -441,6 +426,94 @@
                         {"x": 250.0, "y": 250.0},
                         {"x": 300.0, "y": 250.0}
                     ]
+                }
+            ]
+        },
+        {
+            "name": "win_zone-level3",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 600.0,
+                    "posY": 400.0,
+                    "bodyType": "static",
+                    "fixture": {
+                        "width": 200.0,
+                        "height": 200.0,
+                        "isSensor": true
+                    }
+                },
+                {
+                    "type": "SpriteComponent",
+                    "spriteName": "square",
+                    "alpha": 100,
+                    "tintR": 0,
+                    "tintG": 255,
+                    "tintB": 0,
+                    "tiled": true
+                },
+                {
+                    "type": "SensorComponent",
+                    "requireBoxZone": true,
+                    "boxZone": {
+                        "minX": 500.0,
+                        "minY": 300.0,
+                        "maxX": 700.0,
+                        "maxY": 500.0,
+                        "requireFull": false
+                    },
+                    "allowedInstigators": [".*crate.*"],
+                    "useRegexForInstigators": true,
+                    "targetObjects": ["win_zone_adjuster"]
+                }
+            ]
+        },
+        {
+            "name": "win_zone_adjuster",
+            "components": [
+                {
+                    "type": "AdjustableComponent",
+                    "globalValueName": "winpoints",
+                    "operation": "add",
+                    "value": 1.0,
+                    "createIfNotExists": true
+                }
+            ]
+        },
+        {
+            "name": "win_condition_sensor",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 640.0,
+                    "posY": 320.0,
+                    "bodyType": "static",
+                    "fixture": {
+                        "shape": "box",
+                        "width": 32.0,
+                        "height": 32.0,
+                        "isSensor": true
+                    }
+                },
+                {
+                    "type": "SensorComponent",
+                    "requireGlobalValue": true,
+                    "globalValue": {
+                        "name": "winpoints",
+                        "comparison": ">",
+                        "threshold": 10.0
+                    },
+                    "targetObjects": ["level_win_trigger"]
+                }
+            ]
+        },
+        {
+            "name": "level_win_trigger",
+            "components": [
+                {
+                    "type": "LevelWinComponent",
+                    "updateProgression": true,
+                    "progressionIncrement": 10
                 }
             ]
         }

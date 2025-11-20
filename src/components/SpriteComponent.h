@@ -63,6 +63,9 @@ private:
     // Rendering flags
     SDL_RendererFlip flipFlags;
     uint8_t alpha;
+    uint8_t colorR;
+    uint8_t colorG;
+    uint8_t colorB;
     
     // Local position (used when no BodyComponent exists)
     float localX{0.0f};

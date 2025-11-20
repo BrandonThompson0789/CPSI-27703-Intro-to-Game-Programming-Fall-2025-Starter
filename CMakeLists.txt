@@ -92,6 +92,12 @@ add_executable(demo
     src/CompressionUtils.cpp
     src/SaveManager.h
     src/SaveManager.cpp
+    src/GlobalValueManager.h
+    src/GlobalValueManager.cpp
+    src/components/AdjustableComponent.h
+    src/components/AdjustableComponent.cpp
+    src/components/LevelWinComponent.h
+    src/components/LevelWinComponent.cpp
     src/server_manager/NetworkUtils.h
     src/server_manager/NetworkUtils.cpp
     src/menus/Menu.h

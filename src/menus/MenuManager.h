@@ -31,6 +31,7 @@ public:
     
     // Menu navigation
     void openMenu(const std::string& menuName);
+    void openMenuWithLevelSelect(const std::string& levelId);  // Open level select and highlight a specific level
     void closeMenu();
     void closeAllMenus();  // Close all menus without opening main menu
     void returnToMainMenu();
@@ -46,6 +47,9 @@ public:
     
     // Menu factory (creates menu instances)
     std::unique_ptr<Menu> createMenu(const std::string& menuName);
+    
+    // Select a level in the level select menu (if it's open)
+    void selectLevelInLevelSelect(const std::string& levelId);
     
 private:
     Engine* engine;
