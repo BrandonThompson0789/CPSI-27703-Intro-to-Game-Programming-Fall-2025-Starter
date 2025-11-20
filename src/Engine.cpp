@@ -18,6 +18,7 @@
 #include <iostream>
 #include <cstdio>
 #include <algorithm>
+#include <filesystem>
 
 
 int Engine::screenWidth = 800;
@@ -298,13 +299,13 @@ void Engine::update(float deltaTime) {
         hostManager->Update(deltaTime);
     }
 
-    // Update ClientManager (only when not paused - network updates handled in pause block)
-    if (clientManager && clientManager->IsConnected() && !shouldPause) {
+    // Update ClientManager (always update, even when paused - network updates need to continue)
+    if (clientManager && clientManager->IsConnected()) {
         clientManager->Update(deltaTime);
         
         // If client is connected but hasn't received init package, open waiting menu
-        // (but only if no level is loaded and menu isn't already open)
-        if (!clientManager->HasReceivedInitPackage() && menuManager && objects.empty()) {
+        // Check this regardless of pause state and object count
+        if (!clientManager->HasReceivedInitPackage() && menuManager) {
             // Only open waiting menu if no menu is currently active
             // (JoinMenu closes all menus when connection succeeds, so this will open after)
             if (!menuManager->isMenuActive()) {
@@ -608,8 +609,13 @@ void Engine::loadFile(const std::string& filename) {
 
     std::cout << "Loaded " << objects.size() << " objects from " << filename << std::endl;
     
+    // Extract and store the base filename (without path and extension)
+    std::filesystem::path filePath(filename);
+    currentLoadedLevel = filePath.stem().string();
+    
     // If hosting, send initialization package to all connected clients
-    if (hostManager && hostManager->IsHosting()) {
+    // Only send if the loaded level is NOT level_mainmenu
+    if (hostManager && hostManager->IsHosting() && currentLoadedLevel != "level_mainmenu") {
         hostManager->SendInitializationPackageToAllClients();
     }
 }

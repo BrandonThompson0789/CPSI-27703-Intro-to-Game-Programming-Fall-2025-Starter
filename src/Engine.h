@@ -92,6 +92,9 @@ class Engine {
         // Display a message to the user (queued, displayed one at a time at bottom of screen)
         void displayMessage(const std::string& message);
         
+        // Get the currently loaded level filename (without path/extension)
+        const std::string& getCurrentLoadedLevel() const { return currentLoadedLevel; }
+        
     private:
         void loadObjectTemplates(const std::string& filename);
         static void mergeJsonObjects(nlohmann::json& target, const nlohmann::json& overrides);
@@ -141,6 +144,9 @@ class Engine {
         std::queue<Message> messageQueue;
         std::unique_ptr<Message> currentMessage;
         static constexpr float DEFAULT_MESSAGE_DURATION = 3.0f;
+        
+        // Track the currently loaded level filename (base name without extension)
+        std::string currentLoadedLevel;
 };
 
 #endif // ENGINE_H

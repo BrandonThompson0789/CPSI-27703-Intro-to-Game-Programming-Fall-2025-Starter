@@ -1,0 +1,132 @@
+﻿{
+    "title": "Main Menu",
+    "order": 0,
+    "background": {
+        "layers": [
+            {
+                "spriteName": "level1_background",
+                "tiled": false,
+                "offsetX": 1200.0,
+                "offsetY": 1200.0,
+                "parallaxX": 0.0,
+                "parallaxY": 0.0,
+                "depth": 1.0
+            },
+            {
+                "spriteName": "grass",
+                "tiled": true,
+                "tileWidth": 32.0,
+                "tileHeight": 32.0,
+                "parallaxX": 0.0,
+                "parallaxY": 0.0,
+                "depth": 0.0
+            }
+        ]
+    },
+    "objects": [
+        {
+            "name": "trigger_object",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 300.0,
+                    "posY": 300.0,
+                    "bodyType": "dynamic",
+                    "fixture": {
+                        "shape": "circle",
+                        "radius": 1.0,
+                        "density": 0.0,
+                        "isSensor": false,
+                        "material": "default"
+                    }
+                },
+                {
+                    "type": "InteractComponent",
+                    "allowedSenses": [
+                        "collision",
+                        "distance",
+                        "interact"
+                    ],
+                    "interactThreshold": 0.5
+                }
+            ]
+        },
+        {
+            "name": "trigger_object2",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 300.0,
+                    "posY": 300.0,
+                    "bodyType": "dynamic",
+                    "fixture": {
+                        "shape": "circle",
+                        "radius": 1.0,
+                        "density": 0.0,
+                        "isSensor": false,
+                        "material": "default"
+                    }
+                },
+                {
+                    "type": "SensorComponent",
+                    "maxDistance": 10.0,
+                    "holdDuration": 0.0,
+                    "targetObjects": [
+                        "camera_rail_object"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "camera_rail_object",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 580.0,
+                    "posY": 300.0,
+                    "bodyType": "kinematic",
+                    "linearDamping": 10.0,
+                    "angularDamping": 10.0,
+                    "fixedRotation": true,
+                    "fixture": {
+                        "shape": "circle",
+                        "radius": 1.0,
+                        "density": 0.0,
+                        "isSensor": false,
+                        "material": "default"
+                    }
+                },
+                {
+                    "type": "ViewGrabComponent",
+                    "paddingX": 320.0,
+                    "paddingY": 220.0
+                },
+                {
+                    "type": "RailComponent",
+                    "moveSpeed": 60.0,
+                    "arrivalThreshold": 2.0,
+                    "path": [
+                        {"x": 580.0, "y": 300.0, "isStop": false},
+                        {"x": 558.7, "y": 407.2, "isStop": false},
+                        {"x": 498.0, "y": 498.0, "isStop": false},
+                        {"x": 407.2, "y": 558.7, "isStop": false},
+                        {"x": 300.0, "y": 580.0, "isStop": false},
+                        {"x": 192.8, "y": 558.7, "isStop": false},
+                        {"x": 102.0, "y": 498.0, "isStop": false},
+                        {"x": 41.3, "y": 407.2, "isStop": false},
+                        {"x": 20.0, "y": 300.0, "isStop": false},
+                        {"x": 41.3, "y": 192.8, "isStop": false},
+                        {"x": 102.0, "y": 102.0, "isStop": false},
+                        {"x": 192.8, "y": 41.3, "isStop": false},
+                        {"x": 300.0, "y": 20.0, "isStop": false},
+                        {"x": 407.2, "y": 41.3, "isStop": false},
+                        {"x": 498.0, "y": 102.0, "isStop": false},
+                        {"x": 558.7, "y": 192.8, "isStop": false},
+                        {"x": 580.0, "y": 300.0, "isStop": false}
+                    ]
+                }
+            ]
+        }
+    ]
+}
+

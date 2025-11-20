@@ -11,6 +11,7 @@
 #include <iostream>
 #include <filesystem>
 #include <fstream>
+#include <map>
 #include <nlohmann/json.hpp>
 
 LevelSelectMenu::LevelSelectMenu(MenuManager* manager)
@@ -37,6 +38,11 @@ void LevelSelectMenu::setupLevels() {
                 if (entry.is_regular_file() && entry.path().extension() == ".json") {
                     std::string filePath = entry.path().string();
                     std::string fileName = entry.path().stem().string();
+                    
+                    // Exclude level_mainmenu from being counted as a level
+                    if (fileName == "level_mainmenu") {
+                        continue;
+                    }
                     
                     // Load level metadata from JSON
                     std::ifstream file(filePath);
@@ -133,6 +139,10 @@ void LevelSelectMenu::onOpen() {
     hoveredButtonIndex = -1;
     inButtonMode = false;
     
+    // Reset cached save data check
+    cachedHasSaveData = false;
+    cachedHasSaveDataLevelIndex = -1;
+    
     // Update room code display if hosting
     updateRoomCodeDisplay();
     
@@ -163,6 +173,8 @@ void LevelSelectMenu::onOpen() {
     // Select first level by default (even if locked)
     if (!levels.empty()) {
         selectedLevelIndex = 0;
+        // Cache save data check for the initially selected level
+        updateCachedSaveData();
     }
     
     // Calculate initial scroll offset to center selected level
@@ -231,12 +243,17 @@ void LevelSelectMenu::handleNavigation(float upDown, float leftRight) {
     // Handle horizontal navigation (left/right)
     if (!inButtonMode) {
         // Navigating levels - can select any level (including locked ones)
+        int oldSelectedIndex = selectedLevelIndex;
         if (leftRight > 0.5f) {
             // Right pressed - select next level
             selectedLevelIndex = (selectedLevelIndex + 1) % static_cast<int>(levels.size());
         } else if (leftRight < -0.5f) {
             // Left pressed - select previous level
             selectedLevelIndex = (selectedLevelIndex - 1 + static_cast<int>(levels.size())) % static_cast<int>(levels.size());
+        }
+        // Update cached save data if level selection changed
+        if (oldSelectedIndex != selectedLevelIndex) {
+            updateCachedSaveData();
         }
     } else {
         // Navigating buttons
@@ -312,7 +329,7 @@ void LevelSelectMenu::handleMouse(int mouseX, int mouseY, bool mousePressed) {
         if (hostMgr && roomCodeTexture) {
             int roomCodeX = 60;  // Moved 50 pixels to the right
             int roomCodeY = 10;
-            int copyX = roomCodeX + 120 + roomCodeTextureWidth + 10;
+            int copyX = roomCodeX + 160 + roomCodeTextureWidth + 10;
             int copyWidth = copyButtonTextureWidth + 10;
             int copyHeight = copyButtonTextureHeight + 5;
             
@@ -342,10 +359,15 @@ void LevelSelectMenu::handleMouse(int mouseX, int mouseY, bool mousePressed) {
                 // Only select level on click, not on hover
                 // Clicking level panel only highlights it, doesn't enter button mode
                 if (mousePressed) {
+                    int oldSelectedIndex = selectedLevelIndex;
                     selectedLevelIndex = static_cast<int>(i);
                     // Exit button mode when selecting a level
                     inButtonMode = false;
                     selectedButtonIndex = 0;
+                    // Update cached save data if level selection changed
+                    if (oldSelectedIndex != selectedLevelIndex) {
+                        updateCachedSaveData();
+                    }
                 }
                 break;
             }
@@ -455,6 +477,7 @@ void LevelSelectMenu::loadCachedResources() {
         if (playSurface) {
             playButtonTexture = SDL_CreateTextureFromSurface(renderer, playSurface);
             playButtonTextWidth = playSurface->w;
+            playButtonTextHeight = playSurface->h;
             SDL_FreeSurface(playSurface);
         }
         
@@ -463,6 +486,7 @@ void LevelSelectMenu::loadCachedResources() {
         if (continueSurface) {
             continueButtonTexture = SDL_CreateTextureFromSurface(renderer, continueSurface);
             continueButtonTextWidth = continueSurface->w;
+            continueButtonTextHeight = continueSurface->h;
             SDL_FreeSurface(continueSurface);
         }
         
@@ -471,6 +495,7 @@ void LevelSelectMenu::loadCachedResources() {
         if (restartSurface) {
             restartButtonTexture = SDL_CreateTextureFromSurface(renderer, restartSurface);
             restartButtonTextWidth = restartSurface->w;
+            restartButtonTextHeight = restartSurface->h;
             SDL_FreeSurface(restartSurface);
         }
         
@@ -479,6 +504,7 @@ void LevelSelectMenu::loadCachedResources() {
         if (backSurface) {
             backButtonTexture = SDL_CreateTextureFromSurface(renderer, backSurface);
             backButtonTextWidth = backSurface->w;
+            backButtonTextHeight = backSurface->h;
             SDL_FreeSurface(backSurface);
         }
     }
@@ -494,6 +520,193 @@ void LevelSelectMenu::loadCachedResources() {
             SDL_FreeSurface(lockedSurface);
         }
     }
+    
+    // Pre-render "Room Code:" label
+    if (buttonFont) {
+        SDL_Color white = {255, 255, 255, 255};
+        SDL_Surface* labelSurface = TTF_RenderUTF8_Blended(buttonFont, "Room Code:", white);
+        if (labelSurface) {
+            roomCodeLabelTexture = SDL_CreateTextureFromSurface(renderer, labelSurface);
+            roomCodeLabelWidth = labelSurface->w;
+            roomCodeLabelHeight = labelSurface->h;
+            SDL_FreeSurface(labelSurface);
+        }
+    }
+    
+    // Pre-render panel backgrounds as textures for performance
+    int panelWidth = LEVEL_PANEL_WIDTH;
+    int panelHeight = THUMBNAIL_HEIGHT + 60;
+    SDL_Texture* oldTarget = SDL_GetRenderTarget(renderer);
+    
+    // Locked panel (dark gray)
+    panelLockedTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, panelWidth, panelHeight);
+    if (panelLockedTexture) {
+        SDL_SetRenderTarget(renderer, panelLockedTexture);
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+        SDL_SetRenderDrawColor(renderer, 60, 60, 60, 255);
+        SDL_Rect panelRect = {0, 0, panelWidth, panelHeight};
+        SDL_RenderFillRect(renderer, &panelRect);
+        SDL_SetRenderDrawColor(renderer, 100, 100, 100, 255);
+        SDL_RenderDrawRect(renderer, &panelRect);
+    }
+    
+    // Unselected panel (darker gray)
+    panelUnselectedTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, panelWidth, panelHeight);
+    if (panelUnselectedTexture) {
+        SDL_SetRenderTarget(renderer, panelUnselectedTexture);
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+        SDL_SetRenderDrawColor(renderer, 50, 50, 50, 255);
+        SDL_Rect panelRect = {0, 0, panelWidth, panelHeight};
+        SDL_RenderFillRect(renderer, &panelRect);
+        SDL_SetRenderDrawColor(renderer, 100, 100, 100, 255);
+        SDL_RenderDrawRect(renderer, &panelRect);
+    }
+    
+    // Selected panel (light blue, thicker white border)
+    panelSelectedTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, panelWidth, panelHeight);
+    if (panelSelectedTexture) {
+        SDL_SetRenderTarget(renderer, panelSelectedTexture);
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+        SDL_SetRenderDrawColor(renderer, 100, 150, 200, 255);
+        SDL_Rect panelRect = {0, 0, panelWidth, panelHeight};
+        SDL_RenderFillRect(renderer, &panelRect);
+        // Draw thick white border (3 pixels)
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+        for (int t = 0; t < 3; ++t) {
+            SDL_Rect borderRect = {-t, -t, panelWidth + t * 2, panelHeight + t * 2};
+            SDL_RenderDrawRect(renderer, &borderRect);
+        }
+    }
+    
+    // Button mode panel (dimmer blue, thinner border)
+    panelButtonModeTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, panelWidth, panelHeight);
+    if (panelButtonModeTexture) {
+        SDL_SetRenderTarget(renderer, panelButtonModeTexture);
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+        SDL_SetRenderDrawColor(renderer, 70, 100, 130, 255);
+        SDL_Rect panelRect = {0, 0, panelWidth, panelHeight};
+        SDL_RenderFillRect(renderer, &panelRect);
+        // Draw medium border (2 pixels)
+        SDL_SetRenderDrawColor(renderer, 180, 180, 180, 255);
+        for (int t = 0; t < 2; ++t) {
+            SDL_Rect borderRect = {-t, -t, panelWidth + t * 2, panelHeight + t * 2};
+            SDL_RenderDrawRect(renderer, &borderRect);
+        }
+    }
+    
+    // Pre-render button backgrounds as textures
+    int buttonWidth = 150;
+    int buttonHeight = BUTTON_HEIGHT;
+    
+    // Normal button (unselected) - using gray for back button normal state
+    buttonNormalTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, buttonWidth, buttonHeight);
+    if (buttonNormalTexture) {
+        SDL_SetRenderTarget(renderer, buttonNormalTexture);
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+        SDL_SetRenderDrawColor(renderer, 100, 100, 100, 255);
+        SDL_Rect buttonRect = {0, 0, buttonWidth, buttonHeight};
+        SDL_RenderFillRect(renderer, &buttonRect);
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+        SDL_RenderDrawRect(renderer, &buttonRect);
+    }
+    
+    // Continue button selected (green)
+    buttonContinueSelectedTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, buttonWidth, buttonHeight);
+    if (buttonContinueSelectedTexture) {
+        SDL_SetRenderTarget(renderer, buttonContinueSelectedTexture);
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+        SDL_SetRenderDrawColor(renderer, 80, 200, 80, 255);
+        SDL_Rect buttonRect = {0, 0, buttonWidth, buttonHeight};
+        SDL_RenderFillRect(renderer, &buttonRect);
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+        SDL_RenderDrawRect(renderer, &buttonRect);
+    }
+    
+    // Continue button normal (darker green)
+    buttonContinueNormalTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, buttonWidth, buttonHeight);
+    if (buttonContinueNormalTexture) {
+        SDL_SetRenderTarget(renderer, buttonContinueNormalTexture);
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+        SDL_SetRenderDrawColor(renderer, 50, 150, 50, 255);
+        SDL_Rect buttonRect = {0, 0, buttonWidth, buttonHeight};
+        SDL_RenderFillRect(renderer, &buttonRect);
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+        SDL_RenderDrawRect(renderer, &buttonRect);
+    }
+    
+    // Restart button selected (orange)
+    buttonRestartSelectedTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, buttonWidth, buttonHeight);
+    if (buttonRestartSelectedTexture) {
+        SDL_SetRenderTarget(renderer, buttonRestartSelectedTexture);
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+        SDL_SetRenderDrawColor(renderer, 200, 150, 100, 255);
+        SDL_Rect buttonRect = {0, 0, buttonWidth, buttonHeight};
+        SDL_RenderFillRect(renderer, &buttonRect);
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+        SDL_RenderDrawRect(renderer, &buttonRect);
+    }
+    
+    // Restart button normal (darker orange)
+    buttonRestartNormalTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, buttonWidth, buttonHeight);
+    if (buttonRestartNormalTexture) {
+        SDL_SetRenderTarget(renderer, buttonRestartNormalTexture);
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+        SDL_SetRenderDrawColor(renderer, 150, 100, 50, 255);
+        SDL_Rect buttonRect = {0, 0, buttonWidth, buttonHeight};
+        SDL_RenderFillRect(renderer, &buttonRect);
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+        SDL_RenderDrawRect(renderer, &buttonRect);
+    }
+    
+    // Play button selected (green)
+    buttonPlaySelectedTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, buttonWidth, buttonHeight);
+    if (buttonPlaySelectedTexture) {
+        SDL_SetRenderTarget(renderer, buttonPlaySelectedTexture);
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+        SDL_SetRenderDrawColor(renderer, 80, 200, 80, 255);
+        SDL_Rect buttonRect = {0, 0, buttonWidth, buttonHeight};
+        SDL_RenderFillRect(renderer, &buttonRect);
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+        SDL_RenderDrawRect(renderer, &buttonRect);
+    }
+    
+    // Play button normal (darker green)
+    buttonPlayNormalTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, buttonWidth, buttonHeight);
+    if (buttonPlayNormalTexture) {
+        SDL_SetRenderTarget(renderer, buttonPlayNormalTexture);
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+        SDL_SetRenderDrawColor(renderer, 50, 150, 50, 255);
+        SDL_Rect buttonRect = {0, 0, buttonWidth, buttonHeight};
+        SDL_RenderFillRect(renderer, &buttonRect);
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+        SDL_RenderDrawRect(renderer, &buttonRect);
+    }
+    
+    // Play button disabled (dark gray)
+    buttonPlayDisabledTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, buttonWidth, buttonHeight);
+    if (buttonPlayDisabledTexture) {
+        SDL_SetRenderTarget(renderer, buttonPlayDisabledTexture);
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+        SDL_SetRenderDrawColor(renderer, 60, 60, 60, 255);
+        SDL_Rect buttonRect = {0, 0, buttonWidth, buttonHeight};
+        SDL_RenderFillRect(renderer, &buttonRect);
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+        SDL_RenderDrawRect(renderer, &buttonRect);
+    }
+    
+    // Back button selected (light gray)
+    buttonBackSelectedTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, buttonWidth, buttonHeight);
+    if (buttonBackSelectedTexture) {
+        SDL_SetRenderTarget(renderer, buttonBackSelectedTexture);
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+        SDL_SetRenderDrawColor(renderer, 150, 150, 150, 255);
+        SDL_Rect buttonRect = {0, 0, buttonWidth, buttonHeight};
+        SDL_RenderFillRect(renderer, &buttonRect);
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+        SDL_RenderDrawRect(renderer, &buttonRect);
+    }
+    
+    SDL_SetRenderTarget(renderer, oldTarget);
     
     // Load level textures
     reloadLevelTextures();
@@ -548,9 +761,69 @@ void LevelSelectMenu::unloadCachedResources() {
         SDL_DestroyTexture(roomCodeTexture);
         roomCodeTexture = nullptr;
     }
+    if (roomCodeLabelTexture) {
+        SDL_DestroyTexture(roomCodeLabelTexture);
+        roomCodeLabelTexture = nullptr;
+    }
     if (copyButtonTexture) {
         SDL_DestroyTexture(copyButtonTexture);
         copyButtonTexture = nullptr;
+    }
+    
+    // Unload panel textures
+    if (panelLockedTexture) {
+        SDL_DestroyTexture(panelLockedTexture);
+        panelLockedTexture = nullptr;
+    }
+    if (panelUnselectedTexture) {
+        SDL_DestroyTexture(panelUnselectedTexture);
+        panelUnselectedTexture = nullptr;
+    }
+    if (panelSelectedTexture) {
+        SDL_DestroyTexture(panelSelectedTexture);
+        panelSelectedTexture = nullptr;
+    }
+    if (panelButtonModeTexture) {
+        SDL_DestroyTexture(panelButtonModeTexture);
+        panelButtonModeTexture = nullptr;
+    }
+    
+    // Unload button textures
+    if (buttonNormalTexture) {
+        SDL_DestroyTexture(buttonNormalTexture);
+        buttonNormalTexture = nullptr;
+    }
+    if (buttonContinueSelectedTexture) {
+        SDL_DestroyTexture(buttonContinueSelectedTexture);
+        buttonContinueSelectedTexture = nullptr;
+    }
+    if (buttonContinueNormalTexture) {
+        SDL_DestroyTexture(buttonContinueNormalTexture);
+        buttonContinueNormalTexture = nullptr;
+    }
+    if (buttonRestartSelectedTexture) {
+        SDL_DestroyTexture(buttonRestartSelectedTexture);
+        buttonRestartSelectedTexture = nullptr;
+    }
+    if (buttonRestartNormalTexture) {
+        SDL_DestroyTexture(buttonRestartNormalTexture);
+        buttonRestartNormalTexture = nullptr;
+    }
+    if (buttonPlaySelectedTexture) {
+        SDL_DestroyTexture(buttonPlaySelectedTexture);
+        buttonPlaySelectedTexture = nullptr;
+    }
+    if (buttonPlayNormalTexture) {
+        SDL_DestroyTexture(buttonPlayNormalTexture);
+        buttonPlayNormalTexture = nullptr;
+    }
+    if (buttonPlayDisabledTexture) {
+        SDL_DestroyTexture(buttonPlayDisabledTexture);
+        buttonPlayDisabledTexture = nullptr;
+    }
+    if (buttonBackSelectedTexture) {
+        SDL_DestroyTexture(buttonBackSelectedTexture);
+        buttonBackSelectedTexture = nullptr;
     }
     
     // Unload level textures
@@ -667,36 +940,27 @@ bool LevelSelectMenu::render() {
             int roomCodeY = 10;
             int roomCodeX = 60;  // Moved 50 pixels to the right
             
-            // Draw room code label
-            if (buttonFont) {
-                SDL_Color white = {255, 255, 255, 255};
-                SDL_Surface* labelSurface = TTF_RenderUTF8_Blended(buttonFont, "Room Code:", white);
-                if (labelSurface) {
-                    SDL_Texture* labelTexture = SDL_CreateTextureFromSurface(renderer, labelSurface);
-                    if (labelTexture) {
-                        SDL_Rect labelRect;
-                        labelRect.w = labelSurface->w;
-                        labelRect.h = labelSurface->h;
-                        labelRect.x = roomCodeX;
-                        labelRect.y = roomCodeY;
-                        SDL_RenderCopy(renderer, labelTexture, nullptr, &labelRect);
-                        SDL_DestroyTexture(labelTexture);
-                    }
-                    SDL_FreeSurface(labelSurface);
-                }
+            // Draw room code label (using cached texture)
+            if (roomCodeLabelTexture) {
+                SDL_Rect labelRect;
+                labelRect.w = roomCodeLabelWidth;
+                labelRect.h = roomCodeLabelHeight;
+                labelRect.x = roomCodeX;
+                labelRect.y = roomCodeY;
+                SDL_RenderCopy(renderer, roomCodeLabelTexture, nullptr, &labelRect);
             }
             
             // Draw room code
             SDL_Rect codeRect;
             codeRect.w = roomCodeTextureWidth;
             codeRect.h = roomCodeTextureHeight;
-            codeRect.x = roomCodeX + 120;
+            codeRect.x = roomCodeX + 160;
             codeRect.y = roomCodeY;
             SDL_RenderCopy(renderer, roomCodeTexture, nullptr, &codeRect);
             
             // Draw copy button
             if (copyButtonTexture) {
-                int copyX = roomCodeX + 120 + roomCodeTextureWidth + 10;
+                int copyX = roomCodeX + 160 + roomCodeTextureWidth + 10;
                 int copyY = roomCodeY;
                 int copyWidth = copyButtonTextureWidth;
                 int copyHeight = copyButtonTextureHeight;
@@ -734,44 +998,57 @@ bool LevelSelectMenu::render() {
             bool isSelected = (selectedLevelIndex >= 0 && static_cast<size_t>(selectedLevelIndex) == i);
             bool isUnlocked = level.unlocked;
             
-            // Draw level panel background
-            SDL_Color panelColor;
-            if (!isUnlocked) {
-                panelColor = {60, 60, 60, 255};  // Dark gray for locked
-            } else if (isSelected && !inButtonMode) {
-                panelColor = {100, 150, 200, 255};  // Light blue for selected level (not in button mode)
-            } else if (isSelected && inButtonMode) {
-                panelColor = {70, 100, 130, 255};  // Dimmer blue when in button mode
-            } else {
-                panelColor = {50, 50, 50, 255};  // Darker gray for unselected (more contrast)
-            }
-            
+            // Draw level panel background using cached texture
             SDL_Rect panelRect;
             panelRect.x = panelX;
             panelRect.y = levelAreaY;
             panelRect.w = LEVEL_PANEL_WIDTH;
             panelRect.h = THUMBNAIL_HEIGHT + 60;
             
-            SDL_SetRenderDrawColor(renderer, panelColor.r, panelColor.g, panelColor.b, panelColor.a);
-            SDL_RenderFillRect(renderer, &panelRect);
-            
-            // Draw border - thicker and brighter when selected and not in button mode
-            SDL_Color borderColor;
-            int borderThickness = 1;
-            if (isSelected && !inButtonMode) {
-                borderColor = SDL_Color{255, 255, 255, 255};  // Bright white when level selected
-                borderThickness = 3;  // Thicker border
+            SDL_Texture* panelTexture = nullptr;
+            if (!isUnlocked) {
+                panelTexture = panelLockedTexture;
+            } else if (isSelected && !inButtonMode) {
+                panelTexture = panelSelectedTexture;
             } else if (isSelected && inButtonMode) {
-                borderColor = SDL_Color{180, 180, 180, 255};  // Dimmer when button mode active
-                borderThickness = 2;
+                panelTexture = panelButtonModeTexture;
             } else {
-                borderColor = SDL_Color{100, 100, 100, 255};  // Dark gray for unselected
+                panelTexture = panelUnselectedTexture;
             }
-            SDL_SetRenderDrawColor(renderer, borderColor.r, borderColor.g, borderColor.b, borderColor.a);
-            // Draw thicker border by drawing multiple rectangles
-            for (int t = 0; t < borderThickness; ++t) {
-                SDL_Rect borderRect = {panelRect.x - t, panelRect.y - t, panelRect.w + t * 2, panelRect.h + t * 2};
-                SDL_RenderDrawRect(renderer, &borderRect);
+            
+            if (panelTexture) {
+                SDL_RenderCopy(renderer, panelTexture, nullptr, &panelRect);
+            } else {
+                // Fallback to dynamic rendering if texture not available
+                SDL_Color panelColor;
+                if (!isUnlocked) {
+                    panelColor = {60, 60, 60, 255};
+                } else if (isSelected && !inButtonMode) {
+                    panelColor = {100, 150, 200, 255};
+                } else if (isSelected && inButtonMode) {
+                    panelColor = {70, 100, 130, 255};
+                } else {
+                    panelColor = {50, 50, 50, 255};
+                }
+                SDL_SetRenderDrawColor(renderer, panelColor.r, panelColor.g, panelColor.b, panelColor.a);
+                SDL_RenderFillRect(renderer, &panelRect);
+                
+                SDL_Color borderColor;
+                int borderThickness = 1;
+                if (isSelected && !inButtonMode) {
+                    borderColor = SDL_Color{255, 255, 255, 255};
+                    borderThickness = 3;
+                } else if (isSelected && inButtonMode) {
+                    borderColor = SDL_Color{180, 180, 180, 255};
+                    borderThickness = 2;
+                } else {
+                    borderColor = SDL_Color{100, 100, 100, 255};
+                }
+                SDL_SetRenderDrawColor(renderer, borderColor.r, borderColor.g, borderColor.b, borderColor.a);
+                for (int t = 0; t < borderThickness; ++t) {
+                    SDL_Rect borderRect = {panelRect.x - t, panelRect.y - t, panelRect.w + t * 2, panelRect.h + t * 2};
+                    SDL_RenderDrawRect(renderer, &borderRect);
+                }
             }
             
             // Draw thumbnail (using cached texture)
@@ -786,8 +1063,13 @@ bool LevelSelectMenu::render() {
                 thumbRect.y = thumbY - thumbRect.h / 2;
                 
                 // Set alpha modulation for transparency (locked levels are semi-transparent)
+                // Only set if it changed for this specific texture to avoid expensive texture mod calls
                 uint8_t thumbnailAlpha = isUnlocked ? 255 : 128;
-                SDL_SetTextureAlphaMod(level.thumbnailTexture, thumbnailAlpha);
+                auto it = thumbnailAlphaCache.find(level.thumbnailTexture);
+                if (it == thumbnailAlphaCache.end() || it->second != thumbnailAlpha) {
+                    SDL_SetTextureAlphaMod(level.thumbnailTexture, thumbnailAlpha);
+                    thumbnailAlphaCache[level.thumbnailTexture] = thumbnailAlpha;
+                }
                 SDL_RenderCopy(renderer, level.thumbnailTexture, nullptr, &thumbRect);
             } else {
                 // Draw placeholder if thumbnail not found
@@ -844,16 +1126,24 @@ bool LevelSelectMenu::render() {
             // Continue button
             bool continueSelected = (inButtonMode && selectedButtonIndex == 0) || (mouseMode && hoveredButtonIndex == 0);
             SDL_Rect continueRect = {buttonStartX, buttonAreaY, buttonWidth, buttonHeight};
-            SDL_Color continueColor = continueSelected ? SDL_Color{80, 200, 80, 255} : SDL_Color{50, 150, 50, 255};
-            SDL_SetRenderDrawColor(renderer, continueColor.r, continueColor.g, continueColor.b, continueColor.a);
-            SDL_RenderFillRect(renderer, &continueRect);
-            SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-            SDL_RenderDrawRect(renderer, &continueRect);
+            if (continueSelected && buttonContinueSelectedTexture) {
+                SDL_RenderCopy(renderer, buttonContinueSelectedTexture, nullptr, &continueRect);
+            } else if (buttonContinueNormalTexture) {
+                SDL_RenderCopy(renderer, buttonContinueNormalTexture, nullptr, &continueRect);
+            } else {
+                // Fallback to dynamic rendering
+                SDL_Color continueColor = continueSelected ? SDL_Color{80, 200, 80, 255} : SDL_Color{50, 150, 50, 255};
+                SDL_SetRenderDrawColor(renderer, continueColor.r, continueColor.g, continueColor.b, continueColor.a);
+                SDL_RenderFillRect(renderer, &continueRect);
+                SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+                SDL_RenderDrawRect(renderer, &continueRect);
+            }
             
-            // Draw Continue button text (using pre-rendered texture)
-            if (continueButtonTexture) {
+            // Draw Continue button text (using pre-rendered texture and cached dimensions)
+            if (continueButtonTexture && continueButtonTextWidth > 0 && continueButtonTextHeight > 0) {
                 SDL_Rect textRect;
-                SDL_QueryTexture(continueButtonTexture, nullptr, nullptr, &textRect.w, &textRect.h);
+                textRect.w = continueButtonTextWidth;
+                textRect.h = continueButtonTextHeight;
                 textRect.x = buttonStartX + (buttonWidth - textRect.w) / 2;
                 textRect.y = buttonAreaY + (buttonHeight - textRect.h) / 2;
                 SDL_RenderCopy(renderer, continueButtonTexture, nullptr, &textRect);
@@ -863,16 +1153,24 @@ bool LevelSelectMenu::render() {
             int restartX = screenWidth / 2 + buttonSpacing / 2;
             bool restartSelected = (inButtonMode && selectedButtonIndex == 1) || (mouseMode && hoveredButtonIndex == 1);
             SDL_Rect restartRect = {restartX, buttonAreaY, buttonWidth, buttonHeight};
-            SDL_Color restartColor = restartSelected ? SDL_Color{200, 150, 100, 255} : SDL_Color{150, 100, 50, 255};
-            SDL_SetRenderDrawColor(renderer, restartColor.r, restartColor.g, restartColor.b, restartColor.a);
-            SDL_RenderFillRect(renderer, &restartRect);
-            SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-            SDL_RenderDrawRect(renderer, &restartRect);
+            if (restartSelected && buttonRestartSelectedTexture) {
+                SDL_RenderCopy(renderer, buttonRestartSelectedTexture, nullptr, &restartRect);
+            } else if (buttonRestartNormalTexture) {
+                SDL_RenderCopy(renderer, buttonRestartNormalTexture, nullptr, &restartRect);
+            } else {
+                // Fallback to dynamic rendering
+                SDL_Color restartColor = restartSelected ? SDL_Color{200, 150, 100, 255} : SDL_Color{150, 100, 50, 255};
+                SDL_SetRenderDrawColor(renderer, restartColor.r, restartColor.g, restartColor.b, restartColor.a);
+                SDL_RenderFillRect(renderer, &restartRect);
+                SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+                SDL_RenderDrawRect(renderer, &restartRect);
+            }
             
-            // Draw Restart button text (using pre-rendered texture)
-            if (restartButtonTexture) {
+            // Draw Restart button text (using pre-rendered texture and cached dimensions)
+            if (restartButtonTexture && restartButtonTextWidth > 0 && restartButtonTextHeight > 0) {
                 SDL_Rect textRect;
-                SDL_QueryTexture(restartButtonTexture, nullptr, nullptr, &textRect.w, &textRect.h);
+                textRect.w = restartButtonTextWidth;
+                textRect.h = restartButtonTextHeight;
                 textRect.x = restartX + (buttonWidth - textRect.w) / 2;
                 textRect.y = buttonAreaY + (buttonHeight - textRect.h) / 2;
                 SDL_RenderCopy(renderer, restartButtonTexture, nullptr, &textRect);
@@ -883,31 +1181,38 @@ bool LevelSelectMenu::render() {
             bool playSelected = (inButtonMode && selectedButtonIndex == 0) || (mouseMode && hoveredButtonIndex == 0 && isUnlocked);
             bool playDisabled = !isUnlocked;
             SDL_Rect playRect = {playX, buttonAreaY, buttonWidth, buttonHeight};
-            SDL_Color playColor;
-            if (playDisabled) {
-                playColor = SDL_Color{60, 60, 60, 255};  // Dark gray for disabled
+            if (playDisabled && buttonPlayDisabledTexture) {
+                SDL_RenderCopy(renderer, buttonPlayDisabledTexture, nullptr, &playRect);
+            } else if (playSelected && buttonPlaySelectedTexture) {
+                SDL_RenderCopy(renderer, buttonPlaySelectedTexture, nullptr, &playRect);
+            } else if (buttonPlayNormalTexture) {
+                SDL_RenderCopy(renderer, buttonPlayNormalTexture, nullptr, &playRect);
             } else {
-                playColor = playSelected ? SDL_Color{80, 200, 80, 255} : SDL_Color{50, 150, 50, 255};
+                // Fallback to dynamic rendering
+                SDL_Color playColor = playSelected ? SDL_Color{80, 200, 80, 255} : SDL_Color{50, 150, 50, 255};
+                SDL_SetRenderDrawColor(renderer, playColor.r, playColor.g, playColor.b, playColor.a);
+                SDL_RenderFillRect(renderer, &playRect);
+                SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+                SDL_RenderDrawRect(renderer, &playRect);
             }
-            SDL_SetRenderDrawColor(renderer, playColor.r, playColor.g, playColor.b, playColor.a);
-            SDL_RenderFillRect(renderer, &playRect);
-            SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-            SDL_RenderDrawRect(renderer, &playRect);
             
-            // Draw Play button text (using pre-rendered texture, with alpha modulation for disabled state)
-            if (playButtonTexture) {
+            // Draw Play button text (using pre-rendered texture and cached dimensions)
+            if (playButtonTexture && playButtonTextWidth > 0 && playButtonTextHeight > 0) {
                 SDL_Rect textRect;
-                SDL_QueryTexture(playButtonTexture, nullptr, nullptr, &textRect.w, &textRect.h);
+                textRect.w = playButtonTextWidth;
+                textRect.h = playButtonTextHeight;
                 textRect.x = playX + (buttonWidth - textRect.w) / 2;
                 textRect.y = buttonAreaY + (buttonHeight - textRect.h) / 2;
                 
-                // Apply alpha modulation for disabled state
+                // Apply alpha modulation for disabled state (only when necessary)
                 if (playDisabled) {
                     SDL_SetTextureAlphaMod(playButtonTexture, 150);  // Dimmed for disabled
-                } else {
-                    SDL_SetTextureAlphaMod(playButtonTexture, 255);  // Full opacity
                 }
                 SDL_RenderCopy(renderer, playButtonTexture, nullptr, &textRect);
+                // Reset alpha after rendering if it was modified
+                if (playDisabled) {
+                    SDL_SetTextureAlphaMod(playButtonTexture, 255);  // Reset to full opacity
+                }
             }
         }
         
@@ -921,16 +1226,24 @@ bool LevelSelectMenu::render() {
         int backX = (hasSaveForLevel && isUnlocked) ? screenWidth / 2 + buttonWidth + buttonSpacing * 2 : screenWidth / 2 + buttonWidth + buttonSpacing;
         bool backSelected = (inButtonMode && selectedButtonIndex == backButtonIndex) || (mouseMode && hoveredButtonIndex == backButtonIndex);
         SDL_Rect backRect = {backX, buttonAreaY, buttonWidth, buttonHeight};
-        SDL_Color backColor = backSelected ? SDL_Color{150, 150, 150, 255} : SDL_Color{100, 100, 100, 255};
-        SDL_SetRenderDrawColor(renderer, backColor.r, backColor.g, backColor.b, backColor.a);
-        SDL_RenderFillRect(renderer, &backRect);
-        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-        SDL_RenderDrawRect(renderer, &backRect);
+        if (backSelected && buttonBackSelectedTexture) {
+            SDL_RenderCopy(renderer, buttonBackSelectedTexture, nullptr, &backRect);
+        } else if (buttonNormalTexture) {
+            SDL_RenderCopy(renderer, buttonNormalTexture, nullptr, &backRect);
+        } else {
+            // Fallback to dynamic rendering
+            SDL_Color backColor = backSelected ? SDL_Color{150, 150, 150, 255} : SDL_Color{100, 100, 100, 255};
+            SDL_SetRenderDrawColor(renderer, backColor.r, backColor.g, backColor.b, backColor.a);
+            SDL_RenderFillRect(renderer, &backRect);
+            SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+            SDL_RenderDrawRect(renderer, &backRect);
+        }
         
-        // Draw Back button text (using pre-rendered texture)
-        if (backButtonTexture) {
+        // Draw Back button text (using pre-rendered texture and cached dimensions)
+        if (backButtonTexture && backButtonTextWidth > 0 && backButtonTextHeight > 0) {
             SDL_Rect textRect;
-            SDL_QueryTexture(backButtonTexture, nullptr, nullptr, &textRect.w, &textRect.h);
+            textRect.w = backButtonTextWidth;
+            textRect.h = backButtonTextHeight;
             textRect.x = backX + (buttonWidth - textRect.w) / 2;
             textRect.y = buttonAreaY + (buttonHeight - textRect.h) / 2;
             SDL_RenderCopy(renderer, backButtonTexture, nullptr, &textRect);
@@ -1001,9 +1314,13 @@ void LevelSelectMenu::onBack() {
     }
 }
 
-bool LevelSelectMenu::hasSaveDataForSelectedLevel() const {
+void LevelSelectMenu::updateCachedSaveData() const {
+    // Reset cache
+    cachedHasSaveData = false;
+    cachedHasSaveDataLevelIndex = -1;
+    
     if (selectedLevelIndex < 0 || selectedLevelIndex >= static_cast<int>(levels.size())) {
-        return false;
+        return;
     }
     
     const LevelInfo& level = levels[selectedLevelIndex];
@@ -1011,17 +1328,30 @@ bool LevelSelectMenu::hasSaveDataForSelectedLevel() const {
     
     // Check if save file exists
     if (!saveMgr.saveExists()) {
-        return false;
+        return;
     }
     
     // Check if current level matches selected level
     std::string currentLevel = saveMgr.getCurrentLevel();
     if (currentLevel != level.id || currentLevel.empty()) {
-        return false;
+        return;
     }
     
     // Check if save file has valid level data (background and objects populated)
-    return saveMgr.hasValidLevelData("save.json");
+    // This is the expensive operation - cache the result
+    cachedHasSaveData = saveMgr.hasValidLevelData("save.json");
+    cachedHasSaveDataLevelIndex = selectedLevelIndex;
+}
+
+bool LevelSelectMenu::hasSaveDataForSelectedLevel() const {
+    // Use cached value if available and still valid for current selection
+    if (cachedHasSaveDataLevelIndex == selectedLevelIndex) {
+        return cachedHasSaveData;
+    }
+    
+    // Cache is invalid or not set - update it
+    updateCachedSaveData();
+    return cachedHasSaveData;
 }
 
 int LevelSelectMenu::getMaxButtonCount() const {

@@ -39,7 +39,7 @@ public:
     bool isMenuActive() const;
     
     // Check if game should be paused
-    bool shouldPauseGame() const;
+    bool shouldPauseGame();
     
     // Get Engine instance
     Engine* getEngine() const { return engine; }

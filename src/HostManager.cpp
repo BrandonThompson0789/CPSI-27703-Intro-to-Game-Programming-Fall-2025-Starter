@@ -358,9 +358,9 @@ void HostManager::HandleClientConnect(const std::string& fromIP, uint16_t fromPo
         auto it = clients.find(clientKey);
         if (it != clients.end() && it->second.connected) {
             // Client already connected, just send initialization again
-            // Only send initialization package if level is already loaded (has objects)
+            // Only send initialization package if level is loaded and NOT level_mainmenu
             // Otherwise, wait for level to be loaded and SendInitializationPackageToAllClients will be called
-            if (engine && !engine->getObjects().empty()) {
+            if (engine && engine->getCurrentLoadedLevel() != "level_mainmenu" && !engine->getCurrentLoadedLevel().empty()) {
                 try {
                     SendInitializationPackage(fromIP, fromPort);
                 } catch (const std::exception& e) {
@@ -390,9 +390,9 @@ void HostManager::HandleClientConnect(const std::string& fromIP, uint16_t fromPo
         SendPlayerAssignment(fromIP, fromPort, assignedPlayerId);
     }
     
-    // Only send initialization package if level is already loaded (has objects)
+    // Only send initialization package if level is loaded and NOT level_mainmenu
     // Otherwise, wait for level to be loaded and SendInitializationPackageToAllClients will be called
-    if (engine && !engine->getObjects().empty()) {
+    if (engine && engine->getCurrentLoadedLevel() != "level_mainmenu" && !engine->getCurrentLoadedLevel().empty()) {
         try {
             SendInitializationPackage(fromIP, fromPort);
         } catch (const std::exception& e) {

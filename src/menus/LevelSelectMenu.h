@@ -4,6 +4,7 @@
 #include "Menu.h"
 #include <string>
 #include <vector>
+#include <map>
 #include <SDL.h>
 #include <SDL_ttf.h>
 
@@ -48,6 +49,7 @@ private:
     void onRestart();
     void onBack();
     bool hasSaveDataForSelectedLevel() const;
+    void updateCachedSaveData() const;  // Update cached save data check (expensive operation)
     int getMaxButtonCount() const;
     
     // Resource management
@@ -61,6 +63,11 @@ private:
     int selectedButtonIndex;  // 0 = Play/Continue, 1 = Restart (if shown), 2 = Back
     int hoveredButtonIndex;  // -1 = none, tracks which button mouse is hovering over
     bool inButtonMode;  // true when navigating buttons, false when navigating levels
+    std::map<SDL_Texture*, uint8_t> thumbnailAlphaCache;  // Cache per-thumbnail alpha to avoid unnecessary texture mod calls
+    
+    // Cached save data check result (expensive operation, cache per level select instance)
+    mutable bool cachedHasSaveData = false;
+    mutable int cachedHasSaveDataLevelIndex = -1;  // Track which level the cache is for
     
     // Cached fonts (loaded once, reused)
     TTF_Font* titleFont = nullptr;
@@ -75,19 +82,43 @@ private:
     SDL_Texture* backButtonTexture = nullptr;
     SDL_Texture* lockedTextTexture = nullptr;
     SDL_Texture* roomCodeTexture = nullptr;
+    SDL_Texture* roomCodeLabelTexture = nullptr;  // Cached "Room Code:" label
     SDL_Texture* copyButtonTexture = nullptr;
     int titleTextWidth = 0;
     int titleTextHeight = 0;
     int playButtonTextWidth = 0;
+    int playButtonTextHeight = 0;  // Cached to avoid SDL_QueryTexture every frame
     int continueButtonTextWidth = 0;
+    int continueButtonTextHeight = 0;  // Cached to avoid SDL_QueryTexture every frame
     int restartButtonTextWidth = 0;
+    int restartButtonTextHeight = 0;  // Cached to avoid SDL_QueryTexture every frame
     int backButtonTextWidth = 0;
+    int backButtonTextHeight = 0;  // Cached to avoid SDL_QueryTexture every frame
     int lockedTextWidth = 0;
     int lockedTextHeight = 0;
     int roomCodeTextureWidth = 0;
     int roomCodeTextureHeight = 0;
+    int roomCodeLabelWidth = 0;
+    int roomCodeLabelHeight = 0;
     int copyButtonTextureWidth = 0;
     int copyButtonTextureHeight = 0;
+    
+    // Cached panel and button background textures for performance
+    SDL_Texture* panelLockedTexture = nullptr;
+    SDL_Texture* panelUnselectedTexture = nullptr;
+    SDL_Texture* panelSelectedTexture = nullptr;
+    SDL_Texture* panelButtonModeTexture = nullptr;
+    SDL_Texture* buttonNormalTexture = nullptr;
+    SDL_Texture* buttonContinueSelectedTexture = nullptr;
+    SDL_Texture* buttonContinueNormalTexture = nullptr;
+    SDL_Texture* buttonRestartSelectedTexture = nullptr;
+    SDL_Texture* buttonRestartNormalTexture = nullptr;
+    SDL_Texture* buttonPlaySelectedTexture = nullptr;
+    SDL_Texture* buttonPlayNormalTexture = nullptr;
+    SDL_Texture* buttonPlayDisabledTexture = nullptr;
+    SDL_Texture* buttonBackSelectedTexture = nullptr;
+    SDL_Texture* borderSelectedTexture = nullptr;
+    SDL_Texture* borderButtonModeTexture = nullptr;
     
     // UI constants
     static constexpr int THUMBNAIL_WIDTH = 200;

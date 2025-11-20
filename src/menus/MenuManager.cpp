@@ -325,6 +325,9 @@ void MenuManager::returnToMainMenu() {
     // Close all menus
     while (!menuStack.empty()) {
         Menu* currentMenu = menuStack.top().get();
+        if(currentMenu->getTitle() == "Main Menu") {
+            return;
+        }
         if (currentMenu) {
             currentMenu->onClose();
         }
@@ -339,9 +342,39 @@ bool MenuManager::isMenuActive() const {
     return !menuStack.empty();
 }
 
-bool MenuManager::shouldPauseGame() const {
-    // Pause game when menu is active
-    return isMenuActive();
+bool MenuManager::shouldPauseGame() {
+    // Pause game when menu is active, except when main menu is in the stack
+    if (!isMenuActive()) {
+        return false;
+    }
+    
+    // Check if main menu exists anywhere in the menu stack
+    // We need to check all menus in the stack, so we'll temporarily move them to a vector
+    // and restore them after checking
+    std::vector<std::unique_ptr<Menu>> tempMenus;
+    
+    // Pop all menus into vector
+    while (!menuStack.empty()) {
+        tempMenus.push_back(std::move(menuStack.top()));
+        menuStack.pop();
+    }
+    
+    // Check each menu
+    bool hasMainMenu = false;
+    for (const auto& menu : tempMenus) {
+        if (menu && dynamic_cast<MainMenu*>(menu.get())) {
+            hasMainMenu = true;
+            break;
+        }
+    }
+    
+    // Restore the stack (in reverse order since we popped them)
+    for (auto it = tempMenus.rbegin(); it != tempMenus.rend(); ++it) {
+        menuStack.push(std::move(*it));
+    }
+    
+    // If main menu is in stack, don't pause
+    return !hasMainMenu;
 }
 
 std::unique_ptr<Menu> MenuManager::createMenu(const std::string& menuName) {

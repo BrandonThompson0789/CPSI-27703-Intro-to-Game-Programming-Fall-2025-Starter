@@ -161,14 +161,30 @@ void ClientManager::Update(float deltaTime) {
         // After init package is received, verify input assignment on objects that are now in the engine
         // (objects are queued when created, then added to engine in next frame)
         if (hasReceivedInitPackage && assignedPlayerId > 0 && engine && !hasVerifiedInputAfterInit) {
-            // Check objects in the engine (not just queued ones)
+            // Check both queued objects and objects already in the engine
+            // (when level is already loaded, objects might be queued or already added)
             bool foundInputComponent = false;
-            for (auto& obj : engine->getObjects()) {
+            
+            // Check queued objects first (newly created from init package)
+            for (auto& obj : engine->getQueuedObjects()) {
                 if (obj && obj->hasComponent<InputComponent>()) {
                     InputComponent* inputComp = obj->getComponent<InputComponent>();
                     if (inputComp && inputComp->getPlayerId() == assignedPlayerId) {
                         foundInputComponent = true;
-                        break; // Found at least one, no need to check more
+                        break;
+                    }
+                }
+            }
+            
+            // Also check objects already in the engine
+            if (!foundInputComponent) {
+                for (auto& obj : engine->getObjects()) {
+                    if (obj && obj->hasComponent<InputComponent>()) {
+                        InputComponent* inputComp = obj->getComponent<InputComponent>();
+                        if (inputComp && inputComp->getPlayerId() == assignedPlayerId) {
+                            foundInputComponent = true;
+                            break;
+                        }
                     }
                 }
             }
@@ -479,22 +495,41 @@ void ClientManager::HandleInitPackage(const void* data, size_t length) {
             }
         }
 
-        // After objects are created, update InputComponent player IDs in queued objects to match our assigned player ID
+        // After objects are created, verify input assignment immediately
         // This ensures that objects created with the client's assigned player ID have their InputComponents working
+        // This is especially important when the level is already loaded and init package arrives immediately
         if (assignedPlayerId > 0 && engine) {
-            // Update InputComponents in queued objects (objects are queued before being added to engine)
+            // Check queued objects (objects are queued before being added to engine)
+            bool foundInputComponent = false;
             for (auto& obj : engine->getQueuedObjects()) {
                 if (obj && obj->hasComponent<InputComponent>()) {
                     InputComponent* inputComp = obj->getComponent<InputComponent>();
-                    if (inputComp) {
-                        // If this object's InputComponent has a player ID that matches our assigned player ID,
-                        // ensure the input device is assigned (already done above, but verify)
-                        if (inputComp->getPlayerId() == assignedPlayerId) {
-                            PlayerManager::getInstance().assignInputDevice(assignedPlayerId, INPUT_SOURCE_KEYBOARD);
-                            std::cout << "ClientManager: Verified input assignment for object with player ID " << assignedPlayerId << std::endl;
+                    if (inputComp && inputComp->getPlayerId() == assignedPlayerId) {
+                        foundInputComponent = true;
+                        break;
+                    }
+                }
+            }
+            
+            // Also check objects already in the engine (in case they were added synchronously)
+            if (!foundInputComponent) {
+                for (auto& obj : engine->getObjects()) {
+                    if (obj && obj->hasComponent<InputComponent>()) {
+                        InputComponent* inputComp = obj->getComponent<InputComponent>();
+                        if (inputComp && inputComp->getPlayerId() == assignedPlayerId) {
+                            foundInputComponent = true;
+                            break;
                         }
                     }
                 }
+            }
+            
+            // If we found an InputComponent with our player ID, ensure input is assigned
+            if (foundInputComponent) {
+                PlayerManager::getInstance().assignInputDevice(assignedPlayerId, INPUT_SOURCE_KEYBOARD);
+                std::cout << "ClientManager: Verified input assignment immediately after init package (player ID " << assignedPlayerId << ")" << std::endl;
+                // Mark as verified so Update() doesn't need to check again
+                hasVerifiedInputAfterInit = true;
             }
         }
 
@@ -713,6 +748,11 @@ void ClientManager::SendInput() {
 
     // Get input from PlayerManager for the assigned player
     PlayerManager& playerManager = PlayerManager::getInstance();
+    
+    // Ensure input device is assigned (in case it wasn't set up correctly)
+    if (!playerManager.isPlayerAssigned(assignedPlayerId)) {
+        playerManager.assignInputDevice(assignedPlayerId, INPUT_SOURCE_KEYBOARD);
+    }
     
     // Get input values from PlayerManager
     float moveUp = playerManager.getInputValue(assignedPlayerId, GameAction::MOVE_UP);

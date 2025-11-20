@@ -41,6 +41,17 @@ void MainMenu::setupMenuItems() {
 
 void MainMenu::onOpen() {
     Menu::onOpen();
+    
+    // Only load the main menu level if no menus exist (coming from game state)
+    // If menus already exist, we're navigating within the menu system, so don't reload
+    if (menuManager && menuManager->getEngine()) {
+        // Check if menu stack is empty (we're coming from game state, not from another menu)
+        if (!menuManager->isMenuActive()) {
+            Engine* engine = menuManager->getEngine();
+            engine->loadFile("assets/levels/level_mainmenu.json");
+        }
+    }
+    
     // Refresh menu items when menu is opened (to update Continue button state)
     setupMenuItems();
 }
