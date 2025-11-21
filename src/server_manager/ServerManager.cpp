@@ -45,12 +45,23 @@ bool ServerManager::Initialize() {
     // Detect and print public IP
     std::cout << "Detecting public IP address..." << std::endl;
     std::string publicIP = NetworkUtils::GetPublicIP();
+    std::string localIP = NetworkUtils::GetLocalIP();
+    
     if (!publicIP.empty()) {
         std::cout << "Public IP: " << publicIP << std::endl;
-        std::cout << "Clients should connect to: " << publicIP << ":" << m_port << std::endl;
+        std::cout << "Local IP: " << localIP << std::endl;
+        std::cout << "Clients/Hosts should connect to: " << publicIP << ":" << m_port << std::endl;
+        
+        // Check if ServerManager is likely behind NAT
+        if (publicIP != localIP && localIP != "127.0.0.1") {
+            std::cout << "Note: Server appears to be behind a NAT/router." << std::endl;
+            std::cout << "      Port forwarding may be required for external clients to connect." << std::endl;
+            std::cout << "      Forward UDP port " << m_port << " to " << localIP << ":" << m_port << std::endl;
+        }
     } else {
         std::cout << "Warning: Could not detect public IP. Server may not be accessible from the internet." << std::endl;
-        std::cout << "Local IP: " << NetworkUtils::GetLocalIP() << std::endl;
+        std::cout << "Local IP: " << localIP << std::endl;
+        std::cout << "Note: For external access, port forwarding may be required." << std::endl;
     }
     
     return true;
