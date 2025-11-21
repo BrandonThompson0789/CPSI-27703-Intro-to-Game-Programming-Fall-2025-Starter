@@ -236,8 +236,8 @@ void Engine::update(float deltaTime) {
     static bool lastPauseState = false;
     bool currentPauseState = (pause > 0.5f);
     if (currentPauseState && !lastPauseState) {
-        // Open pause menu
-        if (menuManager) {
+        // Open pause menu only if no menu is currently active
+        if (menuManager && !menuManager->isMenuActive()) {
             menuManager->openMenu("pause");
         }
     }
