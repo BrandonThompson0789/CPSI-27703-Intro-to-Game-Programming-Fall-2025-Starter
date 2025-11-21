@@ -19,8 +19,12 @@
 #include <vector>
 #include <algorithm>
 #include <cmath>
+#include <fstream>
+#include <limits>
 
 namespace {
+constexpr const char* kServerDataPath = "assets/serverData.json";
+
 float NormalizeAngleDelta(float deltaDegrees) {
     deltaDegrees = std::fmod(deltaDegrees + 180.0f, 360.0f);
     if (deltaDegrees < 0.0f) {
@@ -57,6 +61,9 @@ ClientManager::ClientManager(Engine* engine)
     lastHeartbeat = std::chrono::steady_clock::now();
     lastInputSend = std::chrono::steady_clock::now();
     lastBandwidthLogTime = std::chrono::steady_clock::now();
+    
+    // Load server data configuration
+    LoadServerDataConfig();
 }
 
 ClientManager::~ClientManager() {
@@ -70,8 +77,26 @@ bool ClientManager::Connect(const std::string& roomCodeParam,
     std::transform(roomCode.begin(), roomCode.end(), roomCode.begin(), [](unsigned char c) {
         return static_cast<char>(std::toupper(c));
     });
-    serverManagerIP = serverManagerIPParam;
-    serverManagerPort = serverManagerPortParam;
+    
+    // Use provided parameters, or fall back to loaded config if defaults are used
+    if (serverDataConfig.loaded) {
+        // Use config values if default parameters are provided
+        if (serverManagerIPParam == "127.0.0.1") {
+            serverManagerIP = serverDataConfig.serverManagerIP;
+        } else {
+            serverManagerIP = serverManagerIPParam;
+        }
+        
+        if (serverManagerPortParam == 8888) {
+            serverManagerPort = serverDataConfig.serverManagerPort;
+        } else {
+            serverManagerPort = serverManagerPortParam;
+        }
+    } else {
+        // No config loaded, use provided parameters
+        serverManagerIP = serverManagerIPParam;
+        serverManagerPort = serverManagerPortParam;
+    }
 
     if (!NetworkUtils::Initialize()) {
         std::cerr << "ClientManager: Failed to initialize networking" << std::endl;
@@ -993,5 +1018,36 @@ void ClientManager::ClearSmoothingState(uint32_t objectId) {
 void ClientManager::ClearAllSmoothingStates() {
     std::lock_guard<std::mutex> lock(smoothingMutex);
     smoothingStates.clear();
+}
+
+void ClientManager::LoadServerDataConfig() {
+    std::ifstream configStream(kServerDataPath);
+    if (!configStream.is_open()) {
+        std::cerr << "ClientManager: Could not open " << kServerDataPath << ", using default networking parameters." << std::endl;
+        return;
+    }
+
+    try {
+        nlohmann::json configJson;
+        configStream >> configJson;
+
+        if (configJson.contains("serverManagerIP") && configJson["serverManagerIP"].is_string()) {
+            serverDataConfig.serverManagerIP = configJson["serverManagerIP"].get<std::string>();
+        }
+
+        if (configJson.contains("serverManagerPort") && configJson["serverManagerPort"].is_number_unsigned()) {
+            uint32_t portValue = configJson["serverManagerPort"].get<uint32_t>();
+            if (portValue > 0 && portValue <= std::numeric_limits<uint16_t>::max()) {
+                serverDataConfig.serverManagerPort = static_cast<uint16_t>(portValue);
+            }
+        }
+
+        serverDataConfig.loaded = true;
+        std::cout << "ClientManager: Loaded server data config from " << kServerDataPath << std::endl;
+        std::cout << "ClientManager: Server Manager at " << serverDataConfig.serverManagerIP 
+                 << ":" << serverDataConfig.serverManagerPort << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "ClientManager: Failed to parse " << kServerDataPath << " (" << e.what() << "), using defaults." << std::endl;
+    }
 }
 

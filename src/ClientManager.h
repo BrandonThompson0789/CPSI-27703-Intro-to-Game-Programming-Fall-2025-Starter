@@ -108,6 +108,9 @@ private:
     bool UpdateSmoothingState(uint32_t objectId, BodyComponent* body, const nlohmann::json& bodyJson);
     void ClearSmoothingState(uint32_t objectId);
     void ClearAllSmoothingStates();
+    
+    // Configuration loading
+    void LoadServerDataConfig();
 
     Engine* engine;
     SocketHandle socket;
@@ -147,5 +150,13 @@ private:
     std::atomic<uint64_t> bytesSent;
     std::atomic<uint64_t> bytesReceived;
     std::chrono::steady_clock::time_point lastBandwidthLogTime;
+    
+    // Configuration
+    struct ServerDataConfig {
+        bool loaded = false;
+        std::string serverManagerIP = "127.0.0.1";
+        uint16_t serverManagerPort = 8888;
+    };
+    ServerDataConfig serverDataConfig;
 };
 
