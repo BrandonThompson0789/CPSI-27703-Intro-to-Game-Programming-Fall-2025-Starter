@@ -54,5 +54,9 @@ namespace NetworkUtils {
     
     // Convert binary address to string
     std::string AddressToString(const struct sockaddr_in& addr);
+    
+    // Get public IP address by querying an external service
+    // Returns empty string on failure
+    std::string GetPublicIP();
 }
 

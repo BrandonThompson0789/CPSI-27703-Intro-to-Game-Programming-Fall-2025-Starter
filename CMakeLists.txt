@@ -150,6 +150,17 @@ endif()
 # Define SDL_MAIN_HANDLED for MinGW
 target_compile_definitions(demo PRIVATE SDL_MAIN_HANDLED)
 
+# Suppress console window for Release builds on Windows
+# This sets /SUBSYSTEM:WINDOWS instead of /SUBSYSTEM:CONSOLE on Windows
+# On other platforms, this has no effect (platform-agnostic)
+if(WIN32)
+    # Check if this is a Release build (works with build scripts and CI)
+    # Also allow explicit override via DEMO_SUPPRESS_CONSOLE variable
+    if(CMAKE_BUILD_TYPE STREQUAL "Release" OR (DEFINED DEMO_SUPPRESS_CONSOLE AND DEMO_SUPPRESS_CONSOLE))
+        set_target_properties(demo PROPERTIES WIN32_EXECUTABLE TRUE)
+    endif()
+endif()
+
 # Copy assets and DLLs
 # Glob all asset files to track changes
 file(GLOB_RECURSE ASSET_FILES "${CMAKE_SOURCE_DIR}/assets/*")

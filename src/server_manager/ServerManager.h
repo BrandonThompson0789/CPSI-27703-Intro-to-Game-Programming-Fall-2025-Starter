@@ -10,8 +10,10 @@
 
 struct RoomInfo {
     std::string roomCode;
-    std::string hostIP;
-    uint16_t hostPort;
+    std::string hostIP;           // Local IP (for reference)
+    uint16_t hostPort;            // Local port (from message)
+    std::string hostPublicIP;     // Public IP (from NAT, detected by ServerManager)
+    uint16_t hostPublicPort;      // Public port (from NAT, detected by ServerManager)
     int connectedPlayers;
     std::vector<std::string> playerIPs;
     std::chrono::steady_clock::time_point lastPing;
@@ -65,9 +67,11 @@ struct RegisterResponse {
 
 struct RoomInfoResponse {
     MessageHeader header;
-    uint16_t hostPort;
+    uint16_t hostPort;        // Local port (for backward compatibility, may be same as public port)
+    uint16_t hostPublicPort;  // Public port (from NAT)
     uint16_t playerCount;
-    char hostIP[16]; // IPv4 max length
+    char hostIP[16];          // Local IP (for reference)
+    char hostPublicIP[16];    // Public IP (from NAT) - this is what clients should use
     // Followed by playerCount IP addresses as null-terminated strings
 };
 

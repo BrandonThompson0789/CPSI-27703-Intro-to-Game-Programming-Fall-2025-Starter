@@ -41,6 +41,18 @@ bool ServerManager::Initialize() {
     }
 
     std::cout << "Server Manager initialized on port " << m_port << std::endl;
+    
+    // Detect and print public IP
+    std::cout << "Detecting public IP address..." << std::endl;
+    std::string publicIP = NetworkUtils::GetPublicIP();
+    if (!publicIP.empty()) {
+        std::cout << "Public IP: " << publicIP << std::endl;
+        std::cout << "Clients should connect to: " << publicIP << ":" << m_port << std::endl;
+    } else {
+        std::cout << "Warning: Could not detect public IP. Server may not be accessible from the internet." << std::endl;
+        std::cout << "Local IP: " << NetworkUtils::GetLocalIP() << std::endl;
+    }
+    
     return true;
 }
 
@@ -139,8 +151,10 @@ void ServerManager::HandleHostRegister(const std::string& fromIP, uint16_t fromP
         std::string roomCode = it->second;
         auto roomIt = m_rooms.find(roomCode);
         if (roomIt != m_rooms.end()) {
-            // Update host IP in case it changed (e.g., was localhost before)
-            roomIt->second.hostIP = std::string(msg.hostIP);
+            // Update host IPs in case they changed
+            roomIt->second.hostIP = std::string(msg.hostIP);      // Local IP
+            roomIt->second.hostPublicIP = fromIP;                 // Public IP (from NAT)
+            roomIt->second.hostPublicPort = fromPort;             // Public port (from NAT)
             
             RegisterResponse response;
             response.header.type = MessageType::RESPONSE_REGISTER;
@@ -151,7 +165,8 @@ void ServerManager::HandleHostRegister(const std::string& fromIP, uint16_t fromP
             response.reserved[0] = 0;
             
             SendResponse(fromIP, fromPort, &response, sizeof(response));
-            std::cout << "Host " << hostKey << " re-registered, room code: " << roomCode << std::endl;
+            std::cout << "Host " << hostKey << " re-registered, room code: " << roomCode 
+                     << " (Public: " << fromIP << ":" << fromPort << ")" << std::endl;
             return;
         }
     }
@@ -161,9 +176,11 @@ void ServerManager::HandleHostRegister(const std::string& fromIP, uint16_t fromP
     
     RoomInfo room;
     room.roomCode = roomCode;
-    // Use the IP from the message (local network IP) instead of fromIP (which might be localhost)
-    room.hostIP = std::string(msg.hostIP);
-    room.hostPort = msg.hostPort;
+    // Store both local and public IPs/ports
+    room.hostIP = std::string(msg.hostIP);    // Local IP from message
+    room.hostPort = msg.hostPort;             // Local port from message
+    room.hostPublicIP = fromIP;               // Public IP detected from NAT (where the packet came from)
+    room.hostPublicPort = fromPort;           // Public port detected from NAT
     room.connectedPlayers = 0;
     room.lastPing = std::chrono::steady_clock::now();
     room.createdAt = std::chrono::steady_clock::now();
@@ -181,19 +198,27 @@ void ServerManager::HandleHostRegister(const std::string& fromIP, uint16_t fromP
     response.reserved[0] = 0;
 
     SendResponse(fromIP, fromPort, &response, sizeof(response));
-    std::cout << "Host " << hostKey << " registered with room code: " << roomCode << std::endl;
+    std::cout << "Host " << hostKey << " registered with room code: " << roomCode 
+             << " (Local: " << msg.hostIP << ":" << msg.hostPort 
+             << ", Public: " << fromIP << ":" << fromPort << ")" << std::endl;
 }
 
 void ServerManager::HandleHostHeartbeat(const std::string& fromIP, uint16_t fromPort) {
     std::lock_guard<std::mutex> lock(m_roomsMutex);
 
-    std::string hostKey = fromIP + ":" + std::to_string(fromPort);
-    auto it = m_hostToRoom.find(hostKey);
-    
-    if (it != m_hostToRoom.end()) {
-        auto roomIt = m_rooms.find(it->second);
-        if (roomIt != m_rooms.end()) {
+    // Try to find room by public IP:port first
+    // The hostKey format is "publicIP:localPort" for backward compatibility
+    // But we also need to update the public IP/port on heartbeat in case NAT changed
+    for (auto& [hostKey, roomCode] : m_hostToRoom) {
+        auto roomIt = m_rooms.find(roomCode);
+        if (roomIt != m_rooms.end() && 
+            (roomIt->second.hostPublicIP == fromIP || 
+             roomIt->second.hostIP == fromIP)) {
+            // Update public IP/port in case NAT changed them
+            roomIt->second.hostPublicIP = fromIP;
+            roomIt->second.hostPublicPort = fromPort;
             roomIt->second.lastPing = std::chrono::steady_clock::now();
+            return;
         }
     }
 }
@@ -209,12 +234,15 @@ void ServerManager::HandleHostUpdate(const std::string& fromIP, uint16_t fromPor
 
     std::lock_guard<std::mutex> lock(m_roomsMutex);
 
-    std::string hostKey = fromIP + ":" + std::to_string(fromPort);
-    auto it = m_hostToRoom.find(hostKey);
-    
-    if (it != m_hostToRoom.end()) {
-        auto roomIt = m_rooms.find(it->second);
-        if (roomIt != m_rooms.end()) {
+    // Find room by public IP (since that's what we see from the packet)
+    for (auto& [hostKey, roomCode] : m_hostToRoom) {
+        auto roomIt = m_rooms.find(roomCode);
+        if (roomIt != m_rooms.end() && 
+            (roomIt->second.hostPublicIP == fromIP || 
+             roomIt->second.hostIP == fromIP)) {
+            // Update public IP/port in case NAT changed them
+            roomIt->second.hostPublicIP = fromIP;
+            roomIt->second.hostPublicPort = fromPort;
             roomIt->second.lastPing = std::chrono::steady_clock::now();
             roomIt->second.connectedPlayers = playerCount;
             roomIt->second.playerIPs.clear();
@@ -231,7 +259,9 @@ void ServerManager::HandleHostUpdate(const std::string& fromIP, uint16_t fromPor
                 offset += playerIP.length() + 1; // +1 for null terminator
             }
 
-            std::cout << "Host " << hostKey << " updated: " << playerCount << " players" << std::endl;
+            std::cout << "Host " << roomCode << " updated: " << playerCount 
+                     << " players (Public: " << fromIP << ":" << fromPort << ")" << std::endl;
+            return;
         }
     }
 }
@@ -247,16 +277,24 @@ void ServerManager::HandleClientLookup(const std::string& fromIP, uint16_t fromP
         const RoomInfo& room = it->second;
         
         // Build response with room info and player IPs
+        // Use public IP/port for NAT traversal (clients should connect to the public IP)
         std::vector<char> responseBuffer(sizeof(RoomInfoResponse) + 
                                         room.playerIPs.size() * 16); // Max IP length
         
         RoomInfoResponse* response = reinterpret_cast<RoomInfoResponse*>(responseBuffer.data());
         response->header.type = MessageType::RESPONSE_ROOM_INFO;
         memset(response->header.reserved, 0, sizeof(response->header.reserved));
-        response->hostPort = room.hostPort;
+        response->hostPort = room.hostPort;                    // Local port (for reference)
+        response->hostPublicPort = room.hostPublicPort;        // Public port (use this to connect)
         response->playerCount = static_cast<uint16_t>(room.playerIPs.size());
+        
+        // Store both local and public IPs
         strncpy(response->hostIP, room.hostIP.c_str(), sizeof(response->hostIP) - 1);
         response->hostIP[sizeof(response->hostIP) - 1] = '\0';
+        
+        // Public IP is what clients should use for NAT traversal
+        strncpy(response->hostPublicIP, room.hostPublicIP.c_str(), sizeof(response->hostPublicIP) - 1);
+        response->hostPublicIP[sizeof(response->hostPublicIP) - 1] = '\0';
 
         // Append player IPs
         char* ipData = responseBuffer.data() + sizeof(RoomInfoResponse);
@@ -267,7 +305,8 @@ void ServerManager::HandleClientLookup(const std::string& fromIP, uint16_t fromP
         }
 
         SendResponse(fromIP, fromPort, responseBuffer.data(), responseBuffer.size());
-        std::cout << "Client " << fromIP << " looked up room: " << roomCode << std::endl;
+        std::cout << "Client " << fromIP << " looked up room: " << roomCode 
+                 << " (Host Public: " << room.hostPublicIP << ":" << room.hostPublicPort << ")" << std::endl;
     } else {
         ErrorResponse response;
         response.header.type = MessageType::RESPONSE_ERROR;

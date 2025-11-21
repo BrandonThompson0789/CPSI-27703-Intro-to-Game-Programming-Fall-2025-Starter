@@ -286,10 +286,21 @@ bool ClientManager::LookupRoom(const std::string& roomCodeParam,
         if (received >= static_cast<int>(sizeof(RoomInfoResponse))) {
             const RoomInfoResponse* response = reinterpret_cast<const RoomInfoResponse*>(buffer);
             if (response->header.type == MessageType::RESPONSE_ROOM_INFO) {
-                hostIP = std::string(response->hostIP);
-                hostPort = response->hostPort;
-                std::cout << "ClientManager: Found room " << roomCodeParam 
-                         << " at " << hostIP << ":" << hostPort << std::endl;
+                // Use public IP/port for NAT traversal (this is what the NAT router exposes)
+                // The ServerManager detected the host's public IP from where the host connected
+                if (response->hostPublicIP[0] != '\0') {
+                    hostIP = std::string(response->hostPublicIP);
+                    hostPort = response->hostPublicPort;
+                    std::cout << "ClientManager: Found room " << roomCodeParam 
+                             << " at public address " << hostIP << ":" << hostPort 
+                             << " (local: " << response->hostIP << ":" << response->hostPort << ")" << std::endl;
+                } else {
+                    // Fallback to local IP if public IP not available (backward compatibility)
+                    hostIP = std::string(response->hostIP);
+                    hostPort = response->hostPort;
+                    std::cout << "ClientManager: Found room " << roomCodeParam 
+                             << " at " << hostIP << ":" << hostPort << std::endl;
+                }
                 return true;
             } else if (response->header.type == MessageType::RESPONSE_ERROR) {
                 const ErrorResponse* errorResponse = reinterpret_cast<const ErrorResponse*>(buffer);
