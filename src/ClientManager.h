@@ -85,6 +85,8 @@ private:
     void HandleObjectUpdate(const void* data, size_t length);
     void HandleObjectCreate(const void* data, size_t length);
     void HandleObjectDestroy(const ObjectDestroyMessage& msg);
+    void HandleHostReturnedToMenu();
+    void HandleHostSessionEnded();
     
     // Object synchronization
     void CreateObjectFromJson(uint32_t objectId, const nlohmann::json& objJson);
@@ -116,8 +118,12 @@ private:
     SocketHandle socket;
     std::string serverManagerIP;
     uint16_t serverManagerPort;
-    std::string hostIP;
-    uint16_t hostPort;
+    std::string hostIP;              // Currently active IP (public or local)
+    uint16_t hostPort;               // Currently active port (public or local)
+    std::string hostLocalIP;         // Local IP (for fallback)
+    uint16_t hostLocalPort;          // Local port (for fallback)
+    std::string hostPublicIP;        // Public IP (for initial attempt)
+    uint16_t hostPublicPort;         // Public port (for initial attempt)
     std::string roomCode;
     bool isConnected;
     bool hasReceivedInitPackage;

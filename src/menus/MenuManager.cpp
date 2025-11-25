@@ -11,6 +11,7 @@
 #include "HostMenu.h"
 #include "JoinMenu.h"
 #include "WaitingForHostMenu.h"
+#include "HostSessionEndedMenu.h"
 #include <SDL.h>
 #include <SDL_ttf.h>
 #include <iostream>
@@ -406,6 +407,8 @@ std::unique_ptr<Menu> MenuManager::createMenu(const std::string& menuName) {
         return std::make_unique<JoinMenu>(this);
     } else if (menuName == "waiting_for_host") {
         return std::make_unique<WaitingForHostMenu>(this);
+    } else if (menuName == "host_session_ended") {
+        return std::make_unique<HostSessionEndedMenu>(this);
     }
     
     return nullptr;

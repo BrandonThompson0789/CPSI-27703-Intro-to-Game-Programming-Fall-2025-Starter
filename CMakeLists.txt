@@ -120,6 +120,8 @@ add_executable(demo
     src/menus/JoinMenu.cpp
     src/menus/WaitingForHostMenu.h
     src/menus/WaitingForHostMenu.cpp
+    src/menus/HostSessionEndedMenu.h
+    src/menus/HostSessionEndedMenu.cpp
 )
 
 # Link libraries

@@ -161,6 +161,12 @@ void HostManager::Shutdown() {
         return;
     }
 
+    // Notify all clients that the session has ended before shutting down
+    NotifyClientsSessionEnded();
+    
+    // Give clients a moment to receive the message
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
     isHosting = false;
 
     if (socket != INVALID_SOCKET_HANDLE) {
@@ -475,6 +481,34 @@ void HostManager::SendInitializationPackageToAllClients() {
             SendInitializationPackage(client.ip, client.port);
         }
     }
+}
+
+void HostManager::NotifyClientsHostReturnedToMenu() {
+    HostMessageHeader msg;
+    msg.type = HostMessageType::HOST_RETURNED_TO_MENU;
+    memset(msg.reserved, 0, sizeof(msg.reserved));
+    
+    std::lock_guard<std::mutex> lock(clientsMutex);
+    for (const auto& [key, client] : clients) {
+        if (client.connected) {
+            SendToClient(client.ip, client.port, &msg, sizeof(msg));
+        }
+    }
+    std::cout << "HostManager: Notified all clients that host returned to menu" << std::endl;
+}
+
+void HostManager::NotifyClientsSessionEnded() {
+    HostMessageHeader msg;
+    msg.type = HostMessageType::HOST_SESSION_ENDED;
+    memset(msg.reserved, 0, sizeof(msg.reserved));
+    
+    std::lock_guard<std::mutex> lock(clientsMutex);
+    for (const auto& [key, client] : clients) {
+        if (client.connected) {
+            SendToClient(client.ip, client.port, &msg, sizeof(msg));
+        }
+    }
+    std::cout << "HostManager: Notified all clients that host session has ended" << std::endl;
 }
 
 void HostManager::SendInitializationPackage(const std::string& clientIP, uint16_t clientPort) {

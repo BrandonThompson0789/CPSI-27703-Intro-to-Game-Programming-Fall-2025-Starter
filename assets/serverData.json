@@ -1,8 +1,8 @@
 {
   "hostPort": 8889,
-  "serverManagerIP": "127.0.0.1",
+  "serverManagerIP": "9.138.78.251",
   "serverManagerPort": 8888,
-  "syncIntervalMs": 100,
+  "syncIntervalMs": 50,
   "serverManagerHeartbeatSeconds": 5
 }
 

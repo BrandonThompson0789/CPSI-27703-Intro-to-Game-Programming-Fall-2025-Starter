@@ -24,7 +24,9 @@ enum class HostMessageType : uint8_t {
     OBJECT_DESTROY = 15,
     CLIENT_INPUT = 16,
     HEARTBEAT = 17,
-    ASSIGN_PLAYER = 18
+    ASSIGN_PLAYER = 18,
+    HOST_RETURNED_TO_MENU = 19,
+    HOST_SESSION_ENDED = 20
 };
 
 // Message headers
@@ -155,6 +157,12 @@ public:
     
     // Send initialization package to all connected clients (called when level is loaded)
     void SendInitializationPackageToAllClients();
+    
+    // Notify all clients that host has returned to menu (level_mainmenu loaded)
+    void NotifyClientsHostReturnedToMenu();
+    
+    // Notify all clients that host session has ended
+    void NotifyClientsSessionEnded();
 
 private:
     // Server Manager communication

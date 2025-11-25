@@ -10,6 +10,7 @@
 #include "CollisionManager.h"
 #include "CompressionUtils.h"
 #include "PlayerManager.h"
+#include "menus/MenuManager.h"
 #include <iostream>
 #include <sstream>
 #include <cstring>
@@ -45,6 +46,10 @@ ClientManager::ClientManager(Engine* engine)
     , serverManagerPort(8888)
     , hostIP("")
     , hostPort(0)
+    , hostLocalIP("")
+    , hostLocalPort(0)
+    , hostPublicIP("")
+    , hostPublicPort(0)
     , roomCode("")
     , isConnected(false)
     , hasReceivedInitPackage(false)
@@ -126,11 +131,34 @@ bool ClientManager::Connect(const std::string& roomCodeParam,
         return false;
     }
 
-    // Connect to host
+    // Connect to host - try external IP first, then fallback to local IP
     ClientConnectMessage msg;
     msg.header.type = HostMessageType::CLIENT_CONNECT;
     memset(msg.header.reserved, 0, sizeof(msg.header.reserved));
     memset(msg.reserved, 0, sizeof(msg.reserved));
+
+    // Try public IP first if available
+    bool triedPublic = false;
+    bool triedLocal = false;
+    
+    if (!hostPublicIP.empty() && hostPublicPort > 0) {
+        // Try public IP first
+        hostIP = hostPublicIP;
+        hostPort = hostPublicPort;
+        triedPublic = true;
+        std::cout << "ClientManager: Attempting connection to public IP " << hostIP << ":" << hostPort << std::endl;
+    } else if (!hostLocalIP.empty() && hostLocalPort > 0) {
+        // No public IP, use local directly
+        hostIP = hostLocalIP;
+        hostPort = hostLocalPort;
+        triedLocal = true;
+        std::cout << "ClientManager: Attempting connection to local IP " << hostIP << ":" << hostPort << std::endl;
+    } else {
+        std::cerr << "ClientManager: No valid host IP addresses available" << std::endl;
+        NetworkUtils::CloseSocket(socket);
+        NetworkUtils::Cleanup();
+        return false;
+    }
 
     SendToHost(&msg, sizeof(msg));
     
@@ -139,7 +167,8 @@ bool ClientManager::Connect(const std::string& roomCodeParam,
 
     // Wait for player assignment (with timeout)
     auto startTime = std::chrono::steady_clock::now();
-    const auto timeout = std::chrono::seconds(10);
+    const auto attemptTimeout = std::chrono::seconds(3);  // Shorter timeout per attempt
+    const auto totalTimeout = std::chrono::seconds(10);   // Total timeout for all attempts
 
     // Retry sending connection message a few times in case it was lost
     int retryCount = 0;
@@ -147,7 +176,24 @@ bool ClientManager::Connect(const std::string& roomCodeParam,
     auto lastSendTime = std::chrono::steady_clock::now();
     const auto retryInterval = std::chrono::milliseconds(500);
     
-    while (std::chrono::steady_clock::now() - startTime < timeout) {
+    while (std::chrono::steady_clock::now() - startTime < totalTimeout) {
+        // Check if we should try fallback to local IP
+        auto elapsed = std::chrono::steady_clock::now() - startTime;
+        if (triedPublic && !triedLocal && !isConnected && elapsed >= attemptTimeout) {
+            // Public IP didn't work, try local IP
+            if (!hostLocalIP.empty() && hostLocalPort > 0) {
+                std::cout << "ClientManager: Public IP connection failed, trying local IP " 
+                         << hostLocalIP << ":" << hostLocalPort << std::endl;
+                hostIP = hostLocalIP;
+                hostPort = hostLocalPort;
+                triedLocal = true;
+                retryCount = 0;  // Reset retry count for local attempt
+                lastSendTime = std::chrono::steady_clock::now();
+                SendToHost(&msg, sizeof(msg));
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+        }
+        
         // Retry sending connection message periodically
         auto now = std::chrono::steady_clock::now();
         if (retryCount < maxRetries && (now - lastSendTime) >= retryInterval) {
@@ -311,20 +357,23 @@ bool ClientManager::LookupRoom(const std::string& roomCodeParam,
         if (received >= static_cast<int>(sizeof(RoomInfoResponse))) {
             const RoomInfoResponse* response = reinterpret_cast<const RoomInfoResponse*>(buffer);
             if (response->header.type == MessageType::RESPONSE_ROOM_INFO) {
-                // Use public IP/port for NAT traversal (this is what the NAT router exposes)
-                // The ServerManager detected the host's public IP from where the host connected
+                // Store both local and public IPs for fallback mechanism
+                hostLocalIP = std::string(response->hostIP);
+                hostLocalPort = response->hostPort;
+                
                 if (response->hostPublicIP[0] != '\0') {
-                    hostIP = std::string(response->hostPublicIP);
-                    hostPort = response->hostPublicPort;
+                    hostPublicIP = std::string(response->hostPublicIP);
+                    hostPublicPort = response->hostPublicPort;
                     std::cout << "ClientManager: Found room " << roomCodeParam 
-                             << " at public address " << hostIP << ":" << hostPort 
-                             << " (local: " << response->hostIP << ":" << response->hostPort << ")" << std::endl;
+                             << " - Public: " << hostPublicIP << ":" << hostPublicPort 
+                             << ", Local: " << hostLocalIP << ":" << hostLocalPort << std::endl;
                 } else {
-                    // Fallback to local IP if public IP not available (backward compatibility)
-                    hostIP = std::string(response->hostIP);
-                    hostPort = response->hostPort;
+                    // No public IP available, use local only
+                    hostPublicIP = "";
+                    hostPublicPort = 0;
                     std::cout << "ClientManager: Found room " << roomCodeParam 
-                             << " at " << hostIP << ":" << hostPort << std::endl;
+                             << " at " << hostLocalIP << ":" << hostLocalPort 
+                             << " (no public IP available)" << std::endl;
                 }
                 return true;
             } else if (response->header.type == MessageType::RESPONSE_ERROR) {
@@ -358,7 +407,28 @@ void ClientManager::ProcessIncomingMessages() {
         bytesReceived.fetch_add(received);
 
         // Verify message is from host
-        if (fromIP != hostIP || fromPort != hostPort) {
+        // During connection, accept messages from either public or local IP
+        // After connection, only accept from the active IP
+        bool isValidSource = false;
+        if (isConnected) {
+            // After connection, only accept from the active IP
+            isValidSource = (fromIP == hostIP && fromPort == hostPort);
+        } else {
+            // During connection, accept from either IP (in case we're trying fallback)
+            isValidSource = ((fromIP == hostIP && fromPort == hostPort) ||
+                            (!hostPublicIP.empty() && fromIP == hostPublicIP && fromPort == hostPublicPort) ||
+                            (!hostLocalIP.empty() && fromIP == hostLocalIP && fromPort == hostLocalPort));
+            
+            // If we receive from a different IP than we're currently trying, switch to it
+            if (isValidSource && (fromIP != hostIP || fromPort != hostPort)) {
+                std::cout << "ClientManager: Received response from " << fromIP << ":" << fromPort 
+                         << ", switching to this address" << std::endl;
+                hostIP = fromIP;
+                hostPort = fromPort;
+            }
+        }
+        
+        if (!isValidSource) {
             continue;
         }
 
@@ -400,6 +470,14 @@ void ClientManager::ProcessIncomingMessages() {
                 } else {
                     std::cerr << "ClientManager: ASSIGN_PLAYER message too small: " << received << " bytes" << std::endl;
                 }
+                break;
+
+            case HostMessageType::HOST_RETURNED_TO_MENU:
+                HandleHostReturnedToMenu();
+                break;
+
+            case HostMessageType::HOST_SESSION_ENDED:
+                HandleHostSessionEnded();
                 break;
 
             default:
@@ -697,6 +775,65 @@ void ClientManager::HandleObjectCreate(const void* data, size_t length) {
 
 void ClientManager::HandleObjectDestroy(const ObjectDestroyMessage& msg) {
     DestroyObject(msg.objectId);
+}
+
+void ClientManager::HandleHostReturnedToMenu() {
+    std::cout << "ClientManager: Host returned to menu - clearing level and showing waiting screen" << std::endl;
+    
+    // Clear existing objects and background
+    if (engine) {
+        engine->getObjects().clear();
+        engine->getQueuedObjects().clear();
+        if (engine->getCollisionManager()) {
+            engine->getCollisionManager()->clearImpacts();
+        }
+        if (engine->getBackgroundManager()) {
+            // Clear background by loading empty background
+            nlohmann::json emptyBackground = nlohmann::json::object();
+            engine->getBackgroundManager()->loadFromJson(emptyBackground, engine);
+        }
+    }
+    
+    // Clear object ID mappings
+    {
+        std::lock_guard<std::mutex> lock(objectIdsMutex);
+        idToObject.clear();
+    }
+    
+    // Clear smoothing states
+    ClearAllSmoothingStates();
+    
+    // Reset init package flag so waiting screen knows to wait
+    hasReceivedInitPackage = false;
+    hasVerifiedInputAfterInit = false;
+    
+    // Show waiting screen
+    if (engine && engine->getMenuManager()) {
+        engine->getMenuManager()->openMenu("waiting_for_host");
+    }
+}
+
+void ClientManager::HandleHostSessionEnded() {
+    std::cout << "ClientManager: Host session ended - showing session ended menu" << std::endl;
+    
+    // Mark as disconnected
+    isConnected = false;
+    hasReceivedInitPackage = false;
+    hasVerifiedInputAfterInit = false;
+    
+    // Clear object ID mappings
+    {
+        std::lock_guard<std::mutex> lock(objectIdsMutex);
+        idToObject.clear();
+    }
+    
+    // Clear smoothing states
+    ClearAllSmoothingStates();
+    
+    // Show session ended menu
+    if (engine && engine->getMenuManager()) {
+        engine->getMenuManager()->openMenu("host_session_ended");
+    }
 }
 
 void ClientManager::CreateObjectFromJson(uint32_t objectId, const nlohmann::json& objJson) {

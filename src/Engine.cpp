@@ -641,8 +641,13 @@ void Engine::loadFile(const std::string& filename) {
     
     // If hosting, send initialization package to all connected clients
     // Only send if the loaded level is NOT level_mainmenu
-    if (hostManager && hostManager->IsHosting() && currentLoadedLevel != "level_mainmenu") {
-        hostManager->SendInitializationPackageToAllClients();
+    if (hostManager && hostManager->IsHosting()) {
+        if (currentLoadedLevel != "level_mainmenu") {
+            hostManager->SendInitializationPackageToAllClients();
+        } else {
+            // Host loaded level_mainmenu - notify clients to show waiting screen
+            hostManager->NotifyClientsHostReturnedToMenu();
+        }
     }
 }
 
