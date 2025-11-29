@@ -9,7 +9,8 @@
     "sdl2-mixer",
     "box2d",
     "nlohmann-json",
-    "zlib"
+    "zlib",
+    "enet"
   ]
   }
   

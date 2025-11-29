@@ -1,6 +1,7 @@
 #pragma once
 
-#include "server_manager/NetworkUtils.h"
+#include "ConnectionManager.h"
+#include "server_manager/NetworkUtils.h"  // Still needed for ServerManager communication
 #include "HostManager.h"  // Use message types and structs from HostManager
 #include "Object.h"
 #include <string>
@@ -115,7 +116,8 @@ private:
     void LoadServerDataConfig();
 
     Engine* engine;
-    SocketHandle socket;
+    ConnectionManager connectionManager;  // ENet-based game networking
+    SocketHandle serverManagerSocket;     // For ServerManager communication only
     std::string serverManagerIP;
     uint16_t serverManagerPort;
     std::string hostIP;              // Currently active IP (public or local)

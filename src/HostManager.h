@@ -1,6 +1,7 @@
 #pragma once
 
-#include "server_manager/NetworkUtils.h"
+#include "ConnectionManager.h"
+#include "server_manager/NetworkUtils.h"  // Still needed for ServerManager communication
 #include "Object.h"
 #include <string>
 #include <unordered_map>
@@ -194,6 +195,7 @@ private:
 
     // Message sending
     void SendToClient(const std::string& clientIP, uint16_t clientPort, const void* data, size_t length);
+    void SendToClientReliable(const std::string& clientIP, uint16_t clientPort, const void* data, size_t length);
     void BroadcastToAllClients(const void* data, size_t length);
 
     // Serialization helpers
@@ -205,7 +207,8 @@ private:
     nlohmann::json SerializeObjectViewGrab(Object* obj) const;
 
     Engine* engine;
-    SocketHandle socket;
+    ConnectionManager connectionManager;  // ENet-based game networking
+    SocketHandle serverManagerSocket;     // For ServerManager communication only
     uint16_t hostPort;
     std::string serverManagerIP;
     uint16_t serverManagerPort;
@@ -222,6 +225,10 @@ private:
     std::unordered_map<uint32_t, Object*> idToObject;
     uint32_t nextObjectId;
     std::mutex objectIdsMutex;
+
+    // Object state tracking for change detection
+    std::unordered_map<uint32_t, std::string> lastSentState;  // Key: objectId, Value: last serialized state
+    std::mutex stateTrackingMutex;
 
     // Sync timing
     std::chrono::steady_clock::time_point lastSyncTime;

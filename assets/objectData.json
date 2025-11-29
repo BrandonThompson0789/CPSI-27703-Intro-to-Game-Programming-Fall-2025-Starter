@@ -112,10 +112,6 @@
                     "looping": false
                 },
                 {
-                    "type": "InputComponent",
-                    "playerId": 1
-                },
-                {
                     "type": "InteractComponent",
                     "allowedSenses": [
                         "distance"
@@ -155,7 +151,7 @@
                     "moveSoundRateScale": 0.02
                 },
                 {
-                    "type": "ViewGrabComponent",
+                    "type": "ViewGrabComponent - commented out",
                     "paddingX": 320.0,
                     "paddingY": 220.0
                 },

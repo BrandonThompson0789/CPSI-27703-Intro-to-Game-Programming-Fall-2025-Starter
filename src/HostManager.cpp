@@ -29,7 +29,7 @@ constexpr const char* kServerDataPath = "assets/serverData.json";
 
 HostManager::HostManager(Engine* engine)
     : engine(engine)
-    , socket(INVALID_SOCKET_HANDLE)
+    , serverManagerSocket(INVALID_SOCKET_HANDLE)
     , hostPort(kDefaultHostPort)
     , serverManagerIP(kDefaultServerManagerIP)
     , serverManagerPort(kDefaultServerManagerPort)
@@ -85,30 +85,40 @@ bool HostManager::Initialize(uint16_t hostPortParam, const std::string& serverMa
     serverManagerIP = resolvedServerManagerIP;
     serverManagerPort = resolvedServerManagerPort;
 
+    // Initialize ConnectionManager (ENet) for game networking
+    if (!connectionManager.Initialize()) {
+        std::cerr << "HostManager: Failed to initialize ConnectionManager" << std::endl;
+        return false;
+    }
+
+    // Start hosting with ConnectionManager
+    if (!connectionManager.StartHost(hostPort)) {
+        std::cerr << "HostManager: Failed to start host on port " << hostPort << std::endl;
+        return false;
+    }
+
+    // Initialize NetworkUtils for ServerManager communication
     if (!NetworkUtils::Initialize()) {
-        std::cerr << "HostManager: Failed to initialize networking" << std::endl;
+        std::cerr << "HostManager: Failed to initialize NetworkUtils for ServerManager" << std::endl;
+        connectionManager.Cleanup();
         return false;
     }
 
-    socket = NetworkUtils::CreateUDPSocket();
-    if (socket == INVALID_SOCKET_HANDLE) {
-        std::cerr << "HostManager: Failed to create UDP socket" << std::endl;
+    // Create socket for ServerManager communication
+    serverManagerSocket = NetworkUtils::CreateUDPSocket();
+    if (serverManagerSocket == INVALID_SOCKET_HANDLE) {
+        std::cerr << "HostManager: Failed to create ServerManager socket" << std::endl;
         NetworkUtils::Cleanup();
-        return false;
-    }
-
-    if (!NetworkUtils::BindSocket(socket, "0.0.0.0", hostPort)) {
-        std::cerr << "HostManager: Failed to bind socket to port " << hostPort << std::endl;
-        NetworkUtils::CloseSocket(socket);
-        NetworkUtils::Cleanup();
+        connectionManager.Cleanup();
         return false;
     }
 
     // Register with Server Manager
     if (!RegisterWithServerManager()) {
         std::cerr << "HostManager: Failed to register with Server Manager" << std::endl;
-        NetworkUtils::CloseSocket(socket);
+        NetworkUtils::CloseSocket(serverManagerSocket);
         NetworkUtils::Cleanup();
+        connectionManager.Cleanup();
         return false;
     }
 
@@ -121,6 +131,9 @@ void HostManager::Update(float deltaTime) {
     if (!isHosting) {
         return;
     }
+
+    // Update ConnectionManager (processes ENet events)
+    connectionManager.Update(deltaTime);
 
     // Process incoming messages
     ProcessIncomingMessages();
@@ -169,9 +182,13 @@ void HostManager::Shutdown() {
 
     isHosting = false;
 
-    if (socket != INVALID_SOCKET_HANDLE) {
-        NetworkUtils::CloseSocket(socket);
-        socket = INVALID_SOCKET_HANDLE;
+    // Stop hosting with ConnectionManager
+    connectionManager.StopHost();
+
+    // Close ServerManager socket
+    if (serverManagerSocket != INVALID_SOCKET_HANDLE) {
+        NetworkUtils::CloseSocket(serverManagerSocket);
+        serverManagerSocket = INVALID_SOCKET_HANDLE;
     }
 
     {
@@ -184,8 +201,14 @@ void HostManager::Shutdown() {
         objectToId.clear();
         idToObject.clear();
     }
+    
+    {
+        std::lock_guard<std::mutex> lock(stateTrackingMutex);
+        lastSentState.clear();
+    }
 
     NetworkUtils::Cleanup();
+    connectionManager.Cleanup();
     std::cout << "HostManager: Shutdown complete" << std::endl;
 }
 
@@ -201,8 +224,8 @@ bool HostManager::RegisterWithServerManager() {
     strncpy(msg.hostIP, localIP.c_str(), sizeof(msg.hostIP) - 1);
     msg.hostIP[sizeof(msg.hostIP) - 1] = '\0';
 
-    // Send registration message
-    NetworkUtils::SendTo(socket, &msg, sizeof(msg), serverManagerIP, serverManagerPort);
+    // Send registration message (use ServerManager socket)
+    NetworkUtils::SendTo(serverManagerSocket, &msg, sizeof(msg), serverManagerIP, serverManagerPort);
 
     // Wait for response (with timeout)
     auto startTime = std::chrono::steady_clock::now();
@@ -213,7 +236,7 @@ bool HostManager::RegisterWithServerManager() {
     uint16_t fromPort;
 
     while (std::chrono::steady_clock::now() - startTime < timeout) {
-        int received = NetworkUtils::ReceiveFrom(socket, buffer, sizeof(buffer), fromIP, fromPort);
+        int received = NetworkUtils::ReceiveFrom(serverManagerSocket, buffer, sizeof(buffer), fromIP, fromPort);
         
         if (received >= static_cast<int>(sizeof(RegisterResponse))) {
             const RegisterResponse* response = reinterpret_cast<const RegisterResponse*>(buffer);
@@ -237,7 +260,7 @@ void HostManager::SendHeartbeatToServerManager() {
     msg.header.type = MessageType::HOST_HEARTBEAT;
     memset(msg.header.reserved, 0, sizeof(msg.header.reserved));
 
-    NetworkUtils::SendTo(socket, &msg, sizeof(msg), serverManagerIP, serverManagerPort);
+    NetworkUtils::SendTo(serverManagerSocket, &msg, sizeof(msg), serverManagerIP, serverManagerPort);
 }
 
 void HostManager::UpdateServerManagerWithClients() {
@@ -262,7 +285,7 @@ void HostManager::UpdateServerManagerWithClients() {
         }
     }
 
-    NetworkUtils::SendTo(socket, buffer.data(), buffer.size(), serverManagerIP, serverManagerPort);
+    NetworkUtils::SendTo(serverManagerSocket, buffer.data(), buffer.size(), serverManagerIP, serverManagerPort);
 }
 
 void HostManager::LoadServerDataConfig() {
@@ -311,24 +334,33 @@ void HostManager::LoadServerDataConfig() {
 
 void HostManager::ProcessIncomingMessages() {
     char buffer[4096];
-    std::string fromIP;
-    uint16_t fromPort;
+    std::string fromPeerIdentifier;
+    size_t received;
 
     while (true) {
-        int received = NetworkUtils::ReceiveFrom(socket, buffer, sizeof(buffer), fromIP, fromPort);
-        
-        if (received <= 0) {
+        if (!connectionManager.Receive(buffer, sizeof(buffer), received, fromPeerIdentifier)) {
             break;
         }
 
         // Track received bytes
         bytesReceived.fetch_add(received);
 
-        if (received < static_cast<int>(sizeof(HostMessageHeader))) {
+        if (received < sizeof(HostMessageHeader)) {
             continue;
         }
 
         const HostMessageHeader* header = reinterpret_cast<const HostMessageHeader*>(buffer);
+
+        // Parse IP and port from peer identifier (format: "IP:PORT")
+        std::string fromIP;
+        uint16_t fromPort = 0;
+        size_t colonPos = fromPeerIdentifier.find(':');
+        if (colonPos != std::string::npos) {
+            fromIP = fromPeerIdentifier.substr(0, colonPos);
+            fromPort = static_cast<uint16_t>(std::stoi(fromPeerIdentifier.substr(colonPos + 1)));
+        } else {
+            fromIP = fromPeerIdentifier;  // Fallback for relay mode
+        }
 
         switch (header->type) {
             case HostMessageType::CLIENT_CONNECT:
@@ -340,7 +372,7 @@ void HostManager::ProcessIncomingMessages() {
                 break;
 
             case HostMessageType::CLIENT_INPUT:
-                if (received >= static_cast<int>(sizeof(ClientInputMessage))) {
+                if (received >= sizeof(ClientInputMessage)) {
                     HandleClientInput(fromIP, fromPort, *reinterpret_cast<const ClientInputMessage*>(buffer));
                 }
                 break;
@@ -358,6 +390,8 @@ void HostManager::ProcessIncomingMessages() {
 
 void HostManager::HandleClientConnect(const std::string& fromIP, uint16_t fromPort) {
     std::string clientKey = fromIP + ":" + std::to_string(fromPort);
+    
+    std::cout << "HostManager: Received CLIENT_CONNECT from " << clientKey << std::endl;
     
     {
         std::lock_guard<std::mutex> lock(clientsMutex);
@@ -491,7 +525,8 @@ void HostManager::NotifyClientsHostReturnedToMenu() {
     std::lock_guard<std::mutex> lock(clientsMutex);
     for (const auto& [key, client] : clients) {
         if (client.connected) {
-            SendToClient(client.ip, client.port, &msg, sizeof(msg));
+            // Use reliable delivery for important state change messages
+            SendToClientReliable(client.ip, client.port, &msg, sizeof(msg));
         }
     }
     std::cout << "HostManager: Notified all clients that host returned to menu" << std::endl;
@@ -505,9 +540,14 @@ void HostManager::NotifyClientsSessionEnded() {
     std::lock_guard<std::mutex> lock(clientsMutex);
     for (const auto& [key, client] : clients) {
         if (client.connected) {
-            SendToClient(client.ip, client.port, &msg, sizeof(msg));
+            // Use reliable delivery for session ended message to ensure clients receive it
+            SendToClientReliable(client.ip, client.port, &msg, sizeof(msg));
         }
     }
+    
+    // Flush ENet to ensure messages are sent before shutdown
+    connectionManager.Flush();
+    
     std::cout << "HostManager: Notified all clients that host session has ended" << std::endl;
 }
 
@@ -535,9 +575,9 @@ void HostManager::SendInitializationPackage(const std::string& clientIP, uint16_
     std::string backgroundStr = backgroundJson.dump();
     std::string objectsStr = objectsArray.dump();
 
-    // Compress the data
-    std::string compressedBackground = CompressionUtils::CompressToString(backgroundStr, Z_DEFAULT_COMPRESSION);
-    std::string compressedObjects = CompressionUtils::CompressToString(objectsStr, Z_DEFAULT_COMPRESSION);
+    // Compress the data (use best compression for initialization packages since they're large)
+    std::string compressedBackground = CompressionUtils::CompressToString(backgroundStr, Z_BEST_COMPRESSION);
+    std::string compressedObjects = CompressionUtils::CompressToString(objectsStr, Z_BEST_COMPRESSION);
     
     bool useCompression = !compressedBackground.empty() && !compressedObjects.empty() &&
                           (compressedBackground.size() + compressedObjects.size() < backgroundStr.size() + objectsStr.size());
@@ -613,6 +653,38 @@ void HostManager::SendObjectUpdates() {
         // Get or assign object ID
         uint32_t objectId = GetOrAssignObjectId(obj.get());
 
+        // Serialize current state for comparison
+        std::string currentState;
+        if (hasBody) {
+            nlohmann::json bodyJson = SerializeObjectBody(obj.get());
+            currentState += bodyJson.dump() + "\n";
+        }
+        if (hasSprite) {
+            nlohmann::json spriteJson = SerializeObjectSprite(obj.get());
+            currentState += spriteJson.dump() + "\n";
+        }
+        if (hasSound) {
+            nlohmann::json soundJson = SerializeObjectSound(obj.get());
+            currentState += soundJson.dump() + "\n";
+        }
+        if (hasViewGrab) {
+            nlohmann::json viewGrabJson = SerializeObjectViewGrab(obj.get());
+            currentState += viewGrabJson.dump() + "\n";
+        }
+
+        // Check if state has changed
+        {
+            std::lock_guard<std::mutex> lock(stateTrackingMutex);
+            auto it = lastSentState.find(objectId);
+            if (it != lastSentState.end() && it->second == currentState) {
+                // State hasn't changed, skip sending update
+                continue;
+            }
+            // Update stored state (will be confirmed after successful send)
+            lastSentState[objectId] = currentState;
+        }
+
+        // State has changed or is new, send update
         // Build update message
         std::vector<char> buffer(sizeof(ObjectUpdateHeader));
         ObjectUpdateHeader* header = reinterpret_cast<ObjectUpdateHeader*>(buffer.data());
@@ -625,28 +697,17 @@ void HostManager::SendObjectUpdates() {
         header->hasViewGrab = hasViewGrab ? 1 : 0;
         header->reserved = 0;
 
-        // Serialize component data
-        std::string combinedData;
-        if (hasBody) {
-            nlohmann::json bodyJson = SerializeObjectBody(obj.get());
-            combinedData += bodyJson.dump() + "\n";
-        }
-        if (hasSprite) {
-            nlohmann::json spriteJson = SerializeObjectSprite(obj.get());
-            combinedData += spriteJson.dump() + "\n";
-        }
-        if (hasSound) {
-            nlohmann::json soundJson = SerializeObjectSound(obj.get());
-            combinedData += soundJson.dump() + "\n";
-        }
-        if (hasViewGrab) {
-            nlohmann::json viewGrabJson = SerializeObjectViewGrab(obj.get());
-            combinedData += viewGrabJson.dump() + "\n";
-        }
+        // Use the already-serialized currentState
+        std::string combinedData = currentState;
 
-        // Try compression
-        std::string compressed = CompressionUtils::CompressToString(combinedData, Z_DEFAULT_COMPRESSION);
-        bool useCompression = !compressed.empty() && compressed.size() < combinedData.size();
+        // Try compression (use default compression for frequent updates to balance CPU/bandwidth)
+        // Only compress if data is large enough to benefit (small packets have ENet overhead anyway)
+        bool useCompression = false;
+        std::string compressed;
+        if (combinedData.size() > 100) {  // Only compress if data is > 100 bytes
+            compressed = CompressionUtils::CompressToString(combinedData, Z_DEFAULT_COMPRESSION);
+            useCompression = !compressed.empty() && compressed.size() < combinedData.size();
+        }
         
         header->isCompressed = useCompression ? 1 : 0;
         
@@ -704,6 +765,12 @@ void HostManager::SendObjectCreate(Object* obj) {
     }
 
     uint32_t objectId = GetOrAssignObjectId(obj);
+    
+    // Clear any existing state tracking for this object (it's being recreated)
+    {
+        std::lock_guard<std::mutex> lock(stateTrackingMutex);
+        lastSentState.erase(objectId);
+    }
     nlohmann::json objJson = SerializeObjectForSync(obj);
 
     std::string objStr = objJson.dump();
@@ -738,11 +805,17 @@ void HostManager::SendObjectDestroy(Object* obj) {
 
     BroadcastToAllClients(&msg, sizeof(msg));
 
-    // Remove from ID maps
+    // Remove from ID maps and state tracking
     {
         std::lock_guard<std::mutex> lock(objectIdsMutex);
         objectToId.erase(obj);
         idToObject.erase(objectId);
+    }
+    
+    // Remove from state tracking
+    {
+        std::lock_guard<std::mutex> lock(stateTrackingMutex);
+        lastSentState.erase(objectId);
     }
 }
 
@@ -783,33 +856,54 @@ void HostManager::CleanupObjectIds() {
         }
     }
 
+    std::vector<uint32_t> idsToRemove;
     for (Object* obj : toRemove) {
         auto it = objectToId.find(obj);
         if (it != objectToId.end()) {
             uint32_t id = it->second;
+            idsToRemove.push_back(id);
             idToObject.erase(id);
             objectToId.erase(it);
+        }
+    }
+    
+    // Also clean up state tracking for removed objects
+    {
+        std::lock_guard<std::mutex> stateLock(stateTrackingMutex);
+        for (uint32_t id : idsToRemove) {
+            lastSentState.erase(id);
         }
     }
 }
 
 void HostManager::SendToClient(const std::string& clientIP, uint16_t clientPort, const void* data, size_t length) {
-    int result = NetworkUtils::SendTo(socket, data, length, clientIP, clientPort);
-    if (result < 0) {
-        std::cerr << "HostManager: Failed to send data to " << clientIP << ":" << clientPort 
-                 << " (error code: " << result << ")" << std::endl;
+    std::string peerIdentifier = clientIP + ":" + std::to_string(clientPort);
+    bool sent = connectionManager.SendToPeer(peerIdentifier, data, length, false);  // Unreliable for game updates
+    if (!sent) {
+        std::cerr << "HostManager: Failed to send data to " << peerIdentifier << std::endl;
     } else {
         // Track sent bytes
-        bytesSent.fetch_add(result);
+        bytesSent.fetch_add(length);
+    }
+}
+
+void HostManager::SendToClientReliable(const std::string& clientIP, uint16_t clientPort, const void* data, size_t length) {
+    std::string peerIdentifier = clientIP + ":" + std::to_string(clientPort);
+    bool sent = connectionManager.SendToPeer(peerIdentifier, data, length, true);  // Reliable for important messages
+    if (!sent) {
+        std::cerr << "HostManager: Failed to send reliable data to " << peerIdentifier << std::endl;
+    } else {
+        // Track sent bytes
+        bytesSent.fetch_add(length);
     }
 }
 
 void HostManager::BroadcastToAllClients(const void* data, size_t length) {
-    std::lock_guard<std::mutex> lock(clientsMutex);
-    for (const auto& [key, client] : clients) {
-        if (client.connected) {
-            SendToClient(client.ip, client.port, data, length);
-        }
+    // Use ConnectionManager's broadcast method
+    bool sent = connectionManager.BroadcastToAllPeers(data, length, false);  // Unreliable for game updates
+    if (sent) {
+        // Track sent bytes (ConnectionManager handles per-peer tracking)
+        bytesSent.fetch_add(length);
     }
 }
 

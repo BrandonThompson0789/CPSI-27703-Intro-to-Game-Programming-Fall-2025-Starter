@@ -12,6 +12,7 @@ find_package(SDL2_mixer CONFIG REQUIRED)
 find_package(box2d CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(ZLIB REQUIRED)
+find_package(unofficial-enet CONFIG REQUIRED)
 
 # Collect all source files recursively from src directory
 
@@ -84,6 +85,8 @@ add_executable(demo
     src/components/RailComponent.cpp
     src/components/ObjectSpawnerComponent.h
     src/components/ObjectSpawnerComponent.cpp
+    src/ConnectionManager.h
+    src/ConnectionManager.cpp
     src/HostManager.h
     src/HostManager.cpp
     src/ClientManager.h
@@ -133,6 +136,7 @@ target_link_libraries(demo PRIVATE
     box2d::box2d
     nlohmann_json::nlohmann_json
     ZLIB::ZLIB
+    unofficial::enet::enet
 )
 
 # Link filesystem library (needed for std::filesystem)

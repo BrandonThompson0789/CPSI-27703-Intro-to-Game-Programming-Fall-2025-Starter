@@ -41,7 +41,7 @@ float AdjustTargetAngle(float currentDegrees, float targetDegrees) {
 
 ClientManager::ClientManager(Engine* engine)
     : engine(engine)
-    , socket(INVALID_SOCKET_HANDLE)
+    , serverManagerSocket(INVALID_SOCKET_HANDLE)
     , serverManagerIP("127.0.0.1")
     , serverManagerPort(8888)
     , hostIP("")
@@ -103,112 +103,93 @@ bool ClientManager::Connect(const std::string& roomCodeParam,
         serverManagerPort = serverManagerPortParam;
     }
 
+    // Initialize ConnectionManager (ENet) for game networking
+    if (!connectionManager.Initialize()) {
+        std::cerr << "ClientManager: Failed to initialize ConnectionManager" << std::endl;
+        return false;
+    }
+
+    // Initialize NetworkUtils for ServerManager communication
     if (!NetworkUtils::Initialize()) {
-        std::cerr << "ClientManager: Failed to initialize networking" << std::endl;
+        std::cerr << "ClientManager: Failed to initialize NetworkUtils for ServerManager" << std::endl;
+        connectionManager.Cleanup();
         return false;
     }
 
-    socket = NetworkUtils::CreateUDPSocket();
-    if (socket == INVALID_SOCKET_HANDLE) {
-        std::cerr << "ClientManager: Failed to create UDP socket" << std::endl;
+    // Create socket for ServerManager communication
+    serverManagerSocket = NetworkUtils::CreateUDPSocket();
+    if (serverManagerSocket == INVALID_SOCKET_HANDLE) {
+        std::cerr << "ClientManager: Failed to create ServerManager socket" << std::endl;
         NetworkUtils::Cleanup();
-        return false;
-    }
-
-    // Bind to any available port (0 = let OS choose)
-    if (!NetworkUtils::BindSocket(socket, "0.0.0.0", 0)) {
-        std::cerr << "ClientManager: Failed to bind socket" << std::endl;
-        NetworkUtils::CloseSocket(socket);
-        NetworkUtils::Cleanup();
+        connectionManager.Cleanup();
         return false;
     }
 
     // Look up room from Server Manager
     if (!LookupRoom(roomCode, serverManagerIP, serverManagerPort)) {
         std::cerr << "ClientManager: Failed to lookup room: " << roomCode << std::endl;
-        NetworkUtils::CloseSocket(socket);
+        NetworkUtils::CloseSocket(serverManagerSocket);
         NetworkUtils::Cleanup();
+        connectionManager.Cleanup();
         return false;
     }
 
-    // Connect to host - try external IP first, then fallback to local IP
+    // Connect to host using ConnectionManager (tries direct → punchthrough → relay automatically)
+    if (!connectionManager.ConnectToHost(roomCode, serverManagerIP, serverManagerPort,
+                                        hostPublicIP, hostPublicPort,
+                                        hostLocalIP, hostLocalPort)) {
+        std::cerr << "ClientManager: Failed to connect to host" << std::endl;
+        NetworkUtils::CloseSocket(serverManagerSocket);
+        NetworkUtils::Cleanup();
+        connectionManager.Cleanup();
+        return false;
+    }
+
+    // Get the actual connected peer identifier (may differ from lookup if local connection succeeded)
+    std::string hostPeerIdentifier = connectionManager.GetFirstConnectedPeerIdentifier();
+    if (hostPeerIdentifier.empty()) {
+        std::cerr << "ClientManager: No peer identifier after connection" << std::endl;
+        connectionManager.DisconnectFromHost();
+        NetworkUtils::CloseSocket(serverManagerSocket);
+        NetworkUtils::Cleanup();
+        connectionManager.Cleanup();
+        return false;
+    }
+
+    // Parse IP and port from peer identifier to update hostIP/hostPort
+    size_t colonPos = hostPeerIdentifier.find(':');
+    if (colonPos != std::string::npos) {
+        hostIP = hostPeerIdentifier.substr(0, colonPos);
+        hostPort = static_cast<uint16_t>(std::stoi(hostPeerIdentifier.substr(colonPos + 1)));
+    } else {
+        // Fallback for relay mode
+        hostIP = hostPeerIdentifier;
+        hostPort = 0;
+    }
+
+    std::cout << "ClientManager: Using connected peer identifier: " << hostPeerIdentifier << std::endl;
+
+    // Send CLIENT_CONNECT message to host
     ClientConnectMessage msg;
     msg.header.type = HostMessageType::CLIENT_CONNECT;
     memset(msg.header.reserved, 0, sizeof(msg.header.reserved));
     memset(msg.reserved, 0, sizeof(msg.reserved));
 
-    // Try public IP first if available
-    bool triedPublic = false;
-    bool triedLocal = false;
-    
-    if (!hostPublicIP.empty() && hostPublicPort > 0) {
-        // Try public IP first
-        hostIP = hostPublicIP;
-        hostPort = hostPublicPort;
-        triedPublic = true;
-        std::cout << "ClientManager: Attempting connection to public IP " << hostIP << ":" << hostPort << std::endl;
-    } else if (!hostLocalIP.empty() && hostLocalPort > 0) {
-        // No public IP, use local directly
-        hostIP = hostLocalIP;
-        hostPort = hostLocalPort;
-        triedLocal = true;
-        std::cout << "ClientManager: Attempting connection to local IP " << hostIP << ":" << hostPort << std::endl;
-    } else {
-        std::cerr << "ClientManager: No valid host IP addresses available" << std::endl;
-        NetworkUtils::CloseSocket(socket);
-        NetworkUtils::Cleanup();
-        return false;
-    }
-
-    SendToHost(&msg, sizeof(msg));
-    
-    // Give the host a moment to process the message
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
     // Wait for player assignment (with timeout)
     auto startTime = std::chrono::steady_clock::now();
-    const auto attemptTimeout = std::chrono::seconds(3);  // Shorter timeout per attempt
-    const auto totalTimeout = std::chrono::seconds(10);   // Total timeout for all attempts
+    const auto totalTimeout = std::chrono::seconds(10);
 
-    // Retry sending connection message a few times in case it was lost
-    int retryCount = 0;
-    const int maxRetries = 3;
-    auto lastSendTime = std::chrono::steady_clock::now();
-    const auto retryInterval = std::chrono::milliseconds(500);
-    
     while (std::chrono::steady_clock::now() - startTime < totalTimeout) {
-        // Check if we should try fallback to local IP
-        auto elapsed = std::chrono::steady_clock::now() - startTime;
-        if (triedPublic && !triedLocal && !isConnected && elapsed >= attemptTimeout) {
-            // Public IP didn't work, try local IP
-            if (!hostLocalIP.empty() && hostLocalPort > 0) {
-                std::cout << "ClientManager: Public IP connection failed, trying local IP " 
-                         << hostLocalIP << ":" << hostLocalPort << std::endl;
-                hostIP = hostLocalIP;
-                hostPort = hostLocalPort;
-                triedLocal = true;
-                retryCount = 0;  // Reset retry count for local attempt
-                lastSendTime = std::chrono::steady_clock::now();
-                SendToHost(&msg, sizeof(msg));
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            }
-        }
+        // Send connection message periodically
+        // Use SendToFirstPeer since client only has one peer (the host)
+        connectionManager.SendToFirstPeer(&msg, sizeof(msg), true);
         
-        // Retry sending connection message periodically
-        auto now = std::chrono::steady_clock::now();
-        if (retryCount < maxRetries && (now - lastSendTime) >= retryInterval) {
-            std::cout << "ClientManager: Retrying connection (attempt " << (retryCount + 2) << ")" << std::endl;
-            SendToHost(&msg, sizeof(msg));
-            lastSendTime = now;
-            retryCount++;
-        }
-        
+        connectionManager.Update(0.0f);  // Process events
         ProcessIncomingMessages();
         
-        // Connected when we receive player assignment (not initialization package)
-        // Initialization package will come later when host loads level
+        // Connected when we receive player assignment
         if (isConnected) {
-            std::cout << "ClientManager: Connected to host " << hostIP << ":" << hostPort << std::endl;
+            std::cout << "ClientManager: Connected to host" << std::endl;
             return true;
         }
 
@@ -216,8 +197,10 @@ bool ClientManager::Connect(const std::string& roomCodeParam,
     }
 
     std::cerr << "ClientManager: Timeout waiting for connection" << std::endl;
-    NetworkUtils::CloseSocket(socket);
+    connectionManager.DisconnectFromHost();
+    NetworkUtils::CloseSocket(serverManagerSocket);
     NetworkUtils::Cleanup();
+    connectionManager.Cleanup();
     return false;
 }
 
@@ -225,6 +208,9 @@ void ClientManager::Update(float deltaTime) {
     if (!isConnected) {
         return;
     }
+
+    // Update ConnectionManager (processes ENet events)
+    connectionManager.Update(deltaTime);
 
     // Process incoming messages
     ProcessIncomingMessages();
@@ -303,20 +289,26 @@ void ClientManager::Disconnect() {
     }
 
     // Send disconnect message
-    if (socket != INVALID_SOCKET_HANDLE && !hostIP.empty()) {
+    if (!hostIP.empty() && hostPort > 0) {
         ClientConnectMessage msg;
         msg.header.type = HostMessageType::CLIENT_DISCONNECT;
         memset(msg.header.reserved, 0, sizeof(msg.header.reserved));
         memset(msg.reserved, 0, sizeof(msg.reserved));
-        SendToHost(&msg, sizeof(msg));
+        
+        std::string hostPeerIdentifier = hostIP + ":" + std::to_string(hostPort);
+        connectionManager.SendToPeer(hostPeerIdentifier, &msg, sizeof(msg), true);
     }
 
     isConnected = false;
     hasReceivedInitPackage = false;
 
-    if (socket != INVALID_SOCKET_HANDLE) {
-        NetworkUtils::CloseSocket(socket);
-        socket = INVALID_SOCKET_HANDLE;
+    // Disconnect from host
+    connectionManager.DisconnectFromHost();
+
+    // Close ServerManager socket
+    if (serverManagerSocket != INVALID_SOCKET_HANDLE) {
+        NetworkUtils::CloseSocket(serverManagerSocket);
+        serverManagerSocket = INVALID_SOCKET_HANDLE;
     }
 
     {
@@ -327,6 +319,7 @@ void ClientManager::Disconnect() {
     ClearAllSmoothingStates();
 
     NetworkUtils::Cleanup();
+    connectionManager.Cleanup();
     std::cout << "ClientManager: Disconnected" << std::endl;
 }
 
@@ -340,8 +333,8 @@ bool ClientManager::LookupRoom(const std::string& roomCodeParam,
     strncpy(msg.roomCode, roomCodeParam.c_str(), sizeof(msg.roomCode) - 1);
     msg.roomCode[sizeof(msg.roomCode) - 1] = '\0';
 
-    // Send lookup request
-    NetworkUtils::SendTo(socket, &msg, sizeof(msg), serverManagerIPParam, serverManagerPortParam);
+    // Send lookup request (use ServerManager socket)
+    NetworkUtils::SendTo(serverManagerSocket, &msg, sizeof(msg), serverManagerIPParam, serverManagerPortParam);
 
     // Wait for response (with timeout)
     auto startTime = std::chrono::steady_clock::now();
@@ -352,7 +345,7 @@ bool ClientManager::LookupRoom(const std::string& roomCodeParam,
     uint16_t fromPort;
 
     while (std::chrono::steady_clock::now() - startTime < timeout) {
-        int received = NetworkUtils::ReceiveFrom(socket, buffer, sizeof(buffer), fromIP, fromPort);
+        int received = NetworkUtils::ReceiveFrom(serverManagerSocket, buffer, sizeof(buffer), fromIP, fromPort);
         
         if (received >= static_cast<int>(sizeof(RoomInfoResponse))) {
             const RoomInfoResponse* response = reinterpret_cast<const RoomInfoResponse*>(buffer);
@@ -393,34 +386,52 @@ bool ClientManager::LookupRoom(const std::string& roomCodeParam,
 void ClientManager::ProcessIncomingMessages() {
     // Use larger buffer for initialization package (can be large with many objects)
     char buffer[65536];  // Max UDP packet size
-    std::string fromIP;
-    uint16_t fromPort;
+    std::string fromPeerIdentifier;
+    size_t received;
 
     while (true) {
-        int received = NetworkUtils::ReceiveFrom(socket, buffer, sizeof(buffer), fromIP, fromPort);
-        
-        if (received <= 0) {
+        if (!connectionManager.Receive(buffer, sizeof(buffer), received, fromPeerIdentifier)) {
             break;
         }
 
         // Track received bytes
         bytesReceived.fetch_add(received);
 
+        // Parse IP and port from peer identifier (format: "IP:PORT" or "RELAY:ROOMCODE")
+        std::string fromIP;
+        uint16_t fromPort = 0;
+        size_t colonPos = fromPeerIdentifier.find(':');
+        if (colonPos != std::string::npos) {
+            std::string prefix = fromPeerIdentifier.substr(0, colonPos);
+            if (prefix == "RELAY") {
+                // Relay mode - accept from relay
+                fromIP = fromPeerIdentifier;
+            } else {
+                fromIP = prefix;
+                fromPort = static_cast<uint16_t>(std::stoi(fromPeerIdentifier.substr(colonPos + 1)));
+            }
+        } else {
+            fromIP = fromPeerIdentifier;  // Fallback
+        }
+
         // Verify message is from host
         // During connection, accept messages from either public or local IP
-        // After connection, only accept from the active IP
+        // After connection, only accept from the active IP or relay
         bool isValidSource = false;
         if (isConnected) {
-            // After connection, only accept from the active IP
-            isValidSource = (fromIP == hostIP && fromPort == hostPort);
+            // After connection, accept from active IP or relay
+            isValidSource = (fromIP == hostIP && fromPort == hostPort) ||
+                           (fromPeerIdentifier.find("RELAY:") == 0);
         } else {
             // During connection, accept from either IP (in case we're trying fallback)
             isValidSource = ((fromIP == hostIP && fromPort == hostPort) ||
                             (!hostPublicIP.empty() && fromIP == hostPublicIP && fromPort == hostPublicPort) ||
-                            (!hostLocalIP.empty() && fromIP == hostLocalIP && fromPort == hostLocalPort));
+                            (!hostLocalIP.empty() && fromIP == hostLocalIP && fromPort == hostLocalPort) ||
+                            (fromPeerIdentifier.find("RELAY:") == 0));
             
             // If we receive from a different IP than we're currently trying, switch to it
-            if (isValidSource && (fromIP != hostIP || fromPort != hostPort)) {
+            if (isValidSource && fromPeerIdentifier.find("RELAY:") != 0 && 
+                (fromIP != hostIP || fromPort != hostPort)) {
                 std::cout << "ClientManager: Received response from " << fromIP << ":" << fromPort 
                          << ", switching to this address" << std::endl;
                 hostIP = fromIP;
@@ -432,7 +443,7 @@ void ClientManager::ProcessIncomingMessages() {
             continue;
         }
 
-        if (received < static_cast<int>(sizeof(HostMessageHeader))) {
+        if (received < sizeof(HostMessageHeader)) {
             continue;
         }
 
@@ -962,12 +973,17 @@ void ClientManager::SendHeartbeat() {
 }
 
 void ClientManager::SendToHost(const void* data, size_t length) {
-    if (socket != INVALID_SOCKET_HANDLE && !hostIP.empty() && hostPort > 0) {
-        int result = NetworkUtils::SendTo(socket, data, length, hostIP, hostPort);
-        if (result > 0) {
-            // Track sent bytes
-            bytesSent.fetch_add(result);
-        }
+    // Use SendToFirstPeer since client only has one peer (the host)
+    // This avoids identifier mismatch issues between client and host
+    bool sent = connectionManager.SendToFirstPeer(data, length, false);  // Unreliable for game updates
+    if (!sent && connectionManager.IsUsingRelay()) {
+        // If direct failed and we're using relay, try relay identifier
+        std::string relayIdentifier = "RELAY:" + roomCode;
+        sent = connectionManager.SendToPeer(relayIdentifier, data, length, false);
+    }
+    if (sent) {
+        // Track sent bytes
+        bytesSent.fetch_add(length);
     }
 }
 

@@ -58,6 +58,36 @@
             ]
         },
         {
+            "template": "player_vaccumba",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 440.0,
+                    "posY": 0.0
+                }
+            ]
+        },
+        {
+            "template": "player_vaccumba",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 400.0,
+                    "posY": 0.0
+                }
+            ]
+        },
+        {
+            "template": "player_vaccumba",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 360.0,
+                    "posY": 0.0
+                }
+            ]
+        },
+        {
             "name": "interact_sensor_pad",
             "template": "sensor_pad_interact",
             "components": [
