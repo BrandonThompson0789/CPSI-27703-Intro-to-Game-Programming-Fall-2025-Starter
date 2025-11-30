@@ -7,6 +7,7 @@
 #include <vector>
 #include <mutex>
 #include <atomic>
+#include "server_manager/NetworkUtils.h"
 
 // Forward declarations for ENet
 struct _ENetHost;
@@ -52,11 +53,13 @@ public:
 
     // Connect to a remote host
     // Tries: Direct → NAT Punchthrough → Relay (automatic fallback)
+    // forcedConnectionType: 0 = NONE, 1 = DIRECT_ONLY, 2 = NAT_ONLY, 3 = RELAY_ONLY
     // Returns true on success
     bool ConnectToHost(const std::string& roomCode,
                       const std::string& serverManagerIP, uint16_t serverManagerPort,
                       const std::string& hostPublicIP, uint16_t hostPublicPort,
-                      const std::string& hostLocalIP, uint16_t hostLocalPort);
+                      const std::string& hostLocalIP, uint16_t hostLocalPort,
+                      uint8_t forcedConnectionType = 0, bool relayEnabled = true);
 
     // Disconnect from host
     void DisconnectFromHost();
@@ -113,6 +116,12 @@ public:
     // Get public IP address (query ServerManager or use detection)
     static std::string GetPublicIP();
 
+    // Set ServerManager socket (for relay data reception on host)
+    void SetServerManagerSocket(SocketHandle socket, const std::string& serverManagerIP, uint16_t serverManagerPort);
+
+    // Register a relay peer (called by host when receiving first message from relay client)
+    bool RegisterRelayPeer(const std::string& roomCode);
+
 private:
     // Connection strategy methods
     bool TryDirectConnection(const std::string& hostIP, uint16_t hostPort);
@@ -132,8 +141,19 @@ private:
     bool ReceiveFromServerManager(void* buffer, size_t bufferSize, size_t& received);
     void HandleServerManagerMessage(const void* data, size_t length);
 
+    // Path efficiency measurement
+    struct PathInfo {
+        std::string ip;
+        uint16_t port;
+        uint32_t latencyMs;
+        bool reachable;
+    };
+    std::vector<PathInfo> MeasurePathEfficiency(const std::string& hostPublicIP, uint16_t hostPublicPort,
+                                                const std::string& hostLocalIP, uint16_t hostLocalPort);
+
     ENetHost* enetHost;
     // Note: ServerManager uses raw UDP (NetworkUtils), not ENet
+    SocketHandle serverManagerSocket;  // For ServerManager communication
 
     bool initialized;
     bool isHosting;
@@ -152,6 +172,12 @@ private:
     std::chrono::steady_clock::time_point connectionStartTime;
     static constexpr auto DIRECT_TIMEOUT = std::chrono::seconds(2);
     static constexpr auto PUNCHTHROUGH_TIMEOUT = std::chrono::seconds(3);
+    static constexpr auto RELAY_TIMEOUT = std::chrono::seconds(5);
+
+    // Path efficiency cache
+    std::vector<PathInfo> cachedPaths;
+    std::chrono::steady_clock::time_point pathCacheTime;
+    static constexpr auto PATH_CACHE_DURATION = std::chrono::seconds(30);
 
     // Bandwidth tracking
     std::atomic<uint64_t> bytesSent;

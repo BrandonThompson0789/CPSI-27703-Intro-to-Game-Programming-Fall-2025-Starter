@@ -171,6 +171,7 @@ private:
     void SendHeartbeatToServerManager();
     void UpdateServerManagerWithClients();
     void LoadServerDataConfig();
+    void ProcessServerManagerMessages();  // Handle relay decline, NAT punchthrough, etc.
 
     // Client management
     void ProcessIncomingMessages();

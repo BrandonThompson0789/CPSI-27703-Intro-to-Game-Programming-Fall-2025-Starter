@@ -122,6 +122,9 @@ bool HostManager::Initialize(uint16_t hostPortParam, const std::string& serverMa
         return false;
     }
 
+    // Set ServerManager socket in ConnectionManager so it can receive relay data
+    connectionManager.SetServerManagerSocket(serverManagerSocket, serverManagerIP, serverManagerPort);
+
     isHosting = true;
     std::cout << "HostManager: Started hosting on port " << hostPort << " with room code: " << roomCode << std::endl;
     return true;
@@ -135,8 +138,11 @@ void HostManager::Update(float deltaTime) {
     // Update ConnectionManager (processes ENet events)
     connectionManager.Update(deltaTime);
 
-    // Process incoming messages
+    // Process incoming messages from clients
     ProcessIncomingMessages();
+    
+    // Process ServerManager messages (relay decline, NAT punchthrough, etc.)
+    ProcessServerManagerMessages();
 
     // Log bandwidth statistics once per second
     auto now = std::chrono::steady_clock::now();
@@ -351,15 +357,22 @@ void HostManager::ProcessIncomingMessages() {
 
         const HostMessageHeader* header = reinterpret_cast<const HostMessageHeader*>(buffer);
 
-        // Parse IP and port from peer identifier (format: "IP:PORT")
+        // Parse IP and port from peer identifier (format: "IP:PORT" or "RELAY:ROOMCODE")
         std::string fromIP;
         uint16_t fromPort = 0;
-        size_t colonPos = fromPeerIdentifier.find(':');
-        if (colonPos != std::string::npos) {
-            fromIP = fromPeerIdentifier.substr(0, colonPos);
-            fromPort = static_cast<uint16_t>(std::stoi(fromPeerIdentifier.substr(colonPos + 1)));
+        // Check if it's a relay connection first
+        if (fromPeerIdentifier.find("RELAY:") == 0) {
+            // Relay mode - use identifier as-is, port is 0
+            fromIP = fromPeerIdentifier;
+            fromPort = 0;
         } else {
-            fromIP = fromPeerIdentifier;  // Fallback for relay mode
+            size_t colonPos = fromPeerIdentifier.find(':');
+            if (colonPos != std::string::npos) {
+                fromIP = fromPeerIdentifier.substr(0, colonPos);
+                fromPort = static_cast<uint16_t>(std::stoi(fromPeerIdentifier.substr(colonPos + 1)));
+            } else {
+                fromIP = fromPeerIdentifier;  // Fallback
+            }
         }
 
         switch (header->type) {
@@ -388,8 +401,70 @@ void HostManager::ProcessIncomingMessages() {
     }
 }
 
+void HostManager::ProcessServerManagerMessages() {
+    char buffer[4096];
+    std::string fromIP;
+    uint16_t fromPort;
+    
+    // Process all pending ServerManager messages
+    while (true) {
+        int received = NetworkUtils::ReceiveFrom(serverManagerSocket, buffer, sizeof(buffer), fromIP, fromPort);
+        if (received <= 0 || fromIP != serverManagerIP || fromPort != serverManagerPort) {
+            break;
+        }
+        
+        if (received < static_cast<int>(sizeof(MessageHeader))) {
+            continue;
+        }
+        
+        const MessageHeader* header = 
+            reinterpret_cast<const MessageHeader*>(buffer);
+        
+        switch (header->type) {
+            case MessageType::RELAY_DECLINE:
+                if (received >= static_cast<int>(sizeof(RelayDecline))) {
+                    const RelayDecline* decline = 
+                        reinterpret_cast<const RelayDecline*>(buffer);
+                    std::cout << "HostManager: Relay connection declined for client " 
+                             << decline->clientIP << ":" << decline->clientPort 
+                             << " - Reason: " << decline->reason << std::endl;
+                    // Host can take action here (e.g., notify user, try alternative connection)
+                }
+                break;
+                
+            case MessageType::NAT_PUNCHTHROUGH_RESPONSE:
+                // NAT punchthrough coordination - ConnectionManager handles this
+                // But we can log it here for debugging
+                if (received >= static_cast<int>(sizeof(NATPunchthroughResponse))) {
+                    const NATPunchthroughResponse* response = 
+                        reinterpret_cast<const NATPunchthroughResponse*>(buffer);
+                    std::cout << "HostManager: NAT punchthrough coordination received for room " 
+                             << response->roomCode << std::endl;
+                }
+                break;
+                
+            case MessageType::RELAY_DATA:
+                // Relay data should be handled by ConnectionManager.Receive()
+                // This shouldn't normally reach here, but if it does, pass it to ConnectionManager
+                // The ConnectionManager.Receive() method checks for relay data
+                break;
+                
+            default:
+                // Other ServerManager messages handled elsewhere
+                break;
+        }
+    }
+}
+
 void HostManager::HandleClientConnect(const std::string& fromIP, uint16_t fromPort) {
-    std::string clientKey = fromIP + ":" + std::to_string(fromPort);
+    // For relay connections, fromIP is "RELAY:ROOMCODE" and fromPort is 0
+    // Use the identifier as-is for relay, otherwise construct IP:PORT
+    std::string clientKey;
+    if (fromIP.find("RELAY:") == 0) {
+        clientKey = fromIP;  // Use relay identifier as-is
+    } else {
+        clientKey = fromIP + ":" + std::to_string(fromPort);
+    }
     
     std::cout << "HostManager: Received CLIENT_CONNECT from " << clientKey << std::endl;
     
@@ -412,8 +487,9 @@ void HostManager::HandleClientConnect(const std::string& fromIP, uint16_t fromPo
 
         // Add new client
         ClientInfo client;
-        client.ip = fromIP;
-        client.port = fromPort;
+        // Store the peer identifier (for relay, this is "RELAY:ROOMCODE", for direct it's IP:PORT)
+        client.ip = fromIP;  // This will be "RELAY:ROOMCODE" for relay connections
+        client.port = fromPort;  // This will be 0 for relay connections
         client.lastHeartbeat = std::chrono::steady_clock::now();
         client.connected = true;
         client.assignedPlayerId = 0;  // Will be assigned below
@@ -421,6 +497,13 @@ void HostManager::HandleClientConnect(const std::string& fromIP, uint16_t fromPo
     }
 
     std::cout << "HostManager: Client connected from " << clientKey << std::endl;
+    
+    // For relay connections, register the peer in ConnectionManager
+    if (fromIP.find("RELAY:") == 0) {
+        // Extract room code from "RELAY:ROOMCODE"
+        std::string roomCode = fromIP.substr(6);  // Skip "RELAY:"
+        connectionManager.RegisterRelayPeer(roomCode);
+    }
     
     // Assign a player slot to this client
     int assignedPlayerId = AssignPlayerToClient(clientKey);
@@ -442,7 +525,13 @@ void HostManager::HandleClientConnect(const std::string& fromIP, uint16_t fromPo
 }
 
 void HostManager::HandleClientDisconnect(const std::string& fromIP, uint16_t fromPort) {
-    std::string clientKey = fromIP + ":" + std::to_string(fromPort);
+    // For relay connections, fromIP is "RELAY:ROOMCODE" and fromPort is 0
+    std::string clientKey;
+    if (fromIP.find("RELAY:") == 0) {
+        clientKey = fromIP;  // Use relay identifier as-is
+    } else {
+        clientKey = fromIP + ":" + std::to_string(fromPort);
+    }
     
     int assignedPlayerId = 0;
     {
@@ -480,7 +569,13 @@ void HostManager::HandleClientInput(const std::string& fromIP, uint16_t fromPort
 }
 
 void HostManager::HandleClientHeartbeat(const std::string& fromIP, uint16_t fromPort) {
-    std::string clientKey = fromIP + ":" + std::to_string(fromPort);
+    // For relay connections, fromIP is "RELAY:ROOMCODE" and fromPort is 0
+    std::string clientKey;
+    if (fromIP.find("RELAY:") == 0) {
+        clientKey = fromIP;  // Use relay identifier as-is
+    } else {
+        clientKey = fromIP + ":" + std::to_string(fromPort);
+    }
     
     std::lock_guard<std::mutex> lock(clientsMutex);
     auto it = clients.find(clientKey);
@@ -877,7 +972,14 @@ void HostManager::CleanupObjectIds() {
 }
 
 void HostManager::SendToClient(const std::string& clientIP, uint16_t clientPort, const void* data, size_t length) {
-    std::string peerIdentifier = clientIP + ":" + std::to_string(clientPort);
+    // For relay connections, clientIP is "RELAY:ROOMCODE" and clientPort is 0
+    // Use the identifier as-is for relay, otherwise construct IP:PORT
+    std::string peerIdentifier;
+    if (clientIP.find("RELAY:") == 0) {
+        peerIdentifier = clientIP;  // Use relay identifier as-is
+    } else {
+        peerIdentifier = clientIP + ":" + std::to_string(clientPort);
+    }
     bool sent = connectionManager.SendToPeer(peerIdentifier, data, length, false);  // Unreliable for game updates
     if (!sent) {
         std::cerr << "HostManager: Failed to send data to " << peerIdentifier << std::endl;
@@ -888,7 +990,14 @@ void HostManager::SendToClient(const std::string& clientIP, uint16_t clientPort,
 }
 
 void HostManager::SendToClientReliable(const std::string& clientIP, uint16_t clientPort, const void* data, size_t length) {
-    std::string peerIdentifier = clientIP + ":" + std::to_string(clientPort);
+    // For relay connections, clientIP is "RELAY:ROOMCODE" and clientPort is 0
+    // Use the identifier as-is for relay, otherwise construct IP:PORT
+    std::string peerIdentifier;
+    if (clientIP.find("RELAY:") == 0) {
+        peerIdentifier = clientIP;  // Use relay identifier as-is
+    } else {
+        peerIdentifier = clientIP + ":" + std::to_string(clientPort);
+    }
     bool sent = connectionManager.SendToPeer(peerIdentifier, data, length, true);  // Reliable for important messages
     if (!sent) {
         std::cerr << "HostManager: Failed to send reliable data to " << peerIdentifier << std::endl;

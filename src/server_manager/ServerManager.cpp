@@ -13,6 +13,8 @@ ServerManager::ServerManager(uint16_t port)
     , m_socket(INVALID_SOCKET_HANDLE)
     , m_randomGenerator(m_randomDevice())
     , m_codeDistribution(0, 35) // 0-9, A-Z
+    , relayEnabled(true)  // Relay enabled by default
+    , forcedConnectionType(::ForcedConnectionType::NONE)  // No forcing by default
 {
 }
 
@@ -75,16 +77,25 @@ void ServerManager::Run() {
     const auto cleanupInterval = std::chrono::seconds(CLEANUP_INTERVAL_SECONDS);
 
     while (m_running) {
-        // Receive messages
-        char buffer[4096];
-        std::string fromIP;
-        uint16_t fromPort;
+        // Process all available messages in a batch to reduce latency
+        int messagesProcessed = 0;
+        const int maxMessagesPerLoop = 100; // Prevent infinite loop if messages arrive faster than we can process
         
-        int received = NetworkUtils::ReceiveFrom(m_socket, buffer, sizeof(buffer), fromIP, fromPort);
-        
-        if (received > 0) {
-            if (received >= static_cast<int>(sizeof(MessageHeader))) {
-                ProcessMessage(fromIP, fromPort, buffer, received);
+        while (messagesProcessed < maxMessagesPerLoop) {
+            char buffer[4096];
+            std::string fromIP;
+            uint16_t fromPort;
+            
+            int received = NetworkUtils::ReceiveFrom(m_socket, buffer, sizeof(buffer), fromIP, fromPort);
+            
+            if (received > 0) {
+                if (received >= static_cast<int>(sizeof(MessageHeader))) {
+                    ProcessMessage(fromIP, fromPort, buffer, received);
+                    messagesProcessed++;
+                }
+            } else {
+                // No more messages available, break out of inner loop
+                break;
             }
         }
 
@@ -95,8 +106,10 @@ void ServerManager::Run() {
             lastCleanup = now;
         }
 
-        // Small sleep to prevent CPU spinning
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        // Small sleep only if no messages were processed (prevents CPU spinning)
+        if (messagesProcessed == 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
     }
 }
 
@@ -140,6 +153,31 @@ void ServerManager::ProcessMessage(const std::string& fromIP, uint16_t fromPort,
             if (length >= sizeof(ClientLookupMessage)) {
                 HandleClientLookup(fromIP, fromPort,
                                   *reinterpret_cast<const ClientLookupMessage*>(data));
+            }
+            break;
+
+        case MessageType::NAT_PUNCHTHROUGH_REQUEST:
+            if (length >= sizeof(NATPunchthroughRequest)) {
+                HandleNATPunchthroughRequest(fromIP, fromPort,
+                                            *reinterpret_cast<const NATPunchthroughRequest*>(data));
+            }
+            break;
+
+        case MessageType::RELAY_REQUEST:
+            if (length >= sizeof(RelayRequest)) {
+                HandleRelayRequest(fromIP, fromPort,
+                                  *reinterpret_cast<const RelayRequest*>(data));
+            }
+            break;
+
+        case MessageType::RELAY_DATA:
+            HandleRelayData(fromIP, fromPort, data, length);
+            break;
+
+        case MessageType::PATH_TEST_REQUEST:
+            if (length >= sizeof(PathTestRequest)) {
+                HandlePathTestRequest(fromIP, fromPort,
+                                     *reinterpret_cast<const PathTestRequest*>(data));
             }
             break;
 
@@ -298,6 +336,9 @@ void ServerManager::HandleClientLookup(const std::string& fromIP, uint16_t fromP
         response->hostPort = room.hostPort;                    // Local port (for reference)
         response->hostPublicPort = room.hostPublicPort;        // Public port (use this to connect)
         response->playerCount = static_cast<uint16_t>(room.playerIPs.size());
+        response->forcedConnectionType = static_cast<uint8_t>(forcedConnectionType);
+        response->relayEnabled = relayEnabled ? 1 : 0;
+        memset(response->reserved, 0, sizeof(response->reserved));
         
         // Store both local and public IPs
         strncpy(response->hostIP, room.hostIP.c_str(), sizeof(response->hostIP) - 1);
@@ -318,6 +359,18 @@ void ServerManager::HandleClientLookup(const std::string& fromIP, uint16_t fromP
         SendResponse(fromIP, fromPort, responseBuffer.data(), responseBuffer.size());
         std::cout << "Client " << fromIP << " looked up room: " << roomCode 
                  << " (Host Public: " << room.hostPublicIP << ":" << room.hostPublicPort << ")" << std::endl;
+        
+        // Log forced connection type if set
+        if (forcedConnectionType != ::ForcedConnectionType::NONE) {
+            std::string typeStr;
+            switch (forcedConnectionType) {
+                case ::ForcedConnectionType::DIRECT_ONLY: typeStr = "DIRECT_ONLY"; break;
+                case ::ForcedConnectionType::NAT_ONLY: typeStr = "NAT_ONLY"; break;
+                case ::ForcedConnectionType::RELAY_ONLY: typeStr = "RELAY_ONLY"; break;
+                default: break;
+            }
+            std::cout << "  Forced connection type: " << typeStr << std::endl;
+        }
     } else {
         ErrorResponse response;
         response.header.type = MessageType::RESPONSE_ERROR;
@@ -369,10 +422,304 @@ void ServerManager::CleanupStaleRooms() {
             std::cout << "Removed stale room: " << roomCode << std::endl;
         }
     }
+
+    // Cleanup stale relay connections
+    {
+        std::lock_guard<std::mutex> relayLock(relaysMutex);
+        auto relayTimeout = std::chrono::seconds(RELAY_TIMEOUT_SECONDS);
+        for (auto& [roomCode, relays] : activeRelays) {
+            relays.erase(
+                std::remove_if(relays.begin(), relays.end(),
+                    [&](const RelayConnection& relay) {
+                        return (now - relay.lastActivity) > relayTimeout;
+                    }),
+                relays.end());
+        }
+        // Remove empty relay entries
+        for (auto it = activeRelays.begin(); it != activeRelays.end();) {
+            if (it->second.empty()) {
+                it = activeRelays.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
 }
 
 void ServerManager::SendResponse(const std::string& toIP, uint16_t toPort,
                                 const void* data, size_t length) {
     NetworkUtils::SendTo(m_socket, data, length, toIP, toPort);
+}
+
+void ServerManager::HandleNATPunchthroughRequest(const std::string& fromIP, uint16_t fromPort,
+                                                const NATPunchthroughRequest& msg) {
+    // Check if NAT punchthrough is allowed
+    if (forcedConnectionType == ::ForcedConnectionType::DIRECT_ONLY || 
+        forcedConnectionType == ::ForcedConnectionType::RELAY_ONLY) {
+        ErrorResponse response;
+        response.header.type = MessageType::RESPONSE_ERROR;
+        memset(response.header.reserved, 0, sizeof(response.header.reserved));
+        strncpy(response.errorMessage, "NAT punchthrough not allowed (forced connection type)", sizeof(response.errorMessage) - 1);
+        response.errorMessage[sizeof(response.errorMessage) - 1] = '\0';
+        SendResponse(fromIP, fromPort, &response, sizeof(response));
+        std::cout << "NAT punchthrough request denied for room " << msg.roomCode 
+                 << " (forced connection type)" << std::endl;
+        return;
+    }
+    
+    std::lock_guard<std::mutex> lock(m_roomsMutex);
+
+    std::string roomCode(msg.roomCode);
+    auto it = m_rooms.find(roomCode);
+    if (it == m_rooms.end()) {
+        ErrorResponse response;
+        response.header.type = MessageType::RESPONSE_ERROR;
+        memset(response.header.reserved, 0, sizeof(response.header.reserved));
+        strncpy(response.errorMessage, "Room not found", sizeof(response.errorMessage) - 1);
+        response.errorMessage[sizeof(response.errorMessage) - 1] = '\0';
+        SendResponse(fromIP, fromPort, &response, sizeof(response));
+        return;
+    }
+
+    const RoomInfo& room = it->second;
+
+    // Send punchthrough info to both host and client
+    NATPunchthroughResponse response;
+    response.header.type = MessageType::NAT_PUNCHTHROUGH_RESPONSE;
+    memset(response.header.reserved, 0, sizeof(response.header.reserved));
+    strncpy(response.roomCode, roomCode.c_str(), sizeof(response.roomCode) - 1);
+    response.roomCode[sizeof(response.roomCode) - 1] = '\0';
+
+    // Host info
+    strncpy(response.hostPublicIP, room.hostPublicIP.c_str(), sizeof(response.hostPublicIP) - 1);
+    response.hostPublicIP[sizeof(response.hostPublicIP) - 1] = '\0';
+    response.hostPublicPort = room.hostPublicPort;
+    strncpy(response.hostLocalIP, room.hostIP.c_str(), sizeof(response.hostLocalIP) - 1);
+    response.hostLocalIP[sizeof(response.hostLocalIP) - 1] = '\0';
+    response.hostLocalPort = room.hostPort;
+
+    // Client info (from request and detected public IP)
+    strncpy(response.clientPublicIP, fromIP.c_str(), sizeof(response.clientPublicIP) - 1);
+    response.clientPublicIP[sizeof(response.clientPublicIP) - 1] = '\0';
+    response.clientPublicPort = fromPort;
+    strncpy(response.clientLocalIP, msg.clientLocalIP, sizeof(response.clientLocalIP) - 1);
+    response.clientLocalIP[sizeof(response.clientLocalIP) - 1] = '\0';
+    response.clientLocalPort = msg.clientLocalPort;
+
+    // Send to client
+    SendResponse(fromIP, fromPort, &response, sizeof(response));
+
+    // Send to host
+    SendResponse(room.hostPublicIP, room.hostPublicPort, &response, sizeof(response));
+
+    std::cout << "NAT punchthrough coordination for room " << roomCode 
+             << " (Host: " << room.hostPublicIP << ":" << room.hostPublicPort
+             << ", Client: " << fromIP << ":" << fromPort << ")" << std::endl;
+}
+
+void ServerManager::HandleRelayRequest(const std::string& fromIP, uint16_t fromPort,
+                                      const RelayRequest& msg) {
+    std::lock_guard<std::mutex> lock(m_roomsMutex);
+
+    std::string roomCode(msg.roomCode);
+    auto it = m_rooms.find(roomCode);
+    if (it == m_rooms.end()) {
+        ErrorResponse response;
+        response.header.type = MessageType::RESPONSE_ERROR;
+        memset(response.header.reserved, 0, sizeof(response.header.reserved));
+        strncpy(response.errorMessage, "Room not found", sizeof(response.errorMessage) - 1);
+        response.errorMessage[sizeof(response.errorMessage) - 1] = '\0';
+        SendResponse(fromIP, fromPort, &response, sizeof(response));
+        return;
+    }
+
+    const RoomInfo& room = it->second;
+
+    RelayResponse response;
+    response.header.type = MessageType::RELAY_RESPONSE;
+    memset(response.header.reserved, 0, sizeof(response.header.reserved));
+    strncpy(response.roomCode, roomCode.c_str(), sizeof(response.roomCode) - 1);
+    response.roomCode[sizeof(response.roomCode) - 1] = '\0';
+
+    // Check if relay is forced or disabled
+    bool shouldAccept = false;
+    std::string declineReason;
+    
+    if (forcedConnectionType == ::ForcedConnectionType::RELAY_ONLY) {
+        // Force relay - accept if enabled
+        shouldAccept = relayEnabled;
+        if (!relayEnabled) {
+            declineReason = "Relay disabled by server (forced RELAY_ONLY but relay disabled)";
+        }
+    } else if (forcedConnectionType == ::ForcedConnectionType::DIRECT_ONLY || 
+               forcedConnectionType == ::ForcedConnectionType::NAT_ONLY) {
+        // Relay not allowed due to forced connection type
+        shouldAccept = false;
+        declineReason = "Relay not allowed (forced connection type)";
+    } else {
+        // Normal mode - check relay enabled
+        shouldAccept = relayEnabled;
+        if (!relayEnabled) {
+            declineReason = "Relay disabled by server";
+        }
+    }
+
+    if (!shouldAccept) {
+        // Relay declined
+        response.accepted = 0;
+        response.relayPort = 0;
+        SendResponse(fromIP, fromPort, &response, sizeof(response));
+
+        // Notify host that relay was declined
+        RelayDecline decline;
+        decline.header.type = MessageType::RELAY_DECLINE;
+        memset(decline.header.reserved, 0, sizeof(decline.header.reserved));
+        strncpy(decline.roomCode, roomCode.c_str(), sizeof(decline.roomCode) - 1);
+        decline.roomCode[sizeof(decline.roomCode) - 1] = '\0';
+        strncpy(decline.clientIP, fromIP.c_str(), sizeof(decline.clientIP) - 1);
+        decline.clientIP[sizeof(decline.clientIP) - 1] = '\0';
+        decline.clientPort = fromPort;
+        strncpy(decline.reason, declineReason.c_str(), sizeof(decline.reason) - 1);
+        decline.reason[sizeof(decline.reason) - 1] = '\0';
+        SendResponse(room.hostPublicIP, room.hostPublicPort, &decline, sizeof(decline));
+
+        std::cout << "Relay request declined for room " << roomCode 
+                 << " - " << declineReason << std::endl;
+        return;
+    }
+
+    // Accept relay connection
+    response.accepted = 1;
+    response.relayPort = m_port;  // Use same port for relay
+    SendResponse(fromIP, fromPort, &response, sizeof(response));
+
+    // Register relay connection
+    {
+        std::lock_guard<std::mutex> relayLock(relaysMutex);
+        RelayConnection relayConn;
+        relayConn.clientIP = fromIP;
+        relayConn.clientPort = fromPort;
+        relayConn.hostIP = room.hostPublicIP;
+        relayConn.hostPort = room.hostPublicPort;
+        relayConn.lastActivity = std::chrono::steady_clock::now();
+        activeRelays[roomCode].push_back(relayConn);
+    }
+
+    std::cout << "Relay connection established for room " << roomCode 
+             << " (Client: " << fromIP << ":" << fromPort
+             << " -> Host: " << room.hostPublicIP << ":" << room.hostPublicPort << ")" << std::endl;
+}
+
+void ServerManager::HandleRelayData(const std::string& fromIP, uint16_t fromPort,
+                                   const void* data, size_t length) {
+    if (length < sizeof(RelayDataHeader)) {
+        return;
+    }
+
+    const RelayDataHeader* header = reinterpret_cast<const RelayDataHeader*>(data);
+    std::string roomCode(header->roomCode);
+
+    // Get room info and relay connection info with minimal lock time
+    std::string hostIP;
+    uint16_t hostPort = 0;
+    std::string toIP;
+    uint16_t toPort = 0;
+    bool isValid = false;
+    
+    {
+        std::lock_guard<std::mutex> lock(m_roomsMutex);
+        auto roomIt = m_rooms.find(roomCode);
+        if (roomIt == m_rooms.end()) {
+            return;
+        }
+        const RoomInfo& room = roomIt->second;
+        hostIP = room.hostPublicIP;
+        hostPort = room.hostPublicPort;
+    }
+
+    {
+        std::lock_guard<std::mutex> relayLock(relaysMutex);
+
+        // Verify this is a valid relay connection
+        auto it = activeRelays.find(roomCode);
+        if (it == activeRelays.end()) {
+            return;
+        }
+
+        // Determine destination based on sender
+        // The client registered the relay connection via RELAY_REQUEST, so we know:
+        // - relay.clientIP/clientPort = the client's ServerManager socket (exact IP/port from RELAY_REQUEST)
+        // - relay.hostIP/hostPort = the host's public IP/port (from room registration)
+        // Strategy: Match client first (exact match), then assume host if it doesn't match
+        
+        // For each relay connection in this room, determine destination
+        // Since there's typically one relay connection per room, we can use the first one
+        for (const auto& relay : it->second) {
+            // First, check if sender is the client (exact match with stored client IP/port)
+            bool isClientSender = (relay.clientIP == fromIP && relay.clientPort == fromPort);
+            
+            if (isClientSender) {
+                // Client sent data, forward to host
+                toIP = relay.hostIP;
+                toPort = relay.hostPort;
+                isValid = true;
+                break;
+            } else {
+                // Not the client, so must be the host
+                // Forward to client (use stored client IP/port from relay registration)
+                toIP = relay.clientIP;
+                toPort = relay.clientPort;
+                isValid = true;
+                break;
+            }
+        }
+        
+        // Update last activity (still within lock)
+        if (isValid) {
+            for (auto& relay : it->second) {
+                if ((relay.clientIP == fromIP && relay.clientPort == fromPort) ||
+                    (relay.hostIP == fromIP && relay.hostPort == fromPort)) {
+                    relay.lastActivity = std::chrono::steady_clock::now();
+                    break;
+                }
+            }
+        }
+    }
+
+    if (!isValid) {
+        std::cerr << "ServerManager: No relay connection found for room " << roomCode << std::endl;
+        return;
+    }
+
+    // Forward the data with relay header (so receiver knows it's relay data)
+    // The receiver (ConnectionManager) will strip the header
+    NetworkUtils::SendTo(m_socket, data, length, toIP, toPort);
+}
+
+void ServerManager::HandlePathTestRequest(const std::string& fromIP, uint16_t fromPort,
+                                         const PathTestRequest& msg) {
+    std::lock_guard<std::mutex> lock(m_roomsMutex);
+
+    std::string roomCode(msg.roomCode);
+    auto it = m_rooms.find(roomCode);
+    if (it == m_rooms.end()) {
+        return;
+    }
+
+    // Calculate latency
+    auto now = std::chrono::steady_clock::now();
+    auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
+        now.time_since_epoch()).count();
+    uint32_t latencyMs = static_cast<uint32_t>(timestamp - msg.timestamp);
+
+    PathTestResponse response;
+    response.header.type = MessageType::PATH_TEST_RESPONSE;
+    memset(response.header.reserved, 0, sizeof(response.header.reserved));
+    strncpy(response.roomCode, roomCode.c_str(), sizeof(response.roomCode) - 1);
+    response.roomCode[sizeof(response.roomCode) - 1] = '\0';
+    response.timestamp = msg.timestamp;
+    response.latencyMs = latencyMs;
+
+    SendResponse(fromIP, fromPort, &response, sizeof(response));
 }
 

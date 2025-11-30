@@ -134,16 +134,7 @@ bool ClientManager::Connect(const std::string& roomCodeParam,
         return false;
     }
 
-    // Connect to host using ConnectionManager (tries direct → punchthrough → relay automatically)
-    if (!connectionManager.ConnectToHost(roomCode, serverManagerIP, serverManagerPort,
-                                        hostPublicIP, hostPublicPort,
-                                        hostLocalIP, hostLocalPort)) {
-        std::cerr << "ClientManager: Failed to connect to host" << std::endl;
-        NetworkUtils::CloseSocket(serverManagerSocket);
-        NetworkUtils::Cleanup();
-        connectionManager.Cleanup();
-        return false;
-    }
+    // Note: Connection will be attempted after room lookup when we have forced connection type info
 
     // Get the actual connected peer identifier (may differ from lookup if local connection succeeded)
     std::string hostPeerIdentifier = connectionManager.GetFirstConnectedPeerIdentifier();
@@ -157,14 +148,21 @@ bool ClientManager::Connect(const std::string& roomCodeParam,
     }
 
     // Parse IP and port from peer identifier to update hostIP/hostPort
-    size_t colonPos = hostPeerIdentifier.find(':');
-    if (colonPos != std::string::npos) {
-        hostIP = hostPeerIdentifier.substr(0, colonPos);
-        hostPort = static_cast<uint16_t>(std::stoi(hostPeerIdentifier.substr(colonPos + 1)));
-    } else {
-        // Fallback for relay mode
+    // Check if it's a relay connection first
+    if (hostPeerIdentifier.find("RELAY:") == 0) {
+        // Relay mode - use room code as identifier, port is 0
         hostIP = hostPeerIdentifier;
         hostPort = 0;
+    } else {
+        size_t colonPos = hostPeerIdentifier.find(':');
+        if (colonPos != std::string::npos) {
+            hostIP = hostPeerIdentifier.substr(0, colonPos);
+            hostPort = static_cast<uint16_t>(std::stoi(hostPeerIdentifier.substr(colonPos + 1)));
+        } else {
+            // Fallback
+            hostIP = hostPeerIdentifier;
+            hostPort = 0;
+        }
     }
 
     std::cout << "ClientManager: Using connected peer identifier: " << hostPeerIdentifier << std::endl;
@@ -368,6 +366,23 @@ bool ClientManager::LookupRoom(const std::string& roomCodeParam,
                              << " at " << hostLocalIP << ":" << hostLocalPort 
                              << " (no public IP available)" << std::endl;
                 }
+                
+                // Store forced connection type and relay enabled status
+                uint8_t forcedType = response->forcedConnectionType;
+                bool relayEnabled = response->relayEnabled != 0;
+                
+                // Connect to host using ConnectionManager with forced connection type
+                if (!connectionManager.ConnectToHost(roomCode, serverManagerIP, serverManagerPort,
+                                                    hostPublicIP, hostPublicPort,
+                                                    hostLocalIP, hostLocalPort,
+                                                    forcedType, relayEnabled)) {
+                    std::cerr << "ClientManager: Failed to connect to host" << std::endl;
+                    NetworkUtils::CloseSocket(serverManagerSocket);
+                    NetworkUtils::Cleanup();
+                    connectionManager.Cleanup();
+                    return false;
+                }
+                
                 return true;
             } else if (response->header.type == MessageType::RESPONSE_ERROR) {
                 const ErrorResponse* errorResponse = reinterpret_cast<const ErrorResponse*>(buffer);

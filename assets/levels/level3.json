@@ -1,7 +1,7 @@
 ﻿{
     "title": "Level 3: The Placeholder",
     "order": 30,
-    "thumbnail": "assets/textures/level1.png",
+    "thumbnail": "assets/textures/level3.png",
     "background": {
         "layers": [
             {
