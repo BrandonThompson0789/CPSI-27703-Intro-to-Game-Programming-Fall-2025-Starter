@@ -53,6 +53,8 @@ HostManager::HostManager(Engine* engine)
 
     LoadServerDataConfig();
 
+    // Initialize with config file values as defaults
+    // These will be overridden by Initialize() if explicit parameters are provided
     hostPort = serverDataConfig.hostPort;
     serverManagerIP = serverDataConfig.serverManagerIP;
     serverManagerPort = serverDataConfig.serverManagerPort;
@@ -65,25 +67,11 @@ HostManager::~HostManager() {
 }
 
 bool HostManager::Initialize(uint16_t hostPortParam, const std::string& serverManagerIPParam, uint16_t serverManagerPortParam) {
-    uint16_t resolvedHostPort = hostPortParam;
-    std::string resolvedServerManagerIP = serverManagerIPParam;
-    uint16_t resolvedServerManagerPort = serverManagerPortParam;
-
-    if (serverDataConfig.loaded) {
-        if (hostPortParam == kDefaultHostPort) {
-            resolvedHostPort = serverDataConfig.hostPort;
-        }
-        if (serverManagerIPParam == kDefaultServerManagerIP) {
-            resolvedServerManagerIP = serverDataConfig.serverManagerIP;
-        }
-        if (serverManagerPortParam == kDefaultServerManagerPort) {
-            resolvedServerManagerPort = serverDataConfig.serverManagerPort;
-        }
-    }
-
-    hostPort = resolvedHostPort;
-    serverManagerIP = resolvedServerManagerIP;
-    serverManagerPort = resolvedServerManagerPort;
+    // Command-line parameters always take precedence over config file values
+    // Always use the provided parameters directly - they come from command-line or explicit calls
+    hostPort = hostPortParam;
+    serverManagerIP = serverManagerIPParam;
+    serverManagerPort = serverManagerPortParam;
 
     // Initialize ConnectionManager (ENet) for game networking
     if (!connectionManager.Initialize()) {
@@ -496,14 +484,34 @@ void HostManager::HandleClientConnect(const std::string& fromIP, uint16_t fromPo
         clients[clientKey] = client;
     }
 
-    std::cout << "HostManager: Client connected from " << clientKey << std::endl;
-    
-    // For relay connections, register the peer in ConnectionManager
+    // Determine and log connection type
+    std::string connectionTypeStr = "UNKNOWN";
     if (fromIP.find("RELAY:") == 0) {
+        connectionTypeStr = "RELAY";
         // Extract room code from "RELAY:ROOMCODE"
         std::string roomCode = fromIP.substr(6);  // Skip "RELAY:"
         connectionManager.RegisterRelayPeer(roomCode);
+    } else {
+        // For direct connections, check the connection type
+        std::string peerIdentifier = fromIP + ":" + std::to_string(fromPort);
+        ConnectionType connType = connectionManager.GetConnectionType(peerIdentifier);
+        switch (connType) {
+            case ConnectionType::DIRECT:
+                connectionTypeStr = "DIRECT";
+                break;
+            case ConnectionType::NAT_PUNCHTHROUGH:
+                connectionTypeStr = "NAT_PUNCHTHROUGH";
+                break;
+            case ConnectionType::RELAY:
+                connectionTypeStr = "RELAY";
+                break;
+            default:
+                connectionTypeStr = "DIRECT";  // Default assumption for non-relay
+                break;
+        }
     }
+    
+    std::cout << "HostManager: Client connected from " << clientKey << " (Connection Type: " << connectionTypeStr << ")" << std::endl;
     
     // Assign a player slot to this client
     int assignedPlayerId = AssignPlayerToClient(clientKey);

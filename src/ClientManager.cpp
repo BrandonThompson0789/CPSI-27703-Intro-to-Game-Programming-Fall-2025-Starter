@@ -83,25 +83,10 @@ bool ClientManager::Connect(const std::string& roomCodeParam,
         return static_cast<char>(std::toupper(c));
     });
     
-    // Use provided parameters, or fall back to loaded config if defaults are used
-    if (serverDataConfig.loaded) {
-        // Use config values if default parameters are provided
-        if (serverManagerIPParam == "127.0.0.1") {
-            serverManagerIP = serverDataConfig.serverManagerIP;
-        } else {
-            serverManagerIP = serverManagerIPParam;
-        }
-        
-        if (serverManagerPortParam == 8888) {
-            serverManagerPort = serverDataConfig.serverManagerPort;
-        } else {
-            serverManagerPort = serverManagerPortParam;
-        }
-    } else {
-        // No config loaded, use provided parameters
-        serverManagerIP = serverManagerIPParam;
-        serverManagerPort = serverManagerPortParam;
-    }
+    // Command-line parameters always take precedence over config file values
+    // Always use the provided parameters directly (command-line always wins)
+    serverManagerIP = serverManagerIPParam;
+    serverManagerPort = serverManagerPortParam;
 
     // Initialize ConnectionManager (ENet) for game networking
     if (!connectionManager.Initialize()) {
@@ -166,6 +151,30 @@ bool ClientManager::Connect(const std::string& roomCodeParam,
     }
 
     std::cout << "ClientManager: Using connected peer identifier: " << hostPeerIdentifier << std::endl;
+    
+    // Determine and log connection type
+    std::string connectionTypeStr = "UNKNOWN";
+    if (hostPeerIdentifier.find("RELAY:") == 0) {
+        connectionTypeStr = "RELAY";
+    } else {
+        // Check if it's direct or NAT punchthrough by checking the connection type
+        ConnectionType connType = connectionManager.GetConnectionType(hostPeerIdentifier);
+        switch (connType) {
+            case ConnectionType::DIRECT:
+                connectionTypeStr = "DIRECT";
+                break;
+            case ConnectionType::NAT_PUNCHTHROUGH:
+                connectionTypeStr = "NAT_PUNCHTHROUGH";
+                break;
+            case ConnectionType::RELAY:
+                connectionTypeStr = "RELAY";
+                break;
+            default:
+                connectionTypeStr = "UNKNOWN";
+                break;
+        }
+    }
+    std::cout << "ClientManager: Connection Type: " << connectionTypeStr << std::endl;
 
     // Send CLIENT_CONNECT message to host
     ClientConnectMessage msg;

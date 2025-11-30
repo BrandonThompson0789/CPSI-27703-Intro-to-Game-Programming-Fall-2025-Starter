@@ -247,7 +247,7 @@ bool ConnectionManager::TryDirectConnection(const std::string& hostIP, uint16_t 
                 std::lock_guard<std::mutex> lock(peersMutex);
                 connectedPeers[identifier] = peerConn;
 
-                std::cout << "ConnectionManager: Direct connection established to " << identifier << std::endl;
+                std::cout << "ConnectionManager: Direct connection established to " << identifier << " (Connection Type: DIRECT)" << std::endl;
                 return true;
             } else if (event.type == ENET_EVENT_TYPE_DISCONNECT) {
                 return false;
@@ -308,7 +308,7 @@ bool ConnectionManager::TryNATPunchthrough(const std::string& roomCode,
                         if (it != connectedPeers.end()) {
                             it->second.type = ConnectionType::NAT_PUNCHTHROUGH;
                         }
-                        std::cout << "ConnectionManager: NAT punchthrough successful via public IP" << std::endl;
+                        std::cout << "ConnectionManager: NAT punchthrough successful via public IP (Connection Type: NAT_PUNCHTHROUGH)" << std::endl;
                         return true;
                     }
                     
@@ -320,7 +320,7 @@ bool ConnectionManager::TryNATPunchthrough(const std::string& roomCode,
                         if (it != connectedPeers.end()) {
                             it->second.type = ConnectionType::NAT_PUNCHTHROUGH;
                         }
-                        std::cout << "ConnectionManager: NAT punchthrough successful via local IP" << std::endl;
+                        std::cout << "ConnectionManager: NAT punchthrough successful via local IP (Connection Type: NAT_PUNCHTHROUGH)" << std::endl;
                         return true;
                     }
                 }
@@ -376,7 +376,7 @@ bool ConnectionManager::TryRelayConnection(const std::string& roomCode) {
                         connectedPeers[identifier] = peerConn;
 
                         std::cout << "ConnectionManager: Relay connection established for room " 
-                                 << roomCode << std::endl;
+                                 << roomCode << " (Connection Type: RELAY)" << std::endl;
                         return true;
                     } else {
                         std::cerr << "ConnectionManager: Relay request declined by server" << std::endl;

@@ -18,6 +18,11 @@ int main(int argc, char* argv[]) {
     std::string serverManagerIP = "127.0.0.1";
     uint16_t serverManagerPort = 8888;
     
+    // Track which parameters were explicitly provided
+    bool hostPortProvided = false;
+    bool serverManagerIPProvided = false;
+    bool serverManagerPortProvided = false;
+    
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         
@@ -28,10 +33,13 @@ int main(int argc, char* argv[]) {
             roomCode = argv[++i];
         } else if (arg == "--host-port" && i + 1 < argc) {
             hostPort = static_cast<uint16_t>(std::stoi(argv[++i]));
+            hostPortProvided = true;
         } else if (arg == "--server-manager-ip" && i + 1 < argc) {
             serverManagerIP = argv[++i];
+            serverManagerIPProvided = true;
         } else if (arg == "--server-manager-port" && i + 1 < argc) {
             serverManagerPort = static_cast<uint16_t>(std::stoi(argv[++i]));
+            serverManagerPortProvided = true;
         } else if (arg == "--help" || arg == "-h") {
             std::cout << "Usage: " << argv[0] << " [options]" << std::endl;
             std::cout << "Options:" << std::endl;
@@ -47,6 +55,12 @@ int main(int argc, char* argv[]) {
     
     Engine e;
     e.init();
+    
+    // Set connection parameters from command-line (only override those explicitly provided)
+    // Command-line parameters always override config file values
+    if (hostPortProvided || serverManagerIPProvided || serverManagerPortProvided) {
+        e.setConnectionParameters(hostPort, serverManagerIP, serverManagerPort);
+    }
     
     // Check for connected controllers
     InputManager& inputMgr = InputManager::getInstance();

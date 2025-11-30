@@ -101,7 +101,11 @@ class Engine {
         // Queue a level to be loaded at the start of the next frame
         void queueLevelLoad(const std::string& levelPath);
         
+        // Set connection parameters from command-line (overrides config file values)
+        void setConnectionParameters(uint16_t hostPort, const std::string& serverManagerIP, uint16_t serverManagerPort);
+        
     private:
+        void loadServerDataConfig();
         void loadObjectTemplates(const std::string& filename);
         static void mergeJsonObjects(nlohmann::json& target, const nlohmann::json& overrides);
         static void mergeComponentData(nlohmann::json& baseComponent, const nlohmann::json& overrideComponent);
@@ -159,6 +163,15 @@ class Engine {
         
         // Queued level to load at start of next frame (to avoid destroying objects during update)
         std::string pendingLevelLoad;
+        
+        // Connection parameters (from command-line or config file)
+        struct ConnectionParams {
+            bool configured = false;  // True if parameters were explicitly set (command-line or config)
+            uint16_t hostPort = 8889;
+            std::string serverManagerIP = "127.0.0.1";
+            uint16_t serverManagerPort = 8888;
+        };
+        ConnectionParams connectionParams;
 };
 
 #endif // ENGINE_H

@@ -20,6 +20,7 @@
 #include <cstdio>
 #include <algorithm>
 #include <filesystem>
+#include <limits>
 
 
 int Engine::screenWidth = 800;
@@ -101,6 +102,9 @@ void Engine::init() {
     // Load overall save data (metadata, progress, settings) on game start
     // This will create a default save file if one doesn't exist
     SaveManager::getInstance().loadSaveData("save.json");
+    
+    // Load server connection parameters from config file
+    loadServerDataConfig();
     
     std::cout << "SDL and Box2D initialized successfully!" << std::endl;
 }
@@ -858,12 +862,37 @@ nlohmann::json Engine::buildObjectDefinition(const nlohmann::json& objectData) c
 }
 
 std::string Engine::startHosting(uint16_t hostPort, const std::string& serverManagerIP, uint16_t serverManagerPort) {
+    // Use stored connection parameters if defaults are provided and we have configured values
+    // This allows menus to call without parameters and still use command-line/config values
+    uint16_t finalHostPort = hostPort;
+    std::string finalServerManagerIP = serverManagerIP;
+    uint16_t finalServerManagerPort = serverManagerPort;
+    
+    // If stored parameters are configured, use them when defaults are provided
+    // This handles menu calls without explicit parameters
+    if (connectionParams.configured) {
+        constexpr uint16_t DEFAULT_HOST_PORT = 8889;
+        constexpr uint16_t DEFAULT_SERVER_MANAGER_PORT = 8888;
+        constexpr const char* DEFAULT_SERVER_MANAGER_IP = "127.0.0.1";
+        
+        // Use stored value if default is provided (indicating menu call without parameters)
+        if (hostPort == DEFAULT_HOST_PORT) {
+            finalHostPort = connectionParams.hostPort;
+        }
+        if (serverManagerIP == DEFAULT_SERVER_MANAGER_IP) {
+            finalServerManagerIP = connectionParams.serverManagerIP;
+        }
+        if (serverManagerPort == DEFAULT_SERVER_MANAGER_PORT) {
+            finalServerManagerPort = connectionParams.serverManagerPort;
+        }
+    }
+    
     if (hostManager) {
         stopHosting();
     }
 
     hostManager = std::make_unique<HostManager>(this);
-    if (hostManager->Initialize(hostPort, serverManagerIP, serverManagerPort)) {
+    if (hostManager->Initialize(finalHostPort, finalServerManagerIP, finalServerManagerPort)) {
         return hostManager->GetRoomCode();
     }
 
@@ -883,12 +912,32 @@ bool Engine::isHosting() const {
 }
 
 bool Engine::connectAsClient(const std::string& roomCode, const std::string& serverManagerIP, uint16_t serverManagerPort) {
+    // Use stored connection parameters if defaults are provided and we have configured values
+    // This allows menus to call without parameters and still use command-line/config values
+    std::string finalServerManagerIP = serverManagerIP;
+    uint16_t finalServerManagerPort = serverManagerPort;
+    
+    // If stored parameters are configured, use them when defaults are provided
+    // This handles menu calls without explicit parameters
+    if (connectionParams.configured) {
+        constexpr uint16_t DEFAULT_SERVER_MANAGER_PORT = 8888;
+        constexpr const char* DEFAULT_SERVER_MANAGER_IP = "127.0.0.1";
+        
+        // Use stored value if default is provided (indicating menu call without parameters)
+        if (serverManagerIP == DEFAULT_SERVER_MANAGER_IP) {
+            finalServerManagerIP = connectionParams.serverManagerIP;
+        }
+        if (serverManagerPort == DEFAULT_SERVER_MANAGER_PORT) {
+            finalServerManagerPort = connectionParams.serverManagerPort;
+        }
+    }
+    
     if (clientManager) {
         disconnectClient();
     }
 
     clientManager = std::make_unique<ClientManager>(this);
-    if (clientManager->Connect(roomCode, serverManagerIP, serverManagerPort)) {
+    if (clientManager->Connect(roomCode, finalServerManagerIP, finalServerManagerPort)) {
         return true;
     }
 
@@ -1003,4 +1052,65 @@ void Engine::renderMessages() {
     SDL_DestroyTexture(textTexture);
     SDL_FreeSurface(textSurface);
     TTF_CloseFont(font);
+}
+
+void Engine::loadServerDataConfig() {
+    constexpr const char* kServerDataPath = "assets/serverData.json";
+    std::ifstream configStream(kServerDataPath);
+    if (!configStream.is_open()) {
+        std::cout << "Engine: Could not open " << kServerDataPath << ", using default connection parameters." << std::endl;
+        return;
+    }
+
+    try {
+        nlohmann::json configJson;
+        configStream >> configJson;
+
+        bool loaded = false;
+
+        if (configJson.contains("hostPort") && configJson["hostPort"].is_number_unsigned()) {
+            uint32_t portValue = configJson["hostPort"].get<uint32_t>();
+            if (portValue > 0 && portValue <= std::numeric_limits<uint16_t>::max()) {
+                connectionParams.hostPort = static_cast<uint16_t>(portValue);
+                loaded = true;
+            }
+        }
+
+        if (configJson.contains("serverManagerIP") && configJson["serverManagerIP"].is_string()) {
+            connectionParams.serverManagerIP = configJson["serverManagerIP"].get<std::string>();
+            loaded = true;
+        }
+
+        if (configJson.contains("serverManagerPort") && configJson["serverManagerPort"].is_number_unsigned()) {
+            uint32_t portValue = configJson["serverManagerPort"].get<uint32_t>();
+            if (portValue > 0 && portValue <= std::numeric_limits<uint16_t>::max()) {
+                connectionParams.serverManagerPort = static_cast<uint16_t>(portValue);
+                loaded = true;
+            }
+        }
+
+        if (loaded) {
+            connectionParams.configured = true;
+            std::cout << "Engine: Loaded connection parameters from " << kServerDataPath 
+                      << " (hostPort: " << connectionParams.hostPort
+                      << ", serverManager: " << connectionParams.serverManagerIP 
+                      << ":" << connectionParams.serverManagerPort << ")" << std::endl;
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "Engine: Failed to parse " << kServerDataPath << " (" << e.what() << "), using defaults." << std::endl;
+    }
+}
+
+void Engine::setConnectionParameters(uint16_t hostPort, const std::string& serverManagerIP, uint16_t serverManagerPort) {
+    // Command-line parameters always take precedence over config file values
+    // This method is only called when command-line parameters are explicitly provided
+    connectionParams.hostPort = hostPort;
+    connectionParams.serverManagerIP = serverManagerIP;
+    connectionParams.serverManagerPort = serverManagerPort;
+    connectionParams.configured = true;
+    
+    std::cout << "Engine: Set connection parameters from command-line"
+              << " (hostPort: " << hostPort
+              << ", serverManager: " << serverManagerIP 
+              << ":" << serverManagerPort << ")" << std::endl;
 }
