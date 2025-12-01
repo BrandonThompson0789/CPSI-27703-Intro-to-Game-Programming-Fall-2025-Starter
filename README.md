@@ -1,78 +1,260 @@
+
 At a glance:
 
-Sprites are loaded from JSON
+Any object with a bodyComponent will have Box2D bodies attached and that component also controls the physics of said body.
 
-Input configuration is loaded from JSON
+Velocities are demo-able via the GrabBehaviorComponent and ThrowBehaviorComponent (Objects can be thrown).
 
-The screen follows and ensures capture of objects with the `ViewGrabComponent`.
+Raycasting is used to determine if a grabbable object is in view, range, and is grabbable.
 
-Frame Rate is regulated and `deltaTime` is measured for use with other functions.
+AABB is used by one of the sensor types 'Box Zone' to determine if an object is within its space.
 
-GIF featuring screen movement as well as debugView with text:
-![hippo](docs/project03.gif)
+Another sensor type determines if an object is colliding with it (with other varying parameters).
+
+Objects are loaded from file, more can be added at runtime via the 'ObjectSpawnerComponent' once triggered.
+
+Objects are deletable at runtime by marking them for 'Death', done by loss of health or trigger.
+
+Static bodies are used as walls, Dynamic bodies are most other objects, Kinematic bodies are used for 'on-rail' objects.
+
+![hippo](https://i.imgur.com/vda2P5n.gif)
 
 At a longer glance:
 
-# Project03 - SDL2
+# Project04 - Physics
 
 ## Overview
-Project03 focuses on the SDL2 layer of the engine. The gameplay loop, rendering path, and input pipeline are all driven by SDL2 subsystems while Box2D provides physics. The goal of this milestone is to demonstrate that sprites render, input devices drive in-game actions, and the camera view reacts to gameplay state.
+Project04 focuses entirely on Box2D physics implementation and its integration throughout the game engine. This project demonstrates the use of Box2D for rigid body physics simulation, including body creation and destruction, various body types, physics materials, force application, raycasting, and AABB querying.
 
-Key learning objectives covered by this project:
-- Apply SDL2’s rendering, window, input, and timing APIs directly.
-- Encapsulate SDL2 types inside engine subsystems (`SpriteManager`, `InputManager`, `Engine` view/camera).
-- Manage art assets and metadata separately from gameplay code.
-- Maintain a clean separation between game state (components, Box2D bodies) and presentation (sprites, view transforms).
+## Physics World Initialization
 
-## Getting Started
-- **Windows setup**: run `setup.bat` once to install vcpkg dependencies, then use `build_release.bat` or open the CMake project in Visual Studio.
-- **macOS / Linux**: use `build_release.sh` (requires Ninja + CMake) to pull dependencies and produce the `demo` executable.
-- Assets live in `assets/`; build outputs stage everything into `build/win-mingw-debug`, `build/release-x64-mingw-dynamic`, etc., alongside the executable.
+The physics world is initialized in `Engine::init()` with a zero-gravity configuration suitable for top-down gameplay. The physics world is stepped each frame in `Engine::update()` with a step count that provides a good balance between accuracy and performance.
 
-To run the demo after building:
+## Body Types
+
+The engine supports all three Box2D body types:
+
+### Dynamic Bodies
+- Respond to forces and collisions
+- Can be moved by applying forces or setting velocity
+- Used for player characters, projectiles, and interactive objects
+- Created with `bodyType: "dynamic"` in JSON
+
+### Static Bodies
+- Immovable objects that don't respond to forces
+- Used for walls, floors, and level geometry
+- Created with `bodyType: "static"` in JSON
+
+### Kinematic Bodies
+- Can be moved programmatically but don't respond to forces
+- Used for moving platforms or scripted objects
+- Created with `bodyType: "kinematic"` in JSON
+
+Body types are parsed from JSON strings during body creation.
+
+## Body Creation
+
+### Creation from JSON Files
+
+Bodies are created when loading level files through `Engine::loadFile()`. The `BodyComponent` constructor accepts JSON data and creates bodies with the specified properties.
+
+The JSON format supports:
+- Position (`posX`, `posY`, `angle`)
+- Body type (`bodyType`: "dynamic", "static", or "kinematic")
+- Body properties: `fixedRotation`, `bullet`, `linearDamping`, `angularDamping`, `gravityScale`
+- Fixture configuration: shape type (box/circle), dimensions, density, friction, restitution
+- Material assignment via material names
+
+Example JSON body configuration:
+```json
+{
+  "type": "BodyComponent",
+  "posX": 100.0,
+  "posY": 200.0,
+  "angle": 45.0,
+  "bodyType": "dynamic",
+  "linearDamping": 0.5,
+  "fixture": {
+    "shape": "box",
+    "width": 32.0,
+    "height": 32.0,
+    "density": 1.0,
+    "friction": 0.3,
+    "material": "wood"
+  }
+}
 ```
-cd build/win-mingw-debug      # or another configured build folder
-.\demo.exe
+
+### Interactive Runtime Creation
+
+Bodies can be created interactively at runtime through the `ObjectSpawnerComponent`. When an object with this component is used (via `Object::use()`), it spawns new objects with physics bodies:
+
+1. `ObjectSpawnerComponent::spawnObject()` selects which object to spawn
+2. `ObjectSpawnerComponent::createAndQueueObject()` creates a new `Object` with components
+3. The new object's `BodyComponent` is created from JSON data
+4. The object is queued via `Engine::queueObject()` and added to the world at the start of the next frame
+
+This allows for dynamic object spawning during gameplay, such as spawning projectiles, power-ups, or environmental objects.
+
+Bodies are also created interactively when:
+- Network clients receive object creation messages (via `ClientManager::CreateObjectFromJson()`)
+- Explosion effects create debris objects (via `ExplodeOnDeathComponent`)
+
+## Body Destruction
+
+Bodies are automatically destroyed when their parent `Object` is destroyed. The `BodyComponent` destructor handles cleanup, ensuring that physics bodies are properly removed from the physics world.
+
+Objects can be marked for death via `Object::markForDeath()`, and the `Engine::update()` loop removes destroyed objects at the end of each frame, triggering their destructors and thus destroying their physics bodies.
+
+## Fixture Shapes
+
+The engine supports two fixture shape types:
+
+### Box Shapes (Polygons)
+- Rectangular fixtures
+- Defined by width and height in pixels (converted to meters internally)
+- Used for most game objects
+
+### Circle Shapes
+- Circular fixtures
+- Defined by radius in pixels (converted to meters internally)
+- Used for projectiles and round objects
+
+Shapes are created in `BodyComponent::createFixtureFromJson()` based on the `shape` field in JSON data.
+
+## Physics Materials
+
+The engine uses a physics material system (`PhysicsMaterialLibrary`) that allows materials to be assigned to shapes. Materials define:
+- Friction coefficients
+- Restitution (bounciness)
+- Custom material IDs for collision sound selection
+
+Materials are assigned via the `material` field in fixture JSON data, and the material properties are applied to shapes during creation.
+
+## Force Application
+
+Forces are applied to bodies through the `BodyComponent::modVelocity()` method, which modifies the body's velocity. This approach provides immediate response and is well-suited for top-down gameplay.
+
+### Velocity Modification
+`BodyComponent::modVelocity()` adds to the current velocity, effectively applying a force impulse:
+
+```cpp
+body->modVelocity(velocityX, velocityY, angularVelocity);
 ```
 
-## SDL2 Implementation Highlights
-- **Initialization**: `Engine::init()` sets up SDL video, window, renderer, SDL_ttf, and the Box2D debug draw bridge. SDL_Image is used by `SpriteManager`.
-- **Rendering**: `SpriteComponent` converts world coordinates to screen space via `Engine::worldToScreen()` before calling `SpriteManager::renderSprite()`; camera scale, translation, and (optional) tiling are all handled in SDL space.
-- **Input**: `Engine::processEvents()` feeds the SDL event pump. `InputManager` polls keyboard/gamepad state, supports hot-plug events (`SDL_CONTROLLERDEVICEADDED/REMOVED`), and exposes high-level `GameAction` queries to components.
-- **View system**: `ViewGrabComponent` aggregates world bounds for tracked objects each frame and drives the static camera stored in `Engine`. Camera smoothing and scaling keep the gameplay view centered on interesting content.
-- **Frame pacing**: `Engine::run()` maintains a nominal target FPS using `SDL_Delay` when the update/render workload finishes early.
+### Movement Behavior Components
 
-## Gameplay Layer
-- **Sprites on screen**: `SpriteComponent` pulls frame data from `SpriteManager` and renders animated sprites. Body-driven sprites rotate and scale based on Box2D fixture data or explicit render dimensions.
-- **Input-driven actions**: Player behaviour components (`StandardMovementBehaviorComponent`, `TankMovementBehaviorComponent`, `GrabBehaviorComponent`, and `ThrowBehaviorComponent`) query `InputComponent` for directional movement, interaction, and throw actions. Keyboard and controller bindings are defined in `assets/input_config.json`.
-- **View updates with game state**: Objects containing `ViewGrabComponent` expand the camera’s focus area. The camera follows players/targets smoothly while respecting minimum extents to avoid extreme zoom.
+Movement is implemented in behavior components that apply forces via velocity modification:
 
-## Asset & Data Pipeline
-- **Textures and sprite metadata**: `SpriteManager` loads texture atlases described in `assets/spriteData.json`, caches SDL textures, and exposes lookups via sprite names. Sprites are accessed through a `std::unordered_map`.
-- **Level definition**: `Engine::loadFile()` consumes `assets/level1.json`, instantiates objects through `ComponentLibrary`, and seeds Box2D bodies, sprites, and behaviors.
-- **Input mapping**: Keyboard and controller bindings are stored in JSON (`assets/input_config.json`, `assets/input_config_arrows.json`). `InputManager` normalizes per-device settings (deadzones, axes vs. buttons).
+- **StandardMovementBehaviorComponent**: Applies velocity based on input direction, with rotation toward movement direction
+- **TankMovementBehaviorComponent**: Tank-style movement with quantized cardinal directions and rotation before movement
+- **ThrowBehaviorComponent**: Applies velocity to thrown objects based on charge time and throw direction
 
-## Engine Loop & Timing
-- **Target FPS**: `Engine::targetFPS` defaults to 60. The main loop measures work time with `SDL_GetTicks()` and yields with `SDL_Delay` if the frame completes early.
-- **Delta time usage**: Each frame records the measured elapsed seconds in a static `Engine::deltaTime`, which feeds Box2D stepping and component updates for consistent motion across hardware.
-
-## Directory Layout
-```
-src/
-  Engine.*               # SDL2 bootstrap, main loop, camera handling
-  SpriteManager.*        # SDL_Texture cache + sprite atlas lookups
-  InputManager.*         # SDL input polling + action mapping
-  components/            # Gameplay components (Body, Sprite, ViewGrab, etc.)
-  CollisionManager.*     # Box2D contact processing
-assets/
-  textures/              # PNG spritesheets used by SDL2_image
-  spriteData.json        # Sprite atlas metadata (JSON)
-  level1.json            # Level definition with component data
-  input_config*.json     # Action bindings for keyboard and gamepads
-build/                   # Generated build trees (per configuration)
+Example from `StandardMovementBehaviorComponent`:
+```cpp
+float velocityX = normalizedHorizontal * currentSpeed * 0.1f;
+float velocityY = normalizedVertical * currentSpeed * 0.1f;
+body->modVelocity(velocityX, velocityY, 0.0f);
 ```
 
-## Testing & Debugging Tips
-- Launch with `F1` to toggle Box2D debug overlays (requires a `ViewGrabComponent` to align the camera).
-- Plug in or disconnect controllers at runtime—`InputManager` listens for the SDL hot-plug events automatically.
-- Log output appears on stdout/stderr; errors during asset loading or SDL setup will print diagnostics there.
+The `modVelocity()` method effectively applies forces by modifying the body's velocity, allowing for responsive movement control while maintaining physics simulation accuracy.
+
+## Raycasting
+
+Raycasting is used in the `GrabBehaviorComponent` to find grabbable objects in front of the player. When the player presses the interact button, a ray is cast from the player's position in the direction they're facing.
+
+The raycast implementation:
+- Casts a ray from slightly in front of the player position
+- Extends in the player's facing direction for the configured grab distance
+- Returns the closest object hit by the ray
+- Validates that the hit object is grabbable (dynamic body, within density limits)
+
+This allows players to grab objects at a distance without requiring direct collision, making the grab mechanic more intuitive and responsive.
+
+## AABB Querying
+
+AABB (Axis-Aligned Bounding Box) querying is used in box zone sensors to find all objects within a specified rectangular area. Box zone sensors are configured in `SensorComponent` and can require objects to be either fully inside or partially overlapping the zone.
+
+The AABB query implementation:
+- Defines a rectangular zone with min/max X and Y coordinates
+- Queries the physics world for all shapes overlapping the zone
+- Validates objects against sensor conditions (eligibility, interact requirements, etc.)
+- Supports both "fully inside" and "partially overlapping" modes
+
+Box zone sensors are useful for:
+- Area-of-effect triggers
+- Zone-based objectives
+- Spatial condition checking
+- Level boundaries and checkpoints
+
+Box zones are configured in JSON with `requireBoxZone: true` and a `boxZone` object defining the bounds:
+```json
+{
+  "requireBoxZone": true,
+  "boxZone": {
+    "minX": -100.0,
+    "minY": -50.0,
+    "maxX": 100.0,
+    "maxY": 50.0,
+    "requireFull": false
+  }
+}
+```
+
+## Collision Detection
+
+Collision detection is handled by Box2D and processed through `CollisionManager`. The manager:
+- Gathers contact events from the physics world
+- Processes hit events to create `CollisionImpact` records
+- Applies damage based on collision properties
+- Triggers sound effects based on material combinations
+
+Contact events are enabled on bodies and shapes during creation to ensure collision information is available for gameplay systems.
+
+## Coordinate System
+
+The engine uses a pixel-to-meter conversion system:
+- **PIXELS_TO_METERS**: 0.01 (1 pixel = 0.01 meters)
+- **METERS_TO_PIXELS**: 100.0 (1 meter = 100 pixels)
+
+All physics operations convert between pixel space (used by game logic) and meter space (used by the physics engine) automatically in `BodyComponent` methods.
+
+## Debug Visualization
+
+Physics debug drawing is available via `Box2DDebugDraw`, which can be toggled with the F1 key. The debug draw renders:
+- Body outlines
+- Fixture shapes
+- Contact points
+- Joints (if any)
+- Body labels with object names
+- Box zone boundaries (for sensors with box zones)
+
+## Implementation Files
+
+Key files for physics implementation:
+
+- `src/Engine.cpp` - World initialization and stepping
+- `src/components/BodyComponent.h/cpp` - Body creation, destruction, and force application
+- `src/CollisionManager.cpp` - Collision event processing
+- `src/components/ObjectSpawnerComponent.cpp` - Runtime object/body creation
+- `src/components/behaviors/GrabBehaviorComponent.cpp` - Raycasting for object grabbing
+- `src/components/SensorComponent.cpp` - AABB querying for box zone sensors
+- `src/components/behaviors/*.cpp` - Movement via force application (modVelocity)
+- `src/PhysicsMaterial.cpp` - Material system
+- `src/Box2DDebugDraw.cpp` - Debug visualization
+
+## Summary
+
+The engine provides comprehensive Box2D physics support with:
+- ✅ Multiple body types (dynamic, static, kinematic)
+- ✅ Runtime body creation and destruction
+- ✅ File-based body loading from JSON
+- ✅ Interactive object spawning
+- ✅ Force application via velocity modification
+- ✅ Raycasting for object detection (grab component)
+- ✅ AABB querying for spatial queries (box zone sensors)
+- ✅ Collision detection and processing
+- ✅ Physics materials
+- ✅ Multiple fixture shapes
+
+The physics system is fully integrated into gameplay mechanics, providing robust collision detection, spatial queries, and force-based movement control.
