@@ -3,8 +3,13 @@
 
 #include "Menu.h"
 #include <string>
+#include <future>
+#include <memory>
+#include <atomic>
 #include <SDL.h>
 #include <SDL_ttf.h>
+
+class Engine;
 
 class JoinMenu : public Menu {
 public:
@@ -31,6 +36,9 @@ private:
     void onPaste();
     void onBack();
     void updateJoinButtonState();
+    std::future<bool> launchJoinTask(Engine* engine, std::string roomCode, const std::shared_ptr<std::atomic<bool>>& cancelToken);
+    void resetJoinFuture();
+    void updateConnectingStatus(float deltaTime);
     
     std::string roomCodeInput;
     bool joinButtonEnabled;
@@ -61,8 +69,18 @@ private:
     
     State state;
     float connectionTimeout;
+    bool joinAttemptInProgress;
+    bool connectionInitiated;
+    bool cancelRequested;
+    float spinnerTimer;
+    int spinnerIndex;
+    std::string connectingStatus;
+    std::string failureMessage;
+    std::future<bool> joinFuture;
+    std::shared_ptr<std::atomic<bool>> joinCancelToken;
     static constexpr float CONNECTION_TIMEOUT_SECONDS = 5.0f;
     static constexpr int ROOM_CODE_LENGTH = 6;
+    static constexpr float SPINNER_INTERVAL = 0.2f;
 };
 
 #endif // JOIN_MENU_H

@@ -74,6 +74,8 @@ public:
     void SetSmoothingEnabled(bool enabled);
     bool IsSmoothingEnabled() const { return smoothingEnabled; }
 
+    const std::string& GetLastErrorMessage() const { return lastErrorMessage; }
+
 private:
     // Server Manager communication
     bool LookupRoom(const std::string& roomCode, 
@@ -170,5 +172,7 @@ private:
         uint16_t serverManagerPort = 8888;
     };
     ServerDataConfig serverDataConfig;
+
+    std::string lastErrorMessage;
 };
 

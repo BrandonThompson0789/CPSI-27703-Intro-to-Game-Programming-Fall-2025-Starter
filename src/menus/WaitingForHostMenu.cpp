@@ -39,7 +39,7 @@ void WaitingForHostMenu::checkHostStatus() {
     }
     
     // If client has received init package, host has loaded a level - close this menu
-    ClientManager* clientMgr = engine->getClientManager();
+    auto clientMgr = engine->getClientManager();
     if (clientMgr && clientMgr->HasReceivedInitPackage()) {
         // Host has loaded a level, close the waiting menu
         if (menuManager) {

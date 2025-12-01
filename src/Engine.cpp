@@ -28,6 +28,21 @@ int Engine::screenHeight = 600;
 int Engine::targetFPS = 60;
 float Engine::deltaTime = 1.0f / Engine::targetFPS;
 
+std::shared_ptr<HostManager> Engine::getHostManager() const {
+    std::lock_guard<std::mutex> lock(hostManagerMutex);
+    return hostManager;
+}
+
+std::shared_ptr<ClientManager> Engine::getClientManager() const {
+    std::lock_guard<std::mutex> lock(clientManagerMutex);
+    return clientManager;
+}
+
+std::string Engine::getLastClientConnectError() const {
+    std::lock_guard<std::mutex> lock(clientManagerMutex);
+    return lastClientConnectError;
+}
+
 void Engine::init() {
     // Initialize SDL
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -218,11 +233,11 @@ void Engine::update(float deltaTime) {
     if (shouldPause) {
         // Don't update game objects when menu is active (except network input if hosting)
         // Still update network managers even when paused
-        if (hostManager && hostManager->IsHosting()) {
-            hostManager->Update(deltaTime);
+        if (auto host = getHostManager(); host && host->IsHosting()) {
+            host->Update(deltaTime);
         }
-        if (clientManager && clientManager->IsConnected()) {
-            clientManager->Update(deltaTime);
+        if (auto client = getClientManager(); client && client->IsConnected()) {
+            client->Update(deltaTime);
         }
         return;
     }
@@ -298,27 +313,29 @@ void Engine::update(float deltaTime) {
     }
 
     // Notify HostManager of object changes
-    if (hostManager && hostManager->IsHosting()) {
+    if (auto host = getHostManager(); host && host->IsHosting()) {
         for (Object* obj : destroyedObjects) {
-            hostManager->SendObjectDestroy(obj);
+            host->SendObjectDestroy(obj);
         }
         for (Object* obj : createdObjects) {
-            hostManager->SendObjectCreate(obj);
+            host->SendObjectCreate(obj);
         }
     }
 
     // Update HostManager (only when not paused - network updates handled in pause block)
-    if (hostManager && hostManager->IsHosting() && !shouldPause) {
-        hostManager->Update(deltaTime);
+    if (!shouldPause) {
+        if (auto host = getHostManager(); host && host->IsHosting()) {
+            host->Update(deltaTime);
+        }
     }
 
     // Update ClientManager (always update, even when paused - network updates need to continue)
-    if (clientManager && clientManager->IsConnected()) {
-        clientManager->Update(deltaTime);
+    if (auto client = getClientManager(); client && client->IsConnected()) {
+        client->Update(deltaTime);
         
         // If client is connected but hasn't received init package, open waiting menu
         // Check this regardless of pause state and object count
-        if (!clientManager->HasReceivedInitPackage() && menuManager) {
+        if (!client->HasReceivedInitPackage() && menuManager) {
             // Only open waiting menu if no menu is currently active
             // (JoinMenu closes all menus when connection succeeds, so this will open after)
             if (!menuManager->isMenuActive()) {
@@ -497,14 +514,8 @@ void Engine::cleanup() {
         backgroundManager->cleanup();
         backgroundManager.reset();
     }
-    if (hostManager) {
-        hostManager->Shutdown();
-        hostManager.reset();
-    }
-    if (clientManager) {
-        clientManager->Disconnect();
-        clientManager.reset();
-    }
+    stopHosting();
+    disconnectClient();
     if (menuManager) {
         menuManager->cleanup();
         menuManager.reset();
@@ -547,6 +558,7 @@ Engine::Engine() {
     lastDeltaTime = getDeltaTime();
     currentMessage = nullptr;
     currentLevelOrder = 0;
+    lastClientConnectError.clear();
 }
 
 Engine::~Engine() {
@@ -645,12 +657,12 @@ void Engine::loadFile(const std::string& filename) {
     
     // If hosting, send initialization package to all connected clients
     // Only send if the loaded level is NOT level_mainmenu
-    if (hostManager && hostManager->IsHosting()) {
+    if (auto host = getHostManager(); host && host->IsHosting()) {
         if (currentLoadedLevel != "level_mainmenu") {
-            hostManager->SendInitializationPackageToAllClients();
+            host->SendInitializationPackageToAllClients();
         } else {
             // Host loaded level_mainmenu - notify clients to show waiting screen
-            hostManager->NotifyClientsHostReturnedToMenu();
+            host->NotifyClientsHostReturnedToMenu();
         }
     }
 }
@@ -887,28 +899,37 @@ std::string Engine::startHosting(uint16_t hostPort, const std::string& serverMan
         }
     }
     
-    if (hostManager) {
-        stopHosting();
+    stopHosting();
+
+    auto newHostManager = std::make_shared<HostManager>(this);
+    if (newHostManager->Initialize(finalHostPort, finalServerManagerIP, finalServerManagerPort)) {
+        {
+            std::lock_guard<std::mutex> lock(hostManagerMutex);
+            hostManager = newHostManager;
+        }
+        return newHostManager->GetRoomCode();
     }
 
-    hostManager = std::make_unique<HostManager>(this);
-    if (hostManager->Initialize(finalHostPort, finalServerManagerIP, finalServerManagerPort)) {
-        return hostManager->GetRoomCode();
-    }
-
-    hostManager.reset();
     return "";
 }
 
 void Engine::stopHosting() {
-    if (hostManager) {
-        hostManager->Shutdown();
+    std::shared_ptr<HostManager> hostToShutdown;
+    {
+        std::lock_guard<std::mutex> lock(hostManagerMutex);
+        hostToShutdown = hostManager;
         hostManager.reset();
+    }
+    if (hostToShutdown) {
+        hostToShutdown->Shutdown();
     }
 }
 
 bool Engine::isHosting() const {
-    return hostManager && hostManager->IsHosting();
+    if (auto host = getHostManager(); host) {
+        return host->IsHosting();
+    }
+    return false;
 }
 
 bool Engine::connectAsClient(const std::string& roomCode, const std::string& serverManagerIP, uint16_t serverManagerPort) {
@@ -932,28 +953,43 @@ bool Engine::connectAsClient(const std::string& roomCode, const std::string& ser
         }
     }
     
-    if (clientManager) {
-        disconnectClient();
-    }
+    disconnectClient();
 
-    clientManager = std::make_unique<ClientManager>(this);
-    if (clientManager->Connect(roomCode, finalServerManagerIP, finalServerManagerPort)) {
+    auto newClientManager = std::make_shared<ClientManager>(this);
+    if (newClientManager->Connect(roomCode, finalServerManagerIP, finalServerManagerPort)) {
+        {
+            std::lock_guard<std::mutex> lock(clientManagerMutex);
+            clientManager = newClientManager;
+            lastClientConnectError.clear();
+        }
         return true;
     }
 
-    clientManager.reset();
+    {
+        std::lock_guard<std::mutex> lock(clientManagerMutex);
+        lastClientConnectError = newClientManager->GetLastErrorMessage();
+    }
+
     return false;
 }
 
 void Engine::disconnectClient() {
-    if (clientManager) {
-        clientManager->Disconnect();
+    std::shared_ptr<ClientManager> clientToDisconnect;
+    {
+        std::lock_guard<std::mutex> lock(clientManagerMutex);
+        clientToDisconnect = clientManager;
         clientManager.reset();
+    }
+    if (clientToDisconnect) {
+        clientToDisconnect->Disconnect();
     }
 }
 
 bool Engine::isClient() const {
-    return clientManager && clientManager->IsConnected();
+    if (auto client = getClientManager(); client) {
+        return client->IsConnected();
+    }
+    return false;
 }
 
 void Engine::displayMessage(const std::string& message) {

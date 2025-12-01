@@ -82,6 +82,8 @@ bool ClientManager::Connect(const std::string& roomCodeParam,
     std::transform(roomCode.begin(), roomCode.end(), roomCode.begin(), [](unsigned char c) {
         return static_cast<char>(std::toupper(c));
     });
+
+    lastErrorMessage.clear();
     
     // Command-line parameters always take precedence over config file values
     // Always use the provided parameters directly (command-line always wins)
@@ -91,12 +93,14 @@ bool ClientManager::Connect(const std::string& roomCodeParam,
     // Initialize ConnectionManager (ENet) for game networking
     if (!connectionManager.Initialize()) {
         std::cerr << "ClientManager: Failed to initialize ConnectionManager" << std::endl;
+        lastErrorMessage = "Failed to initialize client networking";
         return false;
     }
 
     // Initialize NetworkUtils for ServerManager communication
     if (!NetworkUtils::Initialize()) {
         std::cerr << "ClientManager: Failed to initialize NetworkUtils for ServerManager" << std::endl;
+        lastErrorMessage = "Failed to initialize network utilities";
         connectionManager.Cleanup();
         return false;
     }
@@ -105,6 +109,7 @@ bool ClientManager::Connect(const std::string& roomCodeParam,
     serverManagerSocket = NetworkUtils::CreateUDPSocket();
     if (serverManagerSocket == INVALID_SOCKET_HANDLE) {
         std::cerr << "ClientManager: Failed to create ServerManager socket" << std::endl;
+        lastErrorMessage = "Failed to create network socket";
         NetworkUtils::Cleanup();
         connectionManager.Cleanup();
         return false;
@@ -113,6 +118,9 @@ bool ClientManager::Connect(const std::string& roomCodeParam,
     // Look up room from Server Manager
     if (!LookupRoom(roomCode, serverManagerIP, serverManagerPort)) {
         std::cerr << "ClientManager: Failed to lookup room: " << roomCode << std::endl;
+        if (lastErrorMessage.empty()) {
+            lastErrorMessage = "Failed to connect to server manager";
+        }
         NetworkUtils::CloseSocket(serverManagerSocket);
         NetworkUtils::Cleanup();
         connectionManager.Cleanup();
@@ -125,6 +133,7 @@ bool ClientManager::Connect(const std::string& roomCodeParam,
     std::string hostPeerIdentifier = connectionManager.GetFirstConnectedPeerIdentifier();
     if (hostPeerIdentifier.empty()) {
         std::cerr << "ClientManager: No peer identifier after connection" << std::endl;
+        lastErrorMessage = "Unable to reach host";
         connectionManager.DisconnectFromHost();
         NetworkUtils::CloseSocket(serverManagerSocket);
         NetworkUtils::Cleanup();
@@ -204,6 +213,7 @@ bool ClientManager::Connect(const std::string& roomCodeParam,
     }
 
     std::cerr << "ClientManager: Timeout waiting for connection" << std::endl;
+    lastErrorMessage = "Timed out waiting for host";
     connectionManager.DisconnectFromHost();
     NetworkUtils::CloseSocket(serverManagerSocket);
     NetworkUtils::Cleanup();
@@ -402,6 +412,7 @@ bool ClientManager::LookupRoom(const std::string& roomCodeParam,
                                                     hostLocalIP, hostLocalPort,
                                                     forcedType, relayEnabled)) {
                     std::cerr << "ClientManager: Failed to connect to host" << std::endl;
+                    lastErrorMessage = "Failed to connect to host";
                     NetworkUtils::CloseSocket(serverManagerSocket);
                     NetworkUtils::Cleanup();
                     connectionManager.Cleanup();
@@ -411,7 +422,13 @@ bool ClientManager::LookupRoom(const std::string& roomCodeParam,
                 return true;
             } else if (response->header.type == MessageType::RESPONSE_ERROR) {
                 const ErrorResponse* errorResponse = reinterpret_cast<const ErrorResponse*>(buffer);
-                std::cerr << "ClientManager: Server Manager error: " << errorResponse->errorMessage << std::endl;
+                std::string errorMsg = errorResponse->errorMessage;
+                std::cerr << "ClientManager: Server Manager error: " << errorMsg << std::endl;
+                if (errorMsg.find("Room not found") != std::string::npos) {
+                    lastErrorMessage = "Invalid room code";
+                } else {
+                    lastErrorMessage = errorMsg.empty() ? "Server Manager error" : errorMsg;
+                }
                 return false;
             }
         }
@@ -420,6 +437,7 @@ bool ClientManager::LookupRoom(const std::string& roomCodeParam,
     }
 
     std::cerr << "ClientManager: Timeout waiting for Server Manager response" << std::endl;
+    lastErrorMessage = "Server Manager did not respond";
     return false;
 }
 

@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <string>
 #include <queue>
+#include <mutex>
 #include <nlohmann/json.hpp>
 #include "Object.h"
 #include "Box2DDebugDraw.h"
@@ -34,8 +35,8 @@ class Engine {
         std::vector<std::unique_ptr<Object>>& getQueuedObjects() { return pendingObjects; }
         CollisionManager* getCollisionManager() { return collisionManager.get(); }
         BackgroundManager* getBackgroundManager() { return backgroundManager.get(); }
-        HostManager* getHostManager() { return hostManager.get(); }
-        ClientManager* getClientManager() { return clientManager.get(); }
+        std::shared_ptr<HostManager> getHostManager() const;
+        std::shared_ptr<ClientManager> getClientManager() const;
         MenuManager* getMenuManager() { return menuManager.get(); }
         
         // Start hosting (returns room code on success, empty string on failure)
@@ -47,6 +48,7 @@ class Engine {
         bool connectAsClient(const std::string& roomCode, const std::string& serverManagerIP = "127.0.0.1", uint16_t serverManagerPort = 8888);
         void disconnectClient();
         bool isClient() const;
+        std::string getLastClientConnectError() const;
         
         // Physics world access
         b2WorldId getPhysicsWorld() { return physicsWorldId; }
@@ -130,8 +132,11 @@ class Engine {
         Box2DDebugDraw debugDraw;
         std::unordered_map<std::string, nlohmann::json> objectTemplates;
         std::unique_ptr<BackgroundManager> backgroundManager;
-        std::unique_ptr<HostManager> hostManager;
-        std::unique_ptr<ClientManager> clientManager;
+        std::shared_ptr<HostManager> hostManager;
+        std::shared_ptr<ClientManager> clientManager;
+        mutable std::mutex hostManagerMutex;
+        mutable std::mutex clientManagerMutex;
+        std::string lastClientConnectError;
         std::unique_ptr<MenuManager> menuManager;
 
         CameraState cameraState;

@@ -7,6 +7,9 @@
 #include <algorithm>
 #include <cctype>
 #include <iostream>
+#include <utility>
+#include <thread>
+#include <chrono>
 
 JoinMenu::JoinMenu(MenuManager* manager)
     : Menu(manager), roomCodeInput(""), joinButtonEnabled(false),
@@ -15,7 +18,10 @@ JoinMenu::JoinMenu(MenuManager* manager)
       joinButtonTexture(nullptr), pasteButtonTexture(nullptr),
       backButtonTexture(nullptr), placeholderTexture(nullptr),
       roomCodeTextureWidth(0), roomCodeTextureHeight(0),
-      state(State::INPUT), connectionTimeout(0.0f) {
+      state(State::INPUT), connectionTimeout(0.0f),
+      joinAttemptInProgress(false), connectionInitiated(false),
+      cancelRequested(false), spinnerTimer(0.0f), spinnerIndex(0),
+      connectingStatus(""), failureMessage(""), joinCancelToken(nullptr) {
     setTitle("Join Game");
     setupMenuItems();
     loadResources();
@@ -42,6 +48,14 @@ void JoinMenu::onOpen() {
     mouseMode = false;
     state = State::INPUT;
     connectionTimeout = 0.0f;
+    joinAttemptInProgress = false;
+    connectionInitiated = false;
+    cancelRequested = false;
+    spinnerTimer = 0.0f;
+    spinnerIndex = 0;
+    connectingStatus.clear();
+    failureMessage.clear();
+    resetJoinFuture();
     updateRoomCodeTexture();
     updateJoinButtonState();
     
@@ -61,12 +75,48 @@ void JoinMenu::update(float deltaTime) {
             }
         }
     } else if (state == State::CONNECTING) {
-        // Check if connection succeeded
-        if (menuManager && menuManager->getEngine()) {
+        updateConnectingStatus(deltaTime);
+        
+        if (joinAttemptInProgress && joinFuture.valid()) {
+            auto status = joinFuture.wait_for(std::chrono::milliseconds(0));
+            if (status == std::future_status::ready) {
+                bool success = joinFuture.get();
+                resetJoinFuture();
+                
+                Engine* engine = menuManager ? menuManager->getEngine() : nullptr;
+                if (success && !cancelRequested) {
+                    connectionInitiated = true;
+                    connectingStatus = "Waiting for host...";
+                } else {
+                    std::string message;
+                    if (cancelRequested) {
+                        message = "Join attempt canceled";
+                    } else if (engine) {
+                        message = engine->getLastClientConnectError();
+                        if (message.empty()) {
+                            message = "Failed to connect to server manager";
+                        }
+                    } else {
+                        message = "Failed to connect to server manager";
+                    }
+                    failureMessage = message;
+                    state = State::FAILED;
+                    connectionTimeout = CONNECTION_TIMEOUT_SECONDS;
+                    connectionInitiated = false;
+                    if (engine) {
+                        engine->displayMessage(message);
+                        engine->disconnectClient();
+                    }
+                }
+            }
+        }
+        
+        if (connectionInitiated && menuManager && menuManager->getEngine()) {
             Engine* engine = menuManager->getEngine();
             if (engine->isClient()) {
-                // Connection successful - close menu and start game
-                state = State::INPUT;  // Reset state
+                state = State::INPUT;
+                connectionInitiated = false;
+                cancelRequested = false;
                 menuManager->closeAllMenus();
             }
         }
@@ -103,7 +153,10 @@ void JoinMenu::handleConfirm() {
 }
 
 void JoinMenu::handleCancel() {
-    // Allow cancel even when connecting - disconnect and go back
+    cancelRequested = true;
+    if (joinCancelToken) {
+        joinCancelToken->store(true);
+    }
     onBack();
 }
 
@@ -199,17 +252,60 @@ void JoinMenu::onJoin() {
     
     Engine* engine = menuManager->getEngine();
     
-    // Try to connect
     state = State::CONNECTING;
-    bool success = engine->connectAsClient(roomCodeInput);
+    cancelRequested = false;
+    failureMessage.clear();
+    connectionTimeout = 0.0f;
+    spinnerTimer = 0.0f;
+    spinnerIndex = 0;
+    connectingStatus = "Connecting to room " + roomCodeInput + " |";
+    joinAttemptInProgress = true;
+    connectionInitiated = false;
     
-    if (!success) {
-        state = State::FAILED;
-        engine->displayMessage("Failed to connect to server manager");
-        connectionTimeout = CONNECTION_TIMEOUT_SECONDS;
-    } else {
-        // Connection initiated - wait for confirmation in update()
-        // The menu will close when connection is confirmed
+    joinCancelToken = std::make_shared<std::atomic<bool>>(false);
+    joinFuture = launchJoinTask(engine, roomCodeInput, joinCancelToken);
+}
+
+std::future<bool> JoinMenu::launchJoinTask(Engine* engine, std::string roomCode, const std::shared_ptr<std::atomic<bool>>& cancelToken) {
+    auto task = std::make_shared<std::packaged_task<bool()>>([engine, roomCode = std::move(roomCode), cancelToken]() {
+        bool success = engine ? engine->connectAsClient(roomCode) : false;
+        if (cancelToken && cancelToken->load()) {
+            if (engine) {
+                engine->disconnectClient();
+            }
+            return false;
+        }
+        if (!success && engine) {
+            engine->disconnectClient();
+        }
+        return success;
+    });
+    
+    std::future<bool> future = task->get_future();
+    std::thread([task]() {
+        (*task)();
+    }).detach();
+    return future;
+}
+
+void JoinMenu::resetJoinFuture() {
+    joinFuture = std::future<bool>();
+    joinAttemptInProgress = false;
+    joinCancelToken.reset();
+}
+
+void JoinMenu::updateConnectingStatus(float deltaTime) {
+    if (!joinAttemptInProgress) {
+        return;
+    }
+    
+    spinnerTimer += deltaTime;
+    if (spinnerTimer >= SPINNER_INTERVAL) {
+        spinnerTimer = 0.0f;
+        spinnerIndex = (spinnerIndex + 1) % 4;
+        static constexpr char SPINNER_FRAMES[] = {'|', '/', '-', '\\'};
+        connectingStatus = "Connecting to room " + roomCodeInput + " ";
+        connectingStatus.push_back(SPINNER_FRAMES[spinnerIndex]);
     }
 }
 
@@ -240,16 +336,20 @@ void JoinMenu::onPaste() {
 }
 
 void JoinMenu::onBack() {
-    // Disconnect client if connected or connecting
-    if (menuManager && menuManager->getEngine()) {
-        Engine* engine = menuManager->getEngine();
-        if (engine->isClient()) {
-            engine->disconnectClient();
-        }
+    cancelRequested = true;
+    if (joinCancelToken) {
+        joinCancelToken->store(true);
     }
     
-    // Reset state
+    if (menuManager && menuManager->getEngine()) {
+        Engine* engine = menuManager->getEngine();
+        engine->disconnectClient();
+    }
+    
+    resetJoinFuture();
     state = State::INPUT;
+    connectionInitiated = false;
+    connectingStatus.clear();
     
     if (menuManager) {
         menuManager->closeMenu();
@@ -507,23 +607,25 @@ bool JoinMenu::render() {
     }
     
     // Draw status message if connecting or failed
-    if (state == State::CONNECTING) {
-        if (font) {
-            SDL_Color yellow = {255, 255, 0, 255};
-            SDL_Surface* statusSurface = TTF_RenderUTF8_Blended(font, "Connecting...", yellow);
-            if (statusSurface) {
-                SDL_Texture* statusTexture = SDL_CreateTextureFromSurface(renderer, statusSurface);
-                if (statusTexture) {
-                    SDL_Rect statusRect;
-                    statusRect.w = statusSurface->w;
-                    statusRect.h = statusSurface->h;
-                    statusRect.x = (screenWidth - statusRect.w) / 2;
-                    statusRect.y = buttonY + buttonHeight + 20;
-                    SDL_RenderCopy(renderer, statusTexture, nullptr, &statusRect);
-                    SDL_DestroyTexture(statusTexture);
-                }
-                SDL_FreeSurface(statusSurface);
+    if (font && (state == State::CONNECTING || state == State::FAILED)) {
+        SDL_Color color = state == State::CONNECTING ? SDL_Color{255, 255, 0, 255} : SDL_Color{255, 120, 120, 255};
+        const std::string& message = (state == State::CONNECTING)
+            ? (connectingStatus.empty() ? std::string("Connecting...") : connectingStatus)
+            : (failureMessage.empty() ? std::string("Connection failed. Returning...") : failureMessage);
+        
+        SDL_Surface* statusSurface = TTF_RenderUTF8_Blended(font, message.c_str(), color);
+        if (statusSurface) {
+            SDL_Texture* statusTexture = SDL_CreateTextureFromSurface(renderer, statusSurface);
+            if (statusTexture) {
+                SDL_Rect statusRect;
+                statusRect.w = statusSurface->w;
+                statusRect.h = statusSurface->h;
+                statusRect.x = (screenWidth - statusRect.w) / 2;
+                statusRect.y = buttonY + buttonHeight + 20;
+                SDL_RenderCopy(renderer, statusTexture, nullptr, &statusRect);
+                SDL_DestroyTexture(statusTexture);
             }
+            SDL_FreeSurface(statusSurface);
         }
     }
     

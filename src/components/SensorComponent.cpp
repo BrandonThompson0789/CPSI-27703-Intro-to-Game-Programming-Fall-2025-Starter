@@ -656,7 +656,7 @@ bool SensorComponent::verifyInputActivityCondition() const {
         // Check if a client joined the hosted game
         // Note: This is a simplified check. For proper event-based detection,
         // you would need to add event tracking in HostManager
-        HostManager* hostMgr = engine->getHostManager();
+        auto hostMgr = engine->getHostManager();
         if (hostMgr && hostMgr->IsHosting()) {
             // Placeholder: In a full implementation, you'd track client join events
             // For now, this always returns false

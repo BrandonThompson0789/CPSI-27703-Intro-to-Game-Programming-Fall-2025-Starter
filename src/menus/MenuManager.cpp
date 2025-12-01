@@ -335,6 +335,16 @@ void MenuManager::closeAllMenus() {
 }
 
 void MenuManager::returnToMainMenu() {
+    // Ensure any active host/client sessions are shut down when returning to menu
+    if (engine) {
+        if (engine->isHosting()) {
+            engine->stopHosting();
+        }
+        if (engine->isClient()) {
+            engine->disconnectClient();
+        }
+    }
+
     // Close all menus
     while (!menuStack.empty()) {
         Menu* currentMenu = menuStack.top().get();

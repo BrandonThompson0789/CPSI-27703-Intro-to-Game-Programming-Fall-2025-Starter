@@ -325,7 +325,7 @@ void LevelSelectMenu::handleMouse(int mouseX, int mouseY, bool mousePressed) {
     // Check if mouse clicked on copy button
     Engine* engine = menuManager->getEngine();
     if (engine && engine->isHosting() && copyButtonTexture) {
-        HostManager* hostMgr = engine->getHostManager();
+        auto hostMgr = engine->getHostManager();
         if (hostMgr && roomCodeTexture) {
             int roomCodeX = 60;  // Moved 50 pixels to the right
             int roomCodeY = 10;
@@ -935,7 +935,7 @@ bool LevelSelectMenu::render() {
     // Draw room code if hosting
     Engine* engine = menuManager->getEngine();
     if (engine && engine->isHosting()) {
-        HostManager* hostMgr = engine->getHostManager();
+        auto hostMgr = engine->getHostManager();
         if (hostMgr && roomCodeTexture) {
             int roomCodeY = 10;
             int roomCodeX = 60;  // Moved 50 pixels to the right
@@ -1419,7 +1419,7 @@ void LevelSelectMenu::updateRoomCodeDisplay() {
         return;
     }
     
-    HostManager* hostMgr = engine->getHostManager();
+    auto hostMgr = engine->getHostManager();
     if (!hostMgr) {
         return;
     }
