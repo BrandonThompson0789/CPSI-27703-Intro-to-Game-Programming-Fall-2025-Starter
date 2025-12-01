@@ -255,7 +255,7 @@ void ClientManager::Update(float deltaTime) {
             
             // If we found an InputComponent with our player ID, verify input is assigned
             if (foundInputComponent) {
-                PlayerManager::getInstance().assignInputDevice(assignedPlayerId, INPUT_SOURCE_KEYBOARD);
+                AssignInputDevicesToPlayer(assignedPlayerId);
                 std::cout << "ClientManager: Verified input assignment after objects added to engine (player ID " << assignedPlayerId << ")" << std::endl;
                 hasVerifiedInputAfterInit = true;
             }
@@ -295,7 +295,7 @@ void ClientManager::Disconnect() {
         return;
     }
 
-    // Send disconnect message
+    // Send disconnect message and ensure it's sent before disconnecting
     if (!hostIP.empty() && hostPort > 0) {
         ClientConnectMessage msg;
         msg.header.type = HostMessageType::CLIENT_DISCONNECT;
@@ -303,13 +303,29 @@ void ClientManager::Disconnect() {
         memset(msg.reserved, 0, sizeof(msg.reserved));
         
         std::string hostPeerIdentifier = hostIP + ":" + std::to_string(hostPort);
-        connectionManager.SendToPeer(hostPeerIdentifier, &msg, sizeof(msg), true);
+        bool sent = connectionManager.SendToPeer(hostPeerIdentifier, &msg, sizeof(msg), true);
+        
+        if (sent) {
+            std::cout << "ClientManager: Sent CLIENT_DISCONNECT message to host" << std::endl;
+            
+            // Flush the connection to ensure the message is sent immediately
+            connectionManager.Flush();
+            
+            // Give the message a chance to be sent (ENet needs time to process)
+            // Update the connection manager a few times to process the send
+            for (int i = 0; i < 5; ++i) {
+                connectionManager.Update(0.016f); // ~1 frame at 60fps
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
+        } else {
+            std::cerr << "ClientManager: Warning - Failed to send CLIENT_DISCONNECT message" << std::endl;
+        }
     }
 
     isConnected = false;
     hasReceivedInitPackage = false;
 
-    // Disconnect from host
+    // Disconnect from host (this will flush any pending messages)
     connectionManager.DisconnectFromHost();
 
     // Close ServerManager socket
@@ -500,8 +516,8 @@ void ClientManager::ProcessIncomingMessages() {
                     isConnected = true;  // Connected when we receive player assignment
                     std::cout << "ClientManager: Assigned to player ID: " << assignedPlayerId << std::endl;
                     
-                    // Assign keyboard to this player (client uses keyboard by default)
-                    PlayerManager::getInstance().assignInputDevice(assignedPlayerId, INPUT_SOURCE_KEYBOARD);
+                    // Assign input devices to this player
+                    AssignInputDevicesToPlayer(assignedPlayerId);
                 } else {
                     std::cerr << "ClientManager: ASSIGN_PLAYER message too small: " << received << " bytes" << std::endl;
                 }
@@ -616,10 +632,10 @@ void ClientManager::HandleInitPackage(const void* data, size_t length) {
             Object::setEngine(engine);
         }
 
-        // Ensure input device is assigned to our player ID (in case init package arrives before or after ASSIGN_PLAYER)
+        // Ensure input devices are assigned to our player ID (in case init package arrives before or after ASSIGN_PLAYER)
         if (assignedPlayerId > 0) {
-            PlayerManager::getInstance().assignInputDevice(assignedPlayerId, INPUT_SOURCE_KEYBOARD);
-            std::cout << "ClientManager: Re-assigned keyboard to player ID " << assignedPlayerId << " after level load" << std::endl;
+            AssignInputDevicesToPlayer(assignedPlayerId);
+            std::cout << "ClientManager: Re-assigned input devices to player ID " << assignedPlayerId << " after level load" << std::endl;
         }
 
         // Load objects from JSON
@@ -675,7 +691,7 @@ void ClientManager::HandleInitPackage(const void* data, size_t length) {
             
             // If we found an InputComponent with our player ID, ensure input is assigned
             if (foundInputComponent) {
-                PlayerManager::getInstance().assignInputDevice(assignedPlayerId, INPUT_SOURCE_KEYBOARD);
+                AssignInputDevicesToPlayer(assignedPlayerId);
                 std::cout << "ClientManager: Verified input assignment immediately after init package (player ID " << assignedPlayerId << ")" << std::endl;
                 // Mark as verified so Update() doesn't need to check again
                 hasVerifiedInputAfterInit = true;
@@ -957,12 +973,20 @@ void ClientManager::SendInput() {
     // Get input from PlayerManager for the assigned player
     PlayerManager& playerManager = PlayerManager::getInstance();
     
-    // Ensure input device is assigned (in case it wasn't set up correctly)
+    // Ensure input devices are assigned (in case they weren't set up correctly)
     if (!playerManager.isPlayerAssigned(assignedPlayerId)) {
-        playerManager.assignInputDevice(assignedPlayerId, INPUT_SOURCE_KEYBOARD);
+        AssignInputDevicesToPlayer(assignedPlayerId);
     }
     
-    // Get input values from PlayerManager
+    // Periodically send controller count to host (for hot-plug support)
+    static std::chrono::steady_clock::time_point lastControllerCheck = std::chrono::steady_clock::now();
+    auto now = std::chrono::steady_clock::now();
+    if (now - lastControllerCheck > std::chrono::seconds(1)) {
+        SendControllerCountToHost();
+        lastControllerCheck = now;
+    }
+    
+    // Get input values from PlayerManager (this will combine keyboard + controller input)
     float moveUp = playerManager.getInputValue(assignedPlayerId, GameAction::MOVE_UP);
     float moveDown = playerManager.getInputValue(assignedPlayerId, GameAction::MOVE_DOWN);
     float moveLeft = playerManager.getInputValue(assignedPlayerId, GameAction::MOVE_LEFT);
@@ -971,7 +995,7 @@ void ClientManager::SendInput() {
     float actionInteract = playerManager.getInputValue(assignedPlayerId, GameAction::ACTION_INTERACT);
     float actionThrow = playerManager.getInputValue(assignedPlayerId, GameAction::ACTION_THROW);
 
-    // Send input message
+    // Send input message for the assigned player
     ClientInputMessage msg;
     msg.header.type = HostMessageType::CLIENT_INPUT;
     memset(msg.header.reserved, 0, sizeof(msg.header.reserved));
@@ -985,6 +1009,44 @@ void ClientManager::SendInput() {
     msg.actionThrow = actionThrow;
 
     SendToHost(&msg, sizeof(msg));
+    
+    // Send input for additional players if additional controllers are active
+    // Host assigns player IDs sequentially: assignedPlayerId, assignedPlayerId+1, etc.
+    // Controller 0 is for assignedPlayerId, controller 1 is for assignedPlayerId+1, etc.
+    InputManager& inputManager = InputManager::getInstance();
+    int controllerCount = 1; // Start with 1 (keyboard/controller 0 for assignedPlayerId)
+    
+    // Count active controllers (0-3)
+    for (int controllerIndex = 0; controllerIndex < 4; ++controllerIndex) {
+        if (inputManager.isInputSourceActive(controllerIndex)) {
+            if (controllerIndex > 0) {
+                // For controllers 1-3, send input for assignedPlayerId + controllerIndex
+                int playerIdForController = assignedPlayerId + controllerIndex;
+                float moveUp2 = playerManager.getInputValue(playerIdForController, GameAction::MOVE_UP);
+                float moveDown2 = playerManager.getInputValue(playerIdForController, GameAction::MOVE_DOWN);
+                float moveLeft2 = playerManager.getInputValue(playerIdForController, GameAction::MOVE_LEFT);
+                float moveRight2 = playerManager.getInputValue(playerIdForController, GameAction::MOVE_RIGHT);
+                float actionWalk2 = playerManager.getInputValue(playerIdForController, GameAction::ACTION_WALK);
+                float actionInteract2 = playerManager.getInputValue(playerIdForController, GameAction::ACTION_INTERACT);
+                float actionThrow2 = playerManager.getInputValue(playerIdForController, GameAction::ACTION_THROW);
+                
+                ClientInputMessage msg2;
+                msg2.header.type = HostMessageType::CLIENT_INPUT;
+                memset(msg2.header.reserved, 0, sizeof(msg2.header.reserved));
+                msg2.playerId = playerIdForController;
+                msg2.moveUp = moveUp2;
+                msg2.moveDown = moveDown2;
+                msg2.moveLeft = moveLeft2;
+                msg2.moveRight = moveRight2;
+                msg2.actionWalk = actionWalk2;
+                msg2.actionInteract = actionInteract2;
+                msg2.actionThrow = actionThrow2;
+                
+                SendToHost(&msg2, sizeof(msg2));
+            }
+            controllerCount++;
+        }
+    }
 }
 
 void ClientManager::SendHeartbeat() {
@@ -1195,6 +1257,71 @@ void ClientManager::ClearSmoothingState(uint32_t objectId) {
 void ClientManager::ClearAllSmoothingStates() {
     std::lock_guard<std::mutex> lock(smoothingMutex);
     smoothingStates.clear();
+}
+
+void ClientManager::AssignInputDevicesToPlayer(int playerId) {
+    PlayerManager& playerManager = PlayerManager::getInstance();
+    InputManager& inputManager = InputManager::getInstance();
+    
+    // Assign keyboard to this player
+    playerManager.assignInputDevice(playerId, INPUT_SOURCE_KEYBOARD);
+    
+    // Assign first controller (controller 0) to this player if available and active
+    if (inputManager.isInputSourceActive(0)) {
+        playerManager.assignInputDevice(playerId, 0);
+        std::cout << "ClientManager: Assigned controller 0 to player " << playerId << std::endl;
+    }
+    
+    // Send controller count to host (host will assign all player IDs)
+    SendControllerCountToHost();
+}
+
+void ClientManager::SendControllerCountToHost() {
+    if (assignedPlayerId <= 0 || !isConnected) {
+        return;  // Not assigned yet or not connected
+    }
+    
+    InputManager& inputManager = InputManager::getInstance();
+    PlayerManager& playerManager = PlayerManager::getInstance();
+    
+    // Count active controllers (keyboard + controllers 0-3)
+    // Controller count = number of active input sources (keyboard counts as 1, controllers 0-3 count as 1 each)
+    int controllerCount = 1; // Keyboard always counts as 1
+    
+    // Count active controllers (0-3)
+    for (int controllerIndex = 0; controllerIndex < 4; ++controllerIndex) {
+        if (inputManager.isInputSourceActive(controllerIndex)) {
+            // Assign controller to the corresponding player ID (assignedPlayerId + controllerIndex)
+            int playerId = assignedPlayerId + controllerIndex;
+            if (controllerIndex == 0) {
+                // Controller 0: assign to assignedPlayerId (already done in AssignInputDevicesToPlayer)
+                // Just ensure it's assigned
+                if (!playerManager.isPlayerAssigned(playerId)) {
+                    playerManager.assignInputDevice(playerId, INPUT_SOURCE_KEYBOARD);
+                }
+                playerManager.assignInputDevice(playerId, 0);
+            } else {
+                // Controllers 1-3: assign to assignedPlayerId + controllerIndex
+                playerManager.assignInputDevice(playerId, controllerIndex);
+            }
+            controllerCount++;
+        }
+    }
+    
+    // Send controller count to host
+    ClientControllerCountMessage msg;
+    msg.header.type = HostMessageType::CLIENT_CONTROLLER_COUNT;
+    memset(msg.header.reserved, 0, sizeof(msg.header.reserved));
+    msg.controllerCount = static_cast<uint8_t>(controllerCount);
+    memset(msg.reserved, 0, sizeof(msg.reserved));
+    
+    SendToHost(&msg, sizeof(msg));
+    
+    static int lastSentCount = -1;
+    if (lastSentCount != controllerCount) {
+        std::cout << "ClientManager: Sent controller count " << controllerCount << " to host" << std::endl;
+        lastSentCount = controllerCount;
+    }
 }
 
 void ClientManager::LoadServerDataConfig() {

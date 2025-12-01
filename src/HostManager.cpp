@@ -17,6 +17,7 @@
 #include <atomic>
 #include <fstream>
 #include <limits>
+#include <algorithm>
 
 namespace {
 constexpr uint16_t kDefaultHostPort = 8889;
@@ -44,6 +45,7 @@ HostManager::HostManager(Engine* engine)
     lastSyncTime = std::chrono::steady_clock::now();
     lastServerManagerHeartbeat = std::chrono::steady_clock::now();
     lastBandwidthLogTime = std::chrono::steady_clock::now();
+    lastControllerCheck = std::chrono::steady_clock::now();
 
     serverDataConfig.hostPort = kDefaultHostPort;
     serverDataConfig.serverManagerIP = kDefaultServerManagerIP;
@@ -113,6 +115,9 @@ bool HostManager::Initialize(uint16_t hostPortParam, const std::string& serverMa
     // Set ServerManager socket in ConnectionManager so it can receive relay data
     connectionManager.SetServerManagerSocket(serverManagerSocket, serverManagerIP, serverManagerPort);
 
+    // Clean up any duplicate controller assignments and ensure proper initial assignment
+    CleanupControllerAssignments();
+
     isHosting = true;
     std::cout << "HostManager: Started hosting on port " << hostPort << " with room code: " << roomCode << std::endl;
     return true;
@@ -161,6 +166,13 @@ void HostManager::Update(float deltaTime) {
 
     // Cleanup object IDs for destroyed objects
     CleanupObjectIds();
+    
+    // Periodically check for additional controllers and verify no duplicates
+    if (now - lastControllerCheck > std::chrono::seconds(1)) {
+        VerifyAndFixControllerAssignments();
+        DetectAndAssignAdditionalControllers();
+        lastControllerCheck = now;
+    }
 }
 
 void HostManager::Shutdown() {
@@ -382,6 +394,12 @@ void HostManager::ProcessIncomingMessages() {
                 HandleClientHeartbeat(fromIP, fromPort);
                 break;
 
+            case HostMessageType::CLIENT_CONTROLLER_COUNT:
+                if (received >= sizeof(ClientControllerCountMessage)) {
+                    HandleClientControllerCount(fromIP, fromPort, *reinterpret_cast<const ClientControllerCountMessage*>(buffer));
+                }
+                break;
+
             default:
                 // Unknown message type
                 break;
@@ -456,6 +474,9 @@ void HostManager::HandleClientConnect(const std::string& fromIP, uint16_t fromPo
     
     std::cout << "HostManager: Received CLIENT_CONNECT from " << clientKey << std::endl;
     
+    // Check if this is a reconnection and clean up old player IDs first
+    std::vector<int> oldPlayerIds;
+    bool isReconnection = false;
     {
         std::lock_guard<std::mutex> lock(clientsMutex);
         auto it = clients.find(clientKey);
@@ -471,9 +492,44 @@ void HostManager::HandleClientConnect(const std::string& fromIP, uint16_t fromPo
                 }
             }
             return;
+        } else if (it != clients.end() && !it->second.connected) {
+            // Client exists but is disconnected - this is a reconnection
+            // Get old player IDs before clearing
+            oldPlayerIds = it->second.allAssignedPlayerIds;
+            isReconnection = true;
+            std::cout << "HostManager: Client " << clientKey << " reconnecting, cleaning up " 
+                     << oldPlayerIds.size() << " old player IDs" << std::endl;
         }
-
-        // Add new client
+    }
+    
+    // Clean up old player IDs if this is a reconnection (outside the lock to avoid deadlock)
+    if (isReconnection) {
+        PlayerManager& playerManager = PlayerManager::getInstance();
+        for (int playerId : oldPlayerIds) {
+            if (playerId > 0) {
+                std::string networkId = playerManager.getPlayerNetworkId(playerId);
+                if (networkId == clientKey) {
+                    playerManager.unassignPlayer(playerId);
+                    std::cout << "HostManager: Unassigned player " << playerId 
+                             << " from reconnecting client " << clientKey << std::endl;
+                }
+            }
+        }
+        
+        // Also clean up any other player IDs that might have this client's network ID
+        for (int playerId = 2; playerId <= 8; ++playerId) {
+            std::string networkId = playerManager.getPlayerNetworkId(playerId);
+            if (networkId == clientKey) {
+                std::cout << "HostManager: Found additional player " << playerId 
+                         << " with network ID " << clientKey << " (reconnection cleanup), cleaning up" << std::endl;
+                playerManager.unassignPlayer(playerId);
+            }
+        }
+    }
+    
+    // Add new client (or update existing disconnected one)
+    {
+        std::lock_guard<std::mutex> lock(clientsMutex);
         ClientInfo client;
         // Store the peer identifier (for relay, this is "RELAY:ROOMCODE", for direct it's IP:PORT)
         client.ip = fromIP;  // This will be "RELAY:ROOMCODE" for relay connections
@@ -481,6 +537,8 @@ void HostManager::HandleClientConnect(const std::string& fromIP, uint16_t fromPo
         client.lastHeartbeat = std::chrono::steady_clock::now();
         client.connected = true;
         client.assignedPlayerId = 0;  // Will be assigned below
+        client.allAssignedPlayerIds.clear();
+        client.controllerCount = 0;
         clients[clientKey] = client;
     }
 
@@ -541,28 +599,130 @@ void HostManager::HandleClientDisconnect(const std::string& fromIP, uint16_t fro
         clientKey = fromIP + ":" + std::to_string(fromPort);
     }
     
-    int assignedPlayerId = 0;
+    std::cout << "HostManager: Received CLIENT_DISCONNECT from " << clientKey << std::endl;
+    
+    std::vector<int> assignedPlayerIds;
+    bool shouldCleanup = false;
     {
         std::lock_guard<std::mutex> lock(clientsMutex);
         auto it = clients.find(clientKey);
         if (it != clients.end()) {
-            // Player assignment is released when client disconnects
-            // (can be reassigned to another client)
-            assignedPlayerId = it->second.assignedPlayerId;
-            it->second.connected = false;
-            it->second.assignedPlayerId = 0;
+            // Only clean up if the client is actually connected
+            // (if they've already reconnected, don't clean up their new player IDs)
+            if (it->second.connected) {
+                // Get all assigned player IDs before clearing
+                assignedPlayerIds = it->second.allAssignedPlayerIds;
+                shouldCleanup = true;
+                // Player assignment is released when client disconnects
+                // (can be reassigned to another client)
+                it->second.connected = false;
+                it->second.assignedPlayerId = 0;
+                it->second.allAssignedPlayerIds.clear();
+                it->second.controllerCount = 0;
+            } else {
+                // Client is already marked as disconnected - might be a duplicate disconnect message
+                // or the client reconnected before this message arrived
+                // Still try to clean up any orphaned player IDs with this network ID
+                std::cout << "HostManager: Received CLIENT_DISCONNECT for already-disconnected client " << clientKey 
+                         << " (may have reconnected)" << std::endl;
+            }
         }
     }
     
-    // Unassign network ID from player in PlayerManager
-    if (assignedPlayerId > 0) {
-        PlayerManager::getInstance().unassignPlayer(assignedPlayerId);
+    // Unassign network ID from all players assigned to this client
+    PlayerManager& playerManager = PlayerManager::getInstance();
+    
+    if (shouldCleanup) {
+        // Clean up player IDs from the client's allAssignedPlayerIds list
+        for (int playerId : assignedPlayerIds) {
+            if (playerId > 0) {
+                // Verify this player ID is actually assigned to this client before unassigning
+                std::string networkId = playerManager.getPlayerNetworkId(playerId);
+                if (networkId == clientKey) {
+                    playerManager.unassignPlayer(playerId);
+                    std::cout << "HostManager: Unassigned player " << playerId << " from disconnected client " << clientKey << std::endl;
+                } else if (!networkId.empty()) {
+                    std::cerr << "HostManager: Warning - Player " << playerId << " has network ID " << networkId 
+                             << " but expected " << clientKey << ", cleaning up anyway" << std::endl;
+                    playerManager.unassignPlayer(playerId);
+                }
+            }
+        }
+    }
+    
+    // Always check for orphaned player IDs with this network ID
+    // (in case allAssignedPlayerIds was incomplete, or this is a duplicate disconnect message)
+    for (int playerId = 2; playerId <= 8; ++playerId) {
+        std::string networkId = playerManager.getPlayerNetworkId(playerId);
+        if (networkId == clientKey) {
+            // Double-check that this client is not currently connected before cleaning up
+            bool clientIsConnected = false;
+            {
+                std::lock_guard<std::mutex> lock(clientsMutex);
+                auto it = clients.find(clientKey);
+                if (it != clients.end() && it->second.connected) {
+                    clientIsConnected = true;
+                }
+            }
+            
+            if (!clientIsConnected) {
+                std::cout << "HostManager: Found orphaned player " << playerId 
+                         << " with network ID " << clientKey << ", cleaning up" << std::endl;
+                playerManager.unassignPlayer(playerId);
+            } else {
+                std::cout << "HostManager: Player " << playerId << " has network ID " << clientKey 
+                         << " but client is connected - skipping cleanup (client may have reconnected)" << std::endl;
+            }
+        }
     }
 
-    std::cout << "HostManager: Client disconnected from " << clientKey << std::endl;
+    std::cout << "HostManager: Client disconnected from " << clientKey << " (cleared " << assignedPlayerIds.size() << " player IDs)" << std::endl;
 }
 
 void HostManager::HandleClientInput(const std::string& fromIP, uint16_t fromPort, const ClientInputMessage& msg) {
+    // Get client key
+    std::string clientKey;
+    if (fromIP.find("RELAY:") == 0) {
+        clientKey = fromIP;
+    } else {
+        clientKey = fromIP + ":" + std::to_string(fromPort);
+    }
+    
+    // Check if this player ID is assigned to this client
+    {
+        std::lock_guard<std::mutex> lock(clientsMutex);
+        auto it = clients.find(clientKey);
+        if (it != clients.end() && it->second.connected) {
+            // If the player ID in the message is different from the assigned player ID,
+            // and it's a higher player ID, this might be an additional controller
+            if (msg.playerId != it->second.assignedPlayerId && msg.playerId > it->second.assignedPlayerId) {
+                // Check if this player ID is available (not assigned to another client or local player)
+                PlayerManager& playerManager = PlayerManager::getInstance();
+                std::string networkId = playerManager.getPlayerNetworkId(msg.playerId);
+                
+                // If player ID is not assigned to a network client, assign it to this client
+                if (networkId.empty()) {
+                    // Check if it's a local player
+                    std::vector<int> localDevices = playerManager.getPlayerInputDevices(msg.playerId);
+                    if (localDevices.empty()) {
+                        // This player ID is available - assign it to this client for additional controller
+                        std::string clientNetworkId = clientKey;
+                        playerManager.assignNetworkId(msg.playerId, clientNetworkId);
+                        std::cout << "HostManager: Auto-assigned additional player " << msg.playerId 
+                                 << " to client " << clientKey << " (for additional controller)" << std::endl;
+                    }
+                } else if (networkId == clientKey) {
+                    // Already assigned to this client, that's fine
+                } else {
+                    // Assigned to a different client - ignore this input
+                    std::cerr << "HostManager: Warning - Player " << msg.playerId 
+                             << " is assigned to different client, ignoring input" << std::endl;
+                    return;
+                }
+            }
+        }
+    }
+    
     // Route network input to PlayerManager using the player ID from the message
     PlayerManager::getInstance().setNetworkInput(
         msg.playerId,
@@ -596,18 +756,53 @@ void HostManager::CleanupDisconnectedClients() {
     auto now = std::chrono::steady_clock::now();
     const auto timeout = std::chrono::seconds(10);
 
-    std::lock_guard<std::mutex> lock(clientsMutex);
-    
     std::vector<std::string> toRemove;
-    for (auto& [key, client] : clients) {
-        if (!client.connected || (now - client.lastHeartbeat > timeout)) {
-            toRemove.push_back(key);
+    std::vector<std::pair<std::string, std::vector<int>>> clientsToCleanup;
+    
+    {
+        std::lock_guard<std::mutex> lock(clientsMutex);
+        for (auto& [key, client] : clients) {
+            if (!client.connected || (now - client.lastHeartbeat > timeout)) {
+                // Get player IDs before removing
+                clientsToCleanup.push_back({key, client.allAssignedPlayerIds});
+                toRemove.push_back(key);
+            }
         }
     }
-
-    for (const auto& key : toRemove) {
-        clients.erase(key);
-        std::cout << "HostManager: Removed disconnected client: " << key << std::endl;
+    
+    // Clean up player IDs for disconnected clients (outside the lock to avoid deadlock)
+    PlayerManager& playerManager = PlayerManager::getInstance();
+    for (const auto& [clientKey, assignedPlayerIds] : clientsToCleanup) {
+        // Unassign network ID from all players assigned to this client
+        for (int playerId : assignedPlayerIds) {
+            if (playerId > 0) {
+                std::string networkId = playerManager.getPlayerNetworkId(playerId);
+                if (networkId == clientKey) {
+                    playerManager.unassignPlayer(playerId);
+                    std::cout << "HostManager: Unassigned player " << playerId 
+                             << " from timed-out client " << clientKey << std::endl;
+                }
+            }
+        }
+        
+        // Also clean up any other player IDs that might have this client's network ID
+        for (int playerId = 2; playerId <= 8; ++playerId) {
+            std::string networkId = playerManager.getPlayerNetworkId(playerId);
+            if (networkId == clientKey) {
+                std::cout << "HostManager: Found additional player " << playerId 
+                         << " with network ID " << clientKey << " (timeout cleanup), cleaning up" << std::endl;
+                playerManager.unassignPlayer(playerId);
+            }
+        }
+    }
+    
+    // Now remove clients from the map
+    {
+        std::lock_guard<std::mutex> lock(clientsMutex);
+        for (const auto& key : toRemove) {
+            clients.erase(key);
+            std::cout << "HostManager: Removed disconnected client: " << key << std::endl;
+        }
     }
 }
 
@@ -1139,44 +1334,105 @@ int HostManager::AssignPlayerToClient(const std::string& clientKey) {
     PlayerManager& playerManager = PlayerManager::getInstance();
     
     // Get set of already assigned player IDs (lock clientsMutex)
+    // Include all player IDs assigned to all clients, not just the main one
     std::unordered_set<int> assignedPlayerIds;
     {
         std::lock_guard<std::mutex> lock(clientsMutex);
         for (const auto& [key, client] : clients) {
-            if (client.connected && client.assignedPlayerId > 0) {
-                assignedPlayerIds.insert(client.assignedPlayerId);
+            if (client.connected) {
+                // Add all assigned player IDs for this client
+                for (int pid : client.allAssignedPlayerIds) {
+                    assignedPlayerIds.insert(pid);
+                }
+            }
+        }
+    }
+    
+    // Also check PlayerManager for any remaining network assignments
+    // (in case a client disconnected but PlayerManager still has the assignment)
+    for (int playerId = 2; playerId <= 8; ++playerId) {
+        std::string networkId = playerManager.getPlayerNetworkId(playerId);
+        if (!networkId.empty()) {
+            // Check if this network ID belongs to a connected client
+            bool foundInConnectedClients = false;
+            {
+                std::lock_guard<std::mutex> lock(clientsMutex);
+                for (const auto& [key, client] : clients) {
+                    if (client.connected && key == networkId) {
+                        foundInConnectedClients = true;
+                        break;
+                    }
+                }
+            }
+            if (!foundInConnectedClients) {
+                // This player ID has a network assignment but no connected client - clean it up
+                std::cout << "HostManager: Cleaning up orphaned network assignment for player " << playerId 
+                         << " (network ID: " << networkId << ")" << std::endl;
+                playerManager.unassignPlayer(playerId);
+            } else {
+                // This player ID is assigned to a connected client - add it to the set
+                assignedPlayerIds.insert(playerId);
             }
         }
     }
     
     // Find the first vacant player slot (player ID without local input device)
     // Start from player 2 (player 1 is reserved for host with keyboard)
+    std::cout << "HostManager: Assigning player ID to client " << clientKey << std::endl;
+    std::cout << "HostManager: Already assigned player IDs: ";
+    for (int pid : assignedPlayerIds) {
+        std::cout << pid << " ";
+    }
+    std::cout << std::endl;
+    
     for (int playerId = 2; playerId <= 8; ++playerId) {
         // Skip if already assigned to another client
         if (assignedPlayerIds.find(playerId) != assignedPlayerIds.end()) {
+            std::cout << "HostManager: Player " << playerId << " already assigned to another client, skipping" << std::endl;
+            continue;
+        }
+        
+        // Check if this player is a local player (has local input devices)
+        // Local players should never be assigned to network clients
+        bool isLocal = playerManager.isPlayerLocal(playerId);
+        std::vector<int> inputDevices = playerManager.getPlayerInputDevices(playerId);
+        std::string networkId = playerManager.getPlayerNetworkId(playerId);
+        
+        std::cout << "HostManager: Checking player " << playerId 
+                 << " - isLocal=" << isLocal 
+                 << ", devices=" << inputDevices.size()
+                 << ", networkId=" << (networkId.empty() ? "empty" : networkId) << std::endl;
+        
+        if (isLocal) {
+            // This player slot is a local player, skip it
+            std::cout << "HostManager: Player " << playerId << " is a local player, skipping" << std::endl;
             continue;
         }
         
         // Check if this player has a local input device assigned
-        std::vector<int> inputDevices = playerManager.getPlayerInputDevices(playerId);
+        // (double-check even if isPlayerLocal is false, in case of edge cases)
         if (!inputDevices.empty()) {
             // This player slot has a local input device, skip it
+            std::cout << "HostManager: Player " << playerId << " has local input devices, skipping" << std::endl;
             continue;
         }
         
         // Check if this player has a network ID assigned (already taken by another client)
-        std::string networkId = playerManager.getPlayerNetworkId(playerId);
         if (!networkId.empty()) {
             // This player slot is already assigned to a network client, skip it
+            std::cout << "HostManager: Player " << playerId << " already has network ID, skipping" << std::endl;
             continue;
         }
         
         // Found a vacant player slot! Assign it to this client
+        std::cout << "HostManager: Found vacant player slot " << playerId << " for client " << clientKey << std::endl;
         {
             std::lock_guard<std::mutex> lock(clientsMutex);
             auto it = clients.find(clientKey);
             if (it != clients.end()) {
                 it->second.assignedPlayerId = playerId;
+                it->second.allAssignedPlayerIds.clear();
+                it->second.allAssignedPlayerIds.push_back(playerId);
                 
                 // Assign network ID to player ID in PlayerManager
                 std::string networkId = clientKey; // Use "IP:PORT" as network ID
@@ -1202,5 +1458,448 @@ void HostManager::SendPlayerAssignment(const std::string& clientIP, uint16_t cli
     SendToClient(clientIP, clientPort, &msg, sizeof(msg));
     std::cout << "HostManager: Sent player assignment (Player ID: " << playerId 
              << ") to " << clientIP << ":" << clientPort << std::endl;
+}
+
+void HostManager::HandleClientControllerCount(const std::string& fromIP, uint16_t fromPort, const ClientControllerCountMessage& msg) {
+    // Get client key
+    std::string clientKey;
+    if (fromIP.find("RELAY:") == 0) {
+        clientKey = fromIP;
+    } else {
+        clientKey = fromIP + ":" + std::to_string(fromPort);
+    }
+    
+    // Update client's controller count and assign all player IDs
+    bool clientExists = false;
+    int oldControllerCount = 0;
+    {
+        std::lock_guard<std::mutex> lock(clientsMutex);
+        auto it = clients.find(clientKey);
+        if (it != clients.end() && it->second.connected) {
+            oldControllerCount = it->second.controllerCount;
+            it->second.controllerCount = msg.controllerCount;
+            clientExists = true;
+        } else {
+            std::cerr << "HostManager: Warning - Received controller count from unknown or disconnected client " << clientKey << std::endl;
+        }
+    }
+    
+    // Only log if controller count changed
+    if (clientExists && oldControllerCount != msg.controllerCount) {
+        std::cout << "HostManager: Received controller count " << static_cast<int>(msg.controllerCount) 
+                 << " from client " << clientKey << " (was " << oldControllerCount << ")" << std::endl;
+    }
+    
+    // Assign all player IDs based on controller count (outside the lock to avoid deadlock)
+    if (clientExists) {
+        AssignAllPlayerIdsToClient(clientKey, msg.controllerCount);
+    }
+}
+
+void HostManager::AssignAllPlayerIdsToClient(const std::string& clientKey, int controllerCount) {
+    PlayerManager& playerManager = PlayerManager::getInstance();
+    
+    // Get client info and check if assignment is needed
+    int mainPlayerId = 0;
+    int currentControllerCount = 0;
+    std::vector<int> currentPlayerIds;
+    {
+        std::lock_guard<std::mutex> lock(clientsMutex);
+        auto it = clients.find(clientKey);
+        if (it == clients.end() || !it->second.connected || it->second.assignedPlayerId <= 0) {
+            std::cerr << "HostManager: Cannot assign additional player IDs - client not properly connected" << std::endl;
+            return;
+        }
+        mainPlayerId = it->second.assignedPlayerId;
+        currentControllerCount = it->second.controllerCount;
+        currentPlayerIds = it->second.allAssignedPlayerIds;
+    }
+    
+    // Calculate how many player IDs we need
+    int additionalPlayersNeeded = std::max(0, controllerCount - 2); // Subtract 2: 1 for keyboard, 1 for the main assignedPlayerId
+    int totalPlayersNeeded = 1 + additionalPlayersNeeded; // Main player + additional players
+    
+    // Check if the client already has the correct player IDs assigned
+    if (currentControllerCount == controllerCount && currentPlayerIds.size() == static_cast<size_t>(totalPlayersNeeded)) {
+        // Check if the player IDs are correct (main player ID + sequential IDs)
+        bool correct = true;
+        if (currentPlayerIds[0] != mainPlayerId) {
+            correct = false;
+        } else {
+            // Check if we have the right number of additional players
+            // For now, we'll just check the count - the actual IDs don't need to be sequential
+            // as long as they're assigned to this client
+            for (size_t i = 1; i < currentPlayerIds.size(); ++i) {
+                std::string networkId = playerManager.getPlayerNetworkId(currentPlayerIds[i]);
+                if (networkId != clientKey) {
+                    correct = false;
+                    break;
+                }
+            }
+        }
+        
+        if (correct) {
+            // Client already has the correct player IDs assigned - no need to reassign
+            return;
+        }
+    }
+    
+    // Get set of already assigned player IDs (from all clients and local players)
+    std::unordered_set<int> assignedPlayerIds;
+    {
+        std::lock_guard<std::mutex> lock(clientsMutex);
+        for (const auto& [key, client] : clients) {
+            if (client.connected) {
+                for (int pid : client.allAssignedPlayerIds) {
+                    assignedPlayerIds.insert(pid);
+                }
+            }
+        }
+    }
+    
+    // Also check local players
+    for (int playerId = 1; playerId <= 8; ++playerId) {
+        if (playerManager.isPlayerLocal(playerId)) {
+            assignedPlayerIds.insert(playerId);
+        }
+    }
+    
+    std::vector<int> newPlayerIds;
+    newPlayerIds.push_back(mainPlayerId); // Always include the main player ID
+    
+    {
+        std::lock_guard<std::mutex> lock(clientsMutex);
+        auto it = clients.find(clientKey);
+        if (it == clients.end() || !it->second.connected || it->second.assignedPlayerId <= 0) {
+            std::cerr << "HostManager: Cannot assign additional player IDs - client not properly connected" << std::endl;
+            return;
+        }
+        
+        // Unassign any existing additional player IDs that are no longer needed or incorrect
+        for (size_t i = 1; i < it->second.allAssignedPlayerIds.size(); ++i) {
+            int oldPlayerId = it->second.allAssignedPlayerIds[i];
+            if (oldPlayerId > 0) {
+                std::string networkId = playerManager.getPlayerNetworkId(oldPlayerId);
+                if (networkId == clientKey) {
+                    // This player ID was assigned to this client - unassign it (we'll reassign if needed)
+                    playerManager.unassignPlayer(oldPlayerId);
+                    assignedPlayerIds.erase(oldPlayerId);
+                }
+            }
+        }
+        
+        // Find additional player IDs for additional controllers (controllers 1, 2, 3)
+        int playerId = 2; // Start from player 2 (player 1 is reserved for host)
+        for (int i = 0; i < additionalPlayersNeeded; ++i) {
+            // Find next available player ID
+            while (playerId <= 8) {
+                // Skip if already assigned
+                if (assignedPlayerIds.find(playerId) != assignedPlayerIds.end()) {
+                    playerId++;
+                    continue;
+                }
+                
+                // Check if this player is a local player
+                if (playerManager.isPlayerLocal(playerId)) {
+                    playerId++;
+                    continue;
+                }
+                
+                // Check if this player has a network ID assigned
+                std::string networkId = playerManager.getPlayerNetworkId(playerId);
+                if (!networkId.empty()) {
+                    playerId++;
+                    continue;
+                }
+                
+                // Found available player ID
+                std::string clientNetworkId = clientKey;
+                if (!playerManager.assignNetworkId(playerId, clientNetworkId)) {
+                    std::cerr << "HostManager: Warning - Failed to assign network ID to player " << playerId << std::endl;
+                    playerId++;
+                    continue;
+                }
+                newPlayerIds.push_back(playerId);
+                assignedPlayerIds.insert(playerId);
+                std::cout << "HostManager: Assigned additional player " << playerId 
+                         << " to client " << clientKey << " (for controller " << (i + 1) << ")" << std::endl;
+                playerId++;
+                break;
+            }
+            if (playerId > 8) {
+                std::cerr << "HostManager: Warning - Could not find available player ID for additional controller " << (i + 1) 
+                         << " (max players reached)" << std::endl;
+                break;
+            }
+        }
+        
+        // Update client's allAssignedPlayerIds
+        it->second.allAssignedPlayerIds = newPlayerIds;
+        
+        // Send updated player assignments to client
+        // For now, we'll send the main player ID assignment (client will use it + sequential IDs)
+        // TODO: Could send a message with all assigned player IDs if needed
+        std::cout << "HostManager: Client " << clientKey << " now has " << newPlayerIds.size() 
+                 << " player IDs assigned: ";
+        for (int pid : newPlayerIds) {
+            std::cout << pid << " ";
+        }
+        std::cout << std::endl;
+    }
+}
+
+void HostManager::CleanupControllerAssignments() {
+    PlayerManager& playerManager = PlayerManager::getInstance();
+    InputManager& inputManager = InputManager::getInstance();
+    
+    std::cout << "HostManager: Cleaning up controller assignments..." << std::endl;
+    
+    // First, ensure player 1 has keyboard and controller 0 (and ONLY those)
+    playerManager.assignInputDevice(1, INPUT_SOURCE_KEYBOARD);
+    if (inputManager.isInputSourceActive(0)) {
+        playerManager.assignInputDevice(1, 0);
+    }
+    
+    // Remove any controllers 1-3 from player 1 if they're incorrectly assigned there
+    // We do this by reassigning them to the correct players, which will automatically remove them from player 1
+    
+    // Now ensure controllers 1-3 are assigned to players 2, 3, 4 respectively
+    // and that each controller is only on ONE player
+    for (int controllerIndex = 1; controllerIndex < 4; ++controllerIndex) {
+        if (inputManager.isInputSourceActive(controllerIndex)) {
+            int currentPlayerId = playerManager.getPlayerIdByInputDevice(controllerIndex);
+            
+            // Check if controller is assigned to player 1 (shouldn't be)
+            if (currentPlayerId == 1) {
+                // Remove from player 1 - will be reassigned below
+                std::cout << "HostManager: Controller " << controllerIndex << " incorrectly on player 1, removing" << std::endl;
+            }
+            
+            // Expected player ID for this controller (controller 1 -> player 2, controller 2 -> player 3, etc.)
+            int expectedPlayerId = controllerIndex + 1;
+            
+            if (currentPlayerId == expectedPlayerId) {
+                // Controller is already correctly assigned - just ensure it's only on that player
+                // (assignInputDevice will remove it from any other players)
+                playerManager.assignInputDevice(expectedPlayerId, controllerIndex);
+                std::cout << "HostManager: Controller " << controllerIndex << " correctly assigned to player " << expectedPlayerId << std::endl;
+            } else {
+                // Controller is either not assigned or assigned to wrong player - reassign it
+                std::cout << "HostManager: Reassigning controller " << controllerIndex 
+                         << " from player " << currentPlayerId << " to player " << expectedPlayerId << std::endl;
+                playerManager.assignInputDevice(expectedPlayerId, controllerIndex);
+            }
+        }
+    }
+    
+    // Verify final state (dedicated function handles duplicate detection and fixing)
+    VerifyAndFixControllerAssignments();
+    
+    std::cout << "HostManager: Final controller assignments:" << std::endl;
+    for (int controllerIndex = 0; controllerIndex < 4; ++controllerIndex) {
+        if (inputManager.isInputSourceActive(controllerIndex)) {
+            int playerId = playerManager.getPlayerIdByInputDevice(controllerIndex);
+            std::cout << "  Controller " << controllerIndex << " -> Player " << playerId << std::endl;
+        }
+    }
+}
+
+void HostManager::VerifyAndFixControllerAssignments() {
+    PlayerManager& playerManager = PlayerManager::getInstance();
+    InputManager& inputManager = InputManager::getInstance();
+    
+    // Track which players have each controller
+    std::unordered_map<int, std::vector<int>> controllerToPlayers;
+    
+    // Scan all LOCAL players and find which controllers they have
+    // Only check local players - network players have their controllers on the client side
+    std::cout << "HostManager: Current LOCAL player assignments:" << std::endl;
+    for (int playerId = 1; playerId <= 8; ++playerId) {
+        if (playerManager.isPlayerAssigned(playerId) && playerManager.isPlayerLocal(playerId)) {
+            std::vector<int> devices = playerManager.getPlayerInputDevices(playerId);
+            std::cout << "  Player " << playerId << " (local) has devices: ";
+            for (int device : devices) {
+                std::cout << device << " ";
+                if (device >= 0 && device <= 3) { // Controllers 0-3
+                    controllerToPlayers[device].push_back(playerId);
+                }
+            }
+            std::cout << std::endl;
+        }
+    }
+    
+    // Check for duplicates and fix them
+    for (auto& [controllerIndex, playerIds] : controllerToPlayers) {
+        if (playerIds.size() > 1) {
+            std::cerr << "HostManager: ERROR - Controller " << controllerIndex 
+                     << " is assigned to multiple players: ";
+            for (int pid : playerIds) {
+                std::cerr << pid << " ";
+            }
+            std::cerr << std::endl;
+            
+            // Determine which player should keep this controller
+            int keepPlayerId = -1;
+            if (controllerIndex == 0) {
+                // Controller 0 should be on player 1
+                keepPlayerId = 1;
+            } else {
+                // Controllers 1-3 should be on players 2, 3, 4 respectively
+                keepPlayerId = controllerIndex + 1;
+            }
+            
+            // If the expected player is in the list, use it; otherwise use the first one
+            if (std::find(playerIds.begin(), playerIds.end(), keepPlayerId) == playerIds.end()) {
+                keepPlayerId = playerIds[0];
+            }
+            
+            // Remove controller from all other LOCAL players only
+            // Don't remove from network players - they have their controllers on the client side
+            for (int pid : playerIds) {
+                if (pid != keepPlayerId && playerManager.isPlayerLocal(pid)) {
+                    std::cout << "HostManager: Removing controller " << controllerIndex 
+                             << " from local player " << pid << std::endl;
+                    // Get current devices for this player
+                    std::vector<int> devices = playerManager.getPlayerInputDevices(pid);
+                    devices.erase(std::remove(devices.begin(), devices.end(), controllerIndex), devices.end());
+                    playerManager.assignInputDevices(pid, devices);
+                }
+            }
+            
+            // Ensure controller is on the correct LOCAL player
+            if (playerManager.isPlayerLocal(keepPlayerId)) {
+                playerManager.assignInputDevice(keepPlayerId, controllerIndex);
+                std::cout << "HostManager: Fixed - Controller " << controllerIndex 
+                         << " now only on local player " << keepPlayerId << std::endl;
+            }
+        }
+    }
+}
+
+void HostManager::DetectAndAssignAdditionalControllers() {
+    InputManager& inputManager = InputManager::getInstance();
+    PlayerManager& playerManager = PlayerManager::getInstance();
+    
+    // Get set of player IDs already assigned to network clients
+    std::unordered_set<int> networkPlayerIds;
+    {
+        std::lock_guard<std::mutex> lock(clientsMutex);
+        for (const auto& [key, client] : clients) {
+            if (client.connected && client.assignedPlayerId > 0) {
+                networkPlayerIds.insert(client.assignedPlayerId);
+            }
+        }
+    }
+    
+    // Ensure player 1 has keyboard and controller 0 assigned (host's primary input)
+    // assignInputDevice will automatically remove the device from other players
+    if (!playerManager.isPlayerAssigned(1)) {
+        playerManager.assignInputDevice(1, INPUT_SOURCE_KEYBOARD);
+    }
+    if (inputManager.isInputSourceActive(0)) {
+        int playerIdForController0 = playerManager.getPlayerIdByInputDevice(0);
+        if (playerIdForController0 != 1) {
+            // Controller 0 should be assigned to player 1
+            // assignInputDevice will automatically remove it from other players
+            playerManager.assignInputDevice(1, 0);
+        }
+    }
+    
+    // For controllers 1-3, verify they're assigned correctly and don't reassign if they are
+    // This function should only handle NEW controllers or fix INCORRECT assignments
+    
+    // Check for additional controllers (controller 1, 2, 3)
+    // These should be assigned to player IDs that don't conflict with network clients
+    // Start from player 2 (player 1 is for host's keyboard + controller 0)
+    int nextPlayerId = 2;
+    
+    for (int controllerIndex = 1; controllerIndex < 4; ++controllerIndex) {
+        if (inputManager.isInputSourceActive(controllerIndex)) {
+            // Check if this controller is already assigned to a player
+            int existingPlayerId = playerManager.getPlayerIdByInputDevice(controllerIndex);
+            
+            if (existingPlayerId < 0) {
+                // Controller not assigned yet - assign it to expected player ID
+                // Controller 1 -> player 2, controller 2 -> player 3, controller 3 -> player 4
+                int expectedPlayerId = controllerIndex + 1;
+                
+                // Check if expected player is available (not assigned to a network client)
+                if (networkPlayerIds.find(expectedPlayerId) == networkPlayerIds.end()) {
+                    std::string networkId = playerManager.getPlayerNetworkId(expectedPlayerId);
+                    // Also check if player is local (has local input devices)
+                    bool isLocal = playerManager.isPlayerLocal(expectedPlayerId);
+                    if (networkId.empty() && !isLocal) {
+                        // Expected player is available - assign controller to it
+                        playerManager.assignInputDevice(expectedPlayerId, controllerIndex);
+                        std::cout << "HostManager: Assigned controller " << controllerIndex 
+                                 << " to player " << expectedPlayerId << std::endl;
+                    } else {
+                        // Expected player has network assignment or is local, find next available
+                        int nextId = expectedPlayerId + 1;
+                        while (nextId <= 8) {
+                            if (networkPlayerIds.find(nextId) == networkPlayerIds.end()) {
+                                std::string nextNetworkId = playerManager.getPlayerNetworkId(nextId);
+                                if (nextNetworkId.empty()) {
+                                    playerManager.assignInputDevice(nextId, controllerIndex);
+                                    std::cout << "HostManager: Assigned controller " << controllerIndex 
+                                             << " to player " << nextId << " (expected player " << expectedPlayerId << " unavailable)" << std::endl;
+                                    break;
+                                }
+                            }
+                            nextId++;
+                        }
+                    }
+                } else {
+                    // Expected player is assigned to network client, find next available
+                    int nextId = expectedPlayerId + 1;
+                    while (nextId <= 8) {
+                        if (networkPlayerIds.find(nextId) == networkPlayerIds.end()) {
+                            std::string nextNetworkId = playerManager.getPlayerNetworkId(nextId);
+                            if (nextNetworkId.empty()) {
+                                playerManager.assignInputDevice(nextId, controllerIndex);
+                                std::cout << "HostManager: Assigned controller " << controllerIndex 
+                                         << " to player " << nextId << " (expected player " << expectedPlayerId << " is network client)" << std::endl;
+                                break;
+                            }
+                        }
+                        nextId++;
+                    }
+                }
+            } else {
+                // Controller is already assigned - verify it's on the correct player
+                int expectedPlayerId = controllerIndex + 1;
+                
+                if (existingPlayerId == expectedPlayerId) {
+                    // Correctly assigned - just ensure it's only on this player
+                    playerManager.assignInputDevice(existingPlayerId, controllerIndex);
+                } else if (networkPlayerIds.find(existingPlayerId) != networkPlayerIds.end()) {
+                    // Controller is assigned to a network client's player ID - reassign it
+                    std::cerr << "HostManager: Warning - Controller " << controllerIndex 
+                             << " is assigned to network client's player " << existingPlayerId 
+                             << ", reassigning to player " << expectedPlayerId << std::endl;
+                    playerManager.assignInputDevice(expectedPlayerId, controllerIndex);
+                } else if (existingPlayerId == 1 && controllerIndex > 0) {
+                    // Controller 1-3 shouldn't be on player 1 - reassign it
+                    std::cerr << "HostManager: Warning - Controller " << controllerIndex 
+                             << " is incorrectly on player 1, reassigning to player " << expectedPlayerId << std::endl;
+                    playerManager.assignInputDevice(expectedPlayerId, controllerIndex);
+                }
+                // Otherwise, controller is assigned to a different local player - leave it for now
+                // (VerifyAndFixControllerAssignments will catch duplicates)
+            }
+        } else {
+            // Controller was removed - unassign it if it's not player 1's controller
+            int existingPlayerId = playerManager.getPlayerIdByInputDevice(controllerIndex);
+            if (existingPlayerId > 0 && existingPlayerId != 1) {
+                // Only unassign if it's not player 1 (player 1 has keyboard + controller 0)
+                // Check if it's a local player (not a network client)
+                if (playerManager.isPlayerLocal(existingPlayerId)) {
+                    playerManager.unassignPlayer(existingPlayerId);
+                    std::cout << "HostManager: Controller " << controllerIndex 
+                             << " disconnected, unassigned player " << existingPlayerId << std::endl;
+                }
+            }
+        }
+    }
 }
 

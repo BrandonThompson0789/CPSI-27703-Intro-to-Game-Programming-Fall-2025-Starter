@@ -219,13 +219,27 @@ void InputManager::openController(int index) {
         return;
     }
     
+    // Check if this device is already opened
+    auto it = deviceToSlot.find(index);
+    if (it != deviceToSlot.end()) {
+        // Controller already opened in a slot
+        int existingSlot = it->second;
+        if (controllers[existingSlot] != nullptr && SDL_GameControllerGetAttached(controllers[existingSlot])) {
+            // Already opened and attached, skip
+            return;
+        }
+    }
+    
     SDL_GameController* controller = SDL_GameControllerOpen(index);
     if (controller == nullptr) {
         std::cerr << "Could not open controller " << index << ": " << SDL_GetError() << std::endl;
         return;
     }
     
+    // Use the device index as the slot (controllers[0] = device 0, controllers[1] = device 1, etc.)
     controllers[index] = controller;
+    deviceToSlot[index] = index;  // Map device index to slot index
+    
     const char* name = SDL_GameControllerName(controller);
     std::cout << "Opened controller " << index << ": " << (name ? name : "Unknown") << std::endl;
 }
@@ -397,20 +411,47 @@ void InputManager::setConfigForSource(int inputSource, std::unique_ptr<InputConf
 }
 
 void InputManager::handleControllerAdded(int deviceIndex) {
-    // Find an empty slot for the new controller
+    // Check if this controller is already opened
+    auto it = deviceToSlot.find(deviceIndex);
+    if (it != deviceToSlot.end()) {
+        int existingSlot = it->second;
+        if (controllers[existingSlot] != nullptr && SDL_GameControllerGetAttached(controllers[existingSlot])) {
+            // Controller already opened and attached, skip
+            std::cout << "Controller device " << deviceIndex << " already opened in slot " << existingSlot << ", ignoring duplicate event" << std::endl;
+            return;
+        }
+    }
+    
+    if (!SDL_IsGameController(deviceIndex)) {
+        return;
+    }
+    
+    // Try to use the device index as the slot (if available)
+    if (deviceIndex >= 0 && deviceIndex < 4 && controllers[deviceIndex] == nullptr) {
+        SDL_GameController* controller = SDL_GameControllerOpen(deviceIndex);
+        if (controller) {
+            controllers[deviceIndex] = controller;
+            deviceToSlot[deviceIndex] = deviceIndex;
+            
+            const char* name = SDL_GameControllerName(controller);
+            std::cout << "Controller connected in slot " << deviceIndex << ": " 
+                      << (name ? name : "Unknown") << std::endl;
+            return;
+        }
+    }
+    
+    // If device index slot is taken, find an empty slot
     for (int slot = 0; slot < 4; ++slot) {
         if (controllers[slot] == nullptr) {
-            if (SDL_IsGameController(deviceIndex)) {
-                SDL_GameController* controller = SDL_GameControllerOpen(deviceIndex);
-                if (controller) {
-                    controllers[slot] = controller;
-                    deviceToSlot[deviceIndex] = slot;
-                    
-                    const char* name = SDL_GameControllerName(controller);
-                    std::cout << "Controller connected in slot " << slot << ": " 
-                              << (name ? name : "Unknown") << std::endl;
-                    return;
-                }
+            SDL_GameController* controller = SDL_GameControllerOpen(deviceIndex);
+            if (controller) {
+                controllers[slot] = controller;
+                deviceToSlot[deviceIndex] = slot;
+                
+                const char* name = SDL_GameControllerName(controller);
+                std::cout << "Controller connected in slot " << slot << ": " 
+                          << (name ? name : "Unknown") << std::endl;
+                return;
             }
         }
     }

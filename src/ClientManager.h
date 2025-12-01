@@ -114,6 +114,10 @@ private:
     
     // Configuration loading
     void LoadServerDataConfig();
+    
+    // Input device assignment
+    void AssignInputDevicesToPlayer(int playerId);
+    void SendControllerCountToHost();
 
     Engine* engine;
     ConnectionManager connectionManager;  // ENet-based game networking

@@ -27,7 +27,8 @@ enum class HostMessageType : uint8_t {
     HEARTBEAT = 17,
     ASSIGN_PLAYER = 18,
     HOST_RETURNED_TO_MENU = 19,
-    HOST_SESSION_ENDED = 20
+    HOST_SESSION_ENDED = 20,
+    CLIENT_CONTROLLER_COUNT = 21
 };
 
 // Message headers
@@ -40,6 +41,13 @@ struct HostMessageHeader {
 struct ClientConnectMessage {
     HostMessageHeader header;
     char reserved[4];
+};
+
+// Client controller count message
+struct ClientControllerCountMessage {
+    HostMessageHeader header;
+    uint8_t controllerCount;  // Number of active controllers (0-4: keyboard + controllers 0-3)
+    uint8_t reserved[3];
 };
 
 // Initialization package header
@@ -119,7 +127,9 @@ struct ClientInfo {
     uint16_t port;
     std::chrono::steady_clock::time_point lastHeartbeat;
     bool connected;
-    int assignedPlayerId;  // Player ID assigned to this client
+    int assignedPlayerId;  // Main player ID assigned to this client
+    std::vector<int> allAssignedPlayerIds;  // All player IDs assigned to this client (including additional controllers)
+    int controllerCount;  // Number of active controllers reported by client
 };
 
 struct ServerDataConfig {
@@ -177,6 +187,8 @@ private:
     void ProcessIncomingMessages();
     void HandleClientConnect(const std::string& fromIP, uint16_t fromPort);
     void HandleClientDisconnect(const std::string& fromIP, uint16_t fromPort);
+    void HandleClientControllerCount(const std::string& fromIP, uint16_t fromPort, const ClientControllerCountMessage& msg);
+    void AssignAllPlayerIdsToClient(const std::string& clientKey, int controllerCount);
     void HandleClientInput(const std::string& fromIP, uint16_t fromPort, const ClientInputMessage& msg);
     void HandleClientHeartbeat(const std::string& fromIP, uint16_t fromPort);
     void CleanupDisconnectedClients();
@@ -184,6 +196,9 @@ private:
     // Player assignment
     int AssignPlayerToClient(const std::string& clientKey);
     void SendPlayerAssignment(const std::string& clientIP, uint16_t clientPort, int playerId);
+    void DetectAndAssignAdditionalControllers();
+    void CleanupControllerAssignments();
+    void VerifyAndFixControllerAssignments();
 
     // Object synchronization
     void SendInitializationPackage(const std::string& clientIP, uint16_t clientPort);
@@ -247,5 +262,8 @@ private:
     std::atomic<uint64_t> bytesSent;
     std::atomic<uint64_t> bytesReceived;
     std::chrono::steady_clock::time_point lastBandwidthLogTime;
+    
+    // Controller detection timing
+    std::chrono::steady_clock::time_point lastControllerCheck;
 };
 

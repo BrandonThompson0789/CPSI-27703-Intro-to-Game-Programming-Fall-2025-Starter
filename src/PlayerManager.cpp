@@ -1,5 +1,6 @@
 #include "PlayerManager.h"
 #include <algorithm>
+#include <iostream>
 
 PlayerManager& PlayerManager::getInstance() {
     static PlayerManager instance;
@@ -12,6 +13,20 @@ PlayerManager::PlayerManager()
 
 bool PlayerManager::assignInputDevice(int playerId, int inputSource) {
     std::lock_guard<std::mutex> lock(playersMutex);
+    
+    // First, remove this input source from any other LOCAL player that might have it
+    // (to ensure each input device is only assigned to one local player)
+    // Don't remove from network players - they have their controllers on the client/host side
+    for (auto& [otherPlayerId, otherPlayer] : players) {
+        if (otherPlayerId != playerId && otherPlayer.isLocal) {
+            auto it = std::find(otherPlayer.inputDevices.begin(), otherPlayer.inputDevices.end(), inputSource);
+            if (it != otherPlayer.inputDevices.end()) {
+                otherPlayer.inputDevices.erase(it);
+                std::cout << "PlayerManager: Removed input source " << inputSource 
+                         << " from local player " << otherPlayerId << " (reassigning to player " << playerId << ")" << std::endl;
+            }
+        }
+    }
     
     PlayerInput& player = players[playerId];
     player.isLocal = true;
@@ -27,6 +42,22 @@ bool PlayerManager::assignInputDevice(int playerId, int inputSource) {
 
 bool PlayerManager::assignInputDevices(int playerId, const std::vector<int>& inputSources) {
     std::lock_guard<std::mutex> lock(playersMutex);
+    
+    // First, remove all these input sources from any other LOCAL players
+    // (to ensure each input device is only assigned to one local player)
+    // Don't remove from network players - they have their controllers on the client/host side
+    for (int inputSource : inputSources) {
+        for (auto& [otherPlayerId, otherPlayer] : players) {
+            if (otherPlayerId != playerId && otherPlayer.isLocal) {
+                auto it = std::find(otherPlayer.inputDevices.begin(), otherPlayer.inputDevices.end(), inputSource);
+                if (it != otherPlayer.inputDevices.end()) {
+                    otherPlayer.inputDevices.erase(it);
+                    std::cout << "PlayerManager: Removed input source " << inputSource 
+                             << " from local player " << otherPlayerId << " (reassigning to player " << playerId << ")" << std::endl;
+                }
+            }
+        }
+    }
     
     PlayerInput& player = players[playerId];
     player.isLocal = true;
@@ -47,9 +78,18 @@ bool PlayerManager::assignNetworkId(int playerId, const std::string& networkId) 
     std::lock_guard<std::mutex> lock(playersMutex);
     
     PlayerInput& player = players[playerId];
+    
+    // Don't assign network ID to a player that has local input devices
+    // (local players should keep their controllers/keyboard)
+    if (!player.inputDevices.empty()) {
+        std::cerr << "PlayerManager: Warning - Cannot assign network ID to player " << playerId 
+                 << " because it has local input devices" << std::endl;
+        return false;
+    }
+    
     player.isLocal = false;
     player.networkId = networkId;
-    player.inputDevices.clear();
+    player.inputDevices.clear(); // Should already be empty, but clear just in case
     
     // Initialize network input values to 0
     player.networkInputActive = false;
@@ -257,20 +297,42 @@ std::string PlayerManager::getPlayerConfigName(int playerId) const {
 }
 
 void PlayerManager::initializeDefaultAssignments() {
-    std::lock_guard<std::mutex> lock(playersMutex);
+    // Use assignInputDevice to ensure each input device is only assigned to one player
+    // This will automatically remove devices from other players if they're already assigned
     
     // Assign keyboard to player 1
-    PlayerInput& player1 = players[1];
-    player1.isLocal = true;
-    player1.networkId.clear();
-    if (std::find(player1.inputDevices.begin(), player1.inputDevices.end(), INPUT_SOURCE_KEYBOARD) == player1.inputDevices.end()) {
-        player1.inputDevices.push_back(INPUT_SOURCE_KEYBOARD);
-    }
+    assignInputDevice(1, INPUT_SOURCE_KEYBOARD);
     
     // Assign first controller to player 1 (if available)
     if (inputManager.isInputSourceActive(0)) {
-        if (std::find(player1.inputDevices.begin(), player1.inputDevices.end(), 0) == player1.inputDevices.end()) {
-            player1.inputDevices.push_back(0);
+        assignInputDevice(1, 0);
+    }
+    
+    // Assign additional controllers to additional players (controller 1 -> player 2, controller 2 -> player 3, etc.)
+    // Start from player 2 since player 1 already has keyboard + controller 0
+    int nextPlayerId = 2;
+    for (int controllerIndex = 1; controllerIndex < 4; ++controllerIndex) {
+        if (inputManager.isInputSourceActive(controllerIndex)) {
+            // Check if this controller is already assigned
+            int existingPlayerId = getPlayerIdByInputDevice(controllerIndex);
+            
+            if (existingPlayerId < 0) {
+                // Controller not assigned yet - assign it to next available player ID
+                // Find next available player ID that doesn't have a network assignment
+                while (nextPlayerId <= 8) {
+                    // Check if this player ID is already assigned to a network client
+                    std::string networkId = getPlayerNetworkId(nextPlayerId);
+                    if (networkId.empty()) {
+                        // This player ID is available - assign controller to it
+                        // assignInputDevice will ensure it's removed from any other player
+                        assignInputDevice(nextPlayerId, controllerIndex);
+                        nextPlayerId++;
+                        break;
+                    }
+                    nextPlayerId++;
+                }
+            }
+            // If controller is already assigned, leave it as is
         }
     }
 }

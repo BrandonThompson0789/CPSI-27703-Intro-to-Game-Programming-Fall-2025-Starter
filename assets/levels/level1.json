@@ -58,6 +58,38 @@
             ]
         },
         {
+            "name": "player3",
+            "template": "player_default",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 650.0,
+                    "posY": 1050.0
+                },
+                {
+                    "type": "InputComponent",
+                    "playerId": 3,
+                    "configName": "default"
+                }
+            ]
+        },
+        {
+            "name": "player4",
+            "template": "player_default",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 650.0,
+                    "posY": 1050.0
+                },
+                {
+                    "type": "InputComponent",
+                    "playerId": 4,
+                    "configName": "default"
+                }
+            ]
+        },
+        {
             "template": "player_vaccumba",
             "components": [
                 {
