@@ -17,7 +17,7 @@ Objects are deletable at runtime by marking them for 'Death', done by loss of he
 
 Static bodies are used as walls, Dynamic bodies are most other objects, Kinematic bodies are used for 'on-rail' objects.
 
-![hippo](https://i.imgur.com/vda2P5n.gif)
+![hippo](docs/project04.gif)
 
 At a longer glance:
 
