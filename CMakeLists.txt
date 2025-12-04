@@ -156,6 +156,48 @@ endif()
 # Define SDL_MAIN_HANDLED for MinGW
 target_compile_definitions(demo PRIVATE SDL_MAIN_HANDLED)
 
+# Level editor tool
+add_executable(level_editor
+    tools/level_editor/src/main.cpp
+    tools/level_editor/src/EditorApp.cpp
+    tools/level_editor/src/CameraController.cpp
+    tools/level_editor/src/SchemaService.cpp
+    tools/level_editor/src/SchemaScanner.cpp
+    tools/level_editor/src/SchemaValidator.cpp
+    tools/level_editor/src/AssetCache.cpp
+    tools/level_editor/src/LevelState.cpp
+    tools/level_editor/src/ViewportController.cpp
+    tools/level_editor/src/ToolSystem/Tool.cpp
+    tools/level_editor/src/ModalManager.cpp
+    tools/level_editor/src/FileService.cpp
+    tools/level_editor/src/ui/ToolbarPanel.cpp
+    tools/level_editor/src/ui/FileDialog.cpp
+    tools/level_editor/src/ui/TemplateEditorModal.cpp
+    tools/level_editor/src/ui/ComponentEditorPanel.cpp
+    tools/level_editor/src/SpecialComponentHandlers/MapInteractionFactory.cpp
+)
+
+target_include_directories(level_editor PRIVATE tools/level_editor/include)
+
+target_link_libraries(level_editor PRIVATE
+    SDL2::SDL2
+    $<IF:$<TARGET_EXISTS:SDL2_ttf::SDL2_ttf>,SDL2_ttf::SDL2_ttf,SDL2_ttf::SDL2_ttf-static>
+    $<IF:$<TARGET_EXISTS:SDL2_image::SDL2_image>,SDL2_image::SDL2_image,SDL2_image::SDL2_image-static>
+    $<IF:$<TARGET_EXISTS:SDL2_mixer::SDL2_mixer>,SDL2_mixer::SDL2_mixer,SDL2_mixer::SDL2_mixer-static>
+    box2d::box2d
+    nlohmann_json::nlohmann_json
+    ZLIB::ZLIB
+    unofficial::enet::enet
+)
+
+if(WIN32)
+    target_link_libraries(level_editor PRIVATE ws2_32)
+else()
+    target_link_libraries(level_editor PRIVATE pthread)
+endif()
+
+target_compile_definitions(level_editor PRIVATE SDL_MAIN_HANDLED)
+
 # Suppress console window for Release builds on Windows
 # This sets /SUBSYSTEM:WINDOWS instead of /SUBSYSTEM:CONSOLE on Windows
 # On other platforms, this has no effect (platform-agnostic)
@@ -164,6 +206,7 @@ if(WIN32)
     # Also allow explicit override via DEMO_SUPPRESS_CONSOLE variable
     if(CMAKE_BUILD_TYPE STREQUAL "Release" OR (DEFINED DEMO_SUPPRESS_CONSOLE AND DEMO_SUPPRESS_CONSOLE))
         set_target_properties(demo PROPERTIES WIN32_EXECUTABLE TRUE)
+        set_target_properties(level_editor PROPERTIES WIN32_EXECUTABLE TRUE)
     endif()
 endif()
 
@@ -178,13 +221,24 @@ add_custom_target(copy_assets ALL
     DEPENDS ${ASSET_FILES}
 )
 
+add_custom_target(copy_assets_level_editor ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/assets $<TARGET_FILE_DIR:level_editor>/assets
+    COMMENT "Copying assets to level editor build directory..."
+    DEPENDS ${ASSET_FILES}
+)
+
 # Make demo depend on copy_assets so assets are copied before running
 add_dependencies(demo copy_assets)
+add_dependencies(level_editor copy_assets_level_editor)
 
 # Copy DLLs after building demo
 if(WIN32)
     add_custom_command(TARGET demo POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_RUNTIME_DLLS:demo> $<TARGET_FILE_DIR:demo>
+        COMMAND_EXPAND_LISTS
+    )
+    add_custom_command(TARGET level_editor POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_RUNTIME_DLLS:level_editor> $<TARGET_FILE_DIR:level_editor>
         COMMAND_EXPAND_LISTS
     )
 endif()
