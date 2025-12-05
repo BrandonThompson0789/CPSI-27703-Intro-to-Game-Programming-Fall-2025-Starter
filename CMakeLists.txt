@@ -67,6 +67,10 @@ add_executable(demo
     src/components/SensorTypes.cpp
     src/components/behaviors/StandardMovementBehaviorComponent.h
     src/components/behaviors/StandardMovementBehaviorComponent.cpp
+    src/components/behaviors/PathfindingBehaviorComponent.h
+    src/components/behaviors/PathfindingBehaviorComponent.cpp
+    src/components/behaviors/SeekBehaviorComponent.h
+    src/components/behaviors/SeekBehaviorComponent.cpp
     src/components/behaviors/GrabBehaviorComponent.h
     src/components/behaviors/GrabBehaviorComponent.cpp
     src/components/behaviors/ThrowBehaviorComponent.h

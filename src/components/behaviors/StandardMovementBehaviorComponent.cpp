@@ -1,4 +1,5 @@
 #include "StandardMovementBehaviorComponent.h"
+#include "PathfindingBehaviorComponent.h"
 #include "../ComponentLibrary.h"
 #include "../SoundComponent.h"
 #include "../../Engine.h"
@@ -10,6 +11,7 @@
 StandardMovementBehaviorComponent::StandardMovementBehaviorComponent(Object& parent, float moveSpeed)
     : Component(parent)
     , input(nullptr)
+    , pathInput(nullptr)
     , body(nullptr)
     , sound(nullptr)
     , moveSpeed(moveSpeed)
@@ -24,6 +26,7 @@ StandardMovementBehaviorComponent::StandardMovementBehaviorComponent(Object& par
 StandardMovementBehaviorComponent::StandardMovementBehaviorComponent(Object& parent, const nlohmann::json& data)
     : Component(parent)
     , input(nullptr)
+    , pathInput(nullptr)
     , body(nullptr)
     , sound(nullptr)
     , moveSpeed(data.value("moveSpeed", 200.0f))
@@ -44,11 +47,12 @@ StandardMovementBehaviorComponent::StandardMovementBehaviorComponent(Object& par
 
 void StandardMovementBehaviorComponent::resolveDependencies() {
     input = parent().getComponent<InputComponent>();
+    pathInput = parent().getComponent<PathfindingBehaviorComponent>();
     body = parent().getComponent<BodyComponent>();
     sound = parent().getComponent<SoundComponent>();
 
-    if (!input) {
-        std::cerr << "Warning: StandardMovementBehaviorComponent requires InputComponent!\n";
+    if (!input && !pathInput) {
+        std::cerr << "Warning: StandardMovementBehaviorComponent requires an InputComponent or PathfindingBehaviorComponent!\n";
     }
     if (!body) {
         std::cerr << "Warning: StandardMovementBehaviorComponent requires BodyComponent!\n";
@@ -67,11 +71,13 @@ nlohmann::json StandardMovementBehaviorComponent::toJson() const {
 }
 
 void StandardMovementBehaviorComponent::update(float deltaTime) {
-    if (!input || !body) {
+    if (!body) {
         return;
     }
 
-    if (!input->isActive()) {
+    MovementInputSample inputSample = gatherMovementInput();
+
+    if (!inputSample.active) {
         if (wasMoving) {
             if (!sound) {
                 sound = parent().getComponent<SoundComponent>();
@@ -85,15 +91,10 @@ void StandardMovementBehaviorComponent::update(float deltaTime) {
         return;
     }
 
-    float moveUp = input->getMoveUp();
-    float moveDown = input->getMoveDown();
-    float moveLeft = input->getMoveLeft();
-    float moveRight = input->getMoveRight();
+    float horizontal = inputSample.moveRight - inputSample.moveLeft;
+    float vertical = inputSample.moveDown - inputSample.moveUp;
 
-    float horizontal = moveRight - moveLeft;
-    float vertical = moveDown - moveUp;
-
-    float walkModifier = input->getActionWalk();
+    float walkModifier = inputSample.walk;
     float currentSpeed = moveSpeed * (1.0f - walkModifier * walkSlowdownFactor);
 
     float inputMagnitude = std::sqrt(horizontal * horizontal + vertical * vertical);
@@ -133,6 +134,36 @@ void StandardMovementBehaviorComponent::update(float deltaTime) {
     wasMoving = isMoving;
 
     updateRotation(horizontal, vertical);
+}
+
+StandardMovementBehaviorComponent::MovementInputSample StandardMovementBehaviorComponent::gatherMovementInput() {
+    MovementInputSample sample;
+
+    if (!pathInput) {
+        pathInput = parent().getComponent<PathfindingBehaviorComponent>();
+    }
+
+    if (pathInput && pathInput->isActive()) {
+        sample.moveUp = pathInput->getMoveUp();
+        sample.moveDown = pathInput->getMoveDown();
+        sample.moveLeft = pathInput->getMoveLeft();
+        sample.moveRight = pathInput->getMoveRight();
+        sample.walk = pathInput->getActionWalk();
+        sample.active = true;
+        return sample;
+    }
+
+    if (input && input->isActive()) {
+        sample.moveUp = input->getMoveUp();
+        sample.moveDown = input->getMoveDown();
+        sample.moveLeft = input->getMoveLeft();
+        sample.moveRight = input->getMoveRight();
+        sample.walk = input->getActionWalk();
+        sample.active = true;
+        return sample;
+    }
+
+    return sample;
 }
 
 void StandardMovementBehaviorComponent::updateRotation(float inputHorizontal, float inputVertical) {

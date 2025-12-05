@@ -6,6 +6,7 @@
 #include <nlohmann/json.hpp>
 
 class SoundComponent;
+class PathfindingBehaviorComponent;
 
 /**
  * Handles standard player movement behaviour: reading movement input,
@@ -35,8 +36,18 @@ public:
 private:
     void resolveDependencies();
     void updateRotation(float inputHorizontal, float inputVertical);
+    struct MovementInputSample {
+        float moveUp = 0.0f;
+        float moveDown = 0.0f;
+        float moveLeft = 0.0f;
+        float moveRight = 0.0f;
+        float walk = 0.0f;
+        bool active = false;
+    };
+    MovementInputSample gatherMovementInput();
 
     InputComponent* input;
+    PathfindingBehaviorComponent* pathInput;
     BodyComponent* body;
     SoundComponent* sound;
 

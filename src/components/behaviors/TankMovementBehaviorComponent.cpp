@@ -1,4 +1,5 @@
 #include "TankMovementBehaviorComponent.h"
+#include "PathfindingBehaviorComponent.h"
 #include "../ComponentLibrary.h"
 #include "../SoundComponent.h"
 #include "../../Engine.h"
@@ -41,6 +42,7 @@ std::pair<float, float> quantizeToCardinal(float horizontal, float vertical) {
 TankMovementBehaviorComponent::TankMovementBehaviorComponent(Object& parent, float moveSpeed)
     : Component(parent)
     , input(nullptr)
+    , pathInput(nullptr)
     , body(nullptr)
     , sound(nullptr)
     , moveSpeed(moveSpeed)
@@ -48,13 +50,18 @@ TankMovementBehaviorComponent::TankMovementBehaviorComponent(Object& parent, flo
     , moveSoundTimer(0.0f)
     , rotationResponsiveness(0.6f)
     , maxAngularVelocity(0.6f)
-    , rotationStopThresholdDegrees(5.0f) {
+    , rotationStopThresholdDegrees(5.0f)
+    , pathfindingCardinalCostScale(1.0f)
+    , pathfindingDiagonalCostScale(1.15f)
+    , pathfindingTurnPenalty(0.35f)
+    , pathfindingCourtesyTurnThreshold(2) {
     resolveDependencies();
 }
 
 TankMovementBehaviorComponent::TankMovementBehaviorComponent(Object& parent, const nlohmann::json& data)
     : Component(parent)
     , input(nullptr)
+    , pathInput(nullptr)
     , body(nullptr)
     , sound(nullptr)
     , moveSpeed(data.value("moveSpeed", 200.0f))
@@ -62,21 +69,29 @@ TankMovementBehaviorComponent::TankMovementBehaviorComponent(Object& parent, con
     , moveSoundTimer(0.0f)
     , rotationResponsiveness(data.value("rotationResponsiveness", 0.6f))
     , maxAngularVelocity(data.value("maxAngularVelocity", 0.6f))
-    , rotationStopThresholdDegrees(data.value("rotationStopThresholdDegrees", 5.0f)) {
+    , rotationStopThresholdDegrees(data.value("rotationStopThresholdDegrees", 5.0f))
+    , pathfindingCardinalCostScale(data.value("pathfindingCardinalCostScale", 1.0f))
+    , pathfindingDiagonalCostScale(data.value("pathfindingDiagonalCostScale", 1.15f))
+    , pathfindingTurnPenalty(data.value("pathfindingTurnPenalty", 0.35f))
+    , pathfindingCourtesyTurnThreshold(data.value("pathfindingCourtesyTurnThreshold", 2)) {
     resolveDependencies();
 }
 
 void TankMovementBehaviorComponent::resolveDependencies() {
     input = parent().getComponent<InputComponent>();
+    if (!pathInput) {
+        pathInput = parent().getComponent<PathfindingBehaviorComponent>();
+    }
     body = parent().getComponent<BodyComponent>();
     sound = parent().getComponent<SoundComponent>();
 
-    if (!input) {
-        std::cerr << "Warning: TankMovementBehaviorComponent requires InputComponent!\n";
+    if (!input && !pathInput) {
+        std::cerr << "Warning: TankMovementBehaviorComponent requires an InputComponent or PathfindingBehaviorComponent!\n";
     }
     if (!body) {
         std::cerr << "Warning: TankMovementBehaviorComponent requires BodyComponent!\n";
     }
+    applyPathfindingBias();
 }
 
 nlohmann::json TankMovementBehaviorComponent::toJson() const {
@@ -87,15 +102,21 @@ nlohmann::json TankMovementBehaviorComponent::toJson() const {
     j["rotationResponsiveness"] = rotationResponsiveness;
     j["maxAngularVelocity"] = maxAngularVelocity;
     j["rotationStopThresholdDegrees"] = rotationStopThresholdDegrees;
+    j["pathfindingCardinalCostScale"] = pathfindingCardinalCostScale;
+    j["pathfindingDiagonalCostScale"] = pathfindingDiagonalCostScale;
+    j["pathfindingTurnPenalty"] = pathfindingTurnPenalty;
+    j["pathfindingCourtesyTurnThreshold"] = pathfindingCourtesyTurnThreshold;
     return j;
 }
 
 void TankMovementBehaviorComponent::update(float deltaTime) {
-    if (!input || !body) {
+    if (!body) {
         return;
     }
 
-    if (!input->isActive()) {
+    MovementInputSample inputSample = gatherMovementInput();
+
+    if (!inputSample.active) {
         if (wasMoving) {
             if (!sound) {
                 sound = parent().getComponent<SoundComponent>();
@@ -111,7 +132,8 @@ void TankMovementBehaviorComponent::update(float deltaTime) {
 
     float desiredHorizontal = 0.0f;
     float desiredVertical = 0.0f;
-    bool hasDirection = acquireInputDirection(desiredHorizontal, desiredVertical);
+    bool hasDirection = acquireInputDirection(desiredHorizontal, desiredVertical, inputSample);
+    hasDirection = applyPathfindingCourtesy(inputSample, desiredHorizontal, desiredVertical, hasDirection);
 
     bool isMoving = hasDirection;
     if (!sound) {
@@ -144,20 +166,129 @@ void TankMovementBehaviorComponent::update(float deltaTime) {
                    deltaTime);
 }
 
-bool TankMovementBehaviorComponent::acquireInputDirection(float& outHorizontal, float& outVertical) {
-    float moveUp = input->getMoveUp();
-    float moveDown = input->getMoveDown();
-    float moveLeft = input->getMoveLeft();
-    float moveRight = input->getMoveRight();
-
-    float horizontal = moveRight - moveLeft;
-    float vertical = moveDown - moveUp;
+bool TankMovementBehaviorComponent::acquireInputDirection(float& outHorizontal, float& outVertical, const MovementInputSample& inputSample) {
+    float horizontal = inputSample.moveRight - inputSample.moveLeft;
+    float vertical = inputSample.moveDown - inputSample.moveUp;
 
     auto [quantizedHorizontal, quantizedVertical] = quantizeToCardinal(horizontal, vertical);
     outHorizontal = quantizedHorizontal;
     outVertical = quantizedVertical;
 
     return !(quantizedHorizontal == 0.0f && quantizedVertical == 0.0f);
+}
+
+TankMovementBehaviorComponent::MovementInputSample TankMovementBehaviorComponent::gatherMovementInput() {
+    MovementInputSample sample;
+
+    if (!pathInput) {
+        pathInput = parent().getComponent<PathfindingBehaviorComponent>();
+        applyPathfindingBias();
+    }
+
+    if (pathInput && pathInput->isActive()) {
+        sample.moveUp = pathInput->getMoveUp();
+        sample.moveDown = pathInput->getMoveDown();
+        sample.moveLeft = pathInput->getMoveLeft();
+        sample.moveRight = pathInput->getMoveRight();
+        sample.walk = pathInput->getActionWalk();
+        sample.active = true;
+        sample.fromPathfinder = true;
+        return sample;
+    }
+
+    if (input && input->isActive()) {
+        sample.moveUp = input->getMoveUp();
+        sample.moveDown = input->getMoveDown();
+        sample.moveLeft = input->getMoveLeft();
+        sample.moveRight = input->getMoveRight();
+        sample.walk = input->getActionWalk();
+        sample.active = true;
+        return sample;
+    }
+
+    return sample;
+}
+
+void TankMovementBehaviorComponent::applyPathfindingBias() {
+    if (pathInput) {
+        pathInput->setDirectionCostBias(pathfindingCardinalCostScale, pathfindingDiagonalCostScale);
+        pathInput->setTurnCostPenalty(pathfindingTurnPenalty);
+    }
+}
+
+bool TankMovementBehaviorComponent::applyPathfindingCourtesy(const MovementInputSample& sample,
+                                                             float& desiredHorizontal,
+                                                             float& desiredVertical,
+                                                             bool hasDirection) {
+    auto resetHistory = [&]() {
+        pathfindingPendingDirectionChanges = 0;
+        pathfindingHasLastDirection = false;
+        pathfindingLastDirection = {0.0f, 0.0f};
+    };
+
+    if (!sample.fromPathfinder || pathfindingCourtesyTurnThreshold <= 0) {
+        resetHistory();
+        return hasDirection;
+    }
+
+    if (!hasDirection) {
+        resetHistory();
+        return false;
+    }
+
+    auto sameDirection = [&](float h, float v) {
+        return std::abs(h - pathfindingLastDirection.first) < 0.0001f &&
+               std::abs(v - pathfindingLastDirection.second) < 0.0001f;
+    };
+
+    if (!pathfindingHasLastDirection) {
+        pathfindingLastDirection = {desiredHorizontal, desiredVertical};
+        pathfindingHasLastDirection = true;
+        pathfindingPendingDirectionChanges = 0;
+        return true;
+    }
+
+    if (sameDirection(desiredHorizontal, desiredVertical)) {
+        pathfindingPendingDirectionChanges = 0;
+        return true;
+    }
+
+    pathfindingPendingDirectionChanges++;
+    if (pathfindingPendingDirectionChanges < pathfindingCourtesyTurnThreshold) {
+        desiredHorizontal = pathfindingLastDirection.first;
+        desiredVertical = pathfindingLastDirection.second;
+        return (desiredHorizontal != 0.0f || desiredVertical != 0.0f);
+    }
+
+    // After exceeding threshold, aim directly at nearest waypoint/destination
+    bool replaced = false;
+    if (pathInput && body) {
+        auto targetPoint = pathInput->getActiveWaypoint();
+        if (!targetPoint.has_value()) {
+            targetPoint = pathInput->getDestinationPoint();
+        }
+        if (targetPoint.has_value()) {
+            auto [posX, posY, _] = body->getPosition();
+            float dx = targetPoint->x - posX;
+            float dy = targetPoint->y - posY;
+            float magnitude = std::sqrt(dx * dx + dy * dy);
+            if (magnitude > 0.001f) {
+                desiredHorizontal = dx / magnitude;
+                desiredVertical = dy / magnitude;
+                replaced = true;
+            }
+        }
+    }
+
+    if (!replaced) {
+        // Fall back to requested direction
+        replaced = true;
+    }
+
+    pathfindingLastDirection = {desiredHorizontal, desiredVertical};
+    pathfindingPendingDirectionChanges = 0;
+    pathfindingHasLastDirection = true;
+    return replaced && (desiredHorizontal != 0.0f || desiredVertical != 0.0f);
 }
 
 void TankMovementBehaviorComponent::updateMovement(float desiredHorizontal, float desiredVertical, float deltaTime) {

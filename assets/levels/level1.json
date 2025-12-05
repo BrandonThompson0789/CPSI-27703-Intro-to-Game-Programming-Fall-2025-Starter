@@ -90,12 +90,31 @@
             ]
         },
         {
-            "template": "player_vaccumba",
+            "template": "robot",
             "components": [
                 {
                     "type": "BodyComponent",
                     "posX": 440.0,
                     "posY": 0.0
+                },
+                {
+                    "type": "PathfindingBehaviorComponent",
+                    "gridCellSize": 8.0,
+                    "searchPadding": 1.0,
+                    "targetAcceptanceDistance": 32.0,
+                    "waypointAcceptanceDistance": 32.0,
+                    "waypointAcceptanceDistance - iftank": 4.0
+                },
+                {
+                    "type": "SeekBehaviorComponent"
+                },
+                {
+                    "type": "SensorComponent",
+                    "maxDistance": 1500.0,
+                    "holdDuration": 0.0,
+                    "allowedInstigators": ["player\\d+"],
+                    "useRegexForInstigators": true,
+                    "includeInteractComponent": false
                 }
             ]
         },

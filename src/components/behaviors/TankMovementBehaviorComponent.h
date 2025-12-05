@@ -6,6 +6,7 @@
 #include <nlohmann/json.hpp>
 
 class SoundComponent;
+class PathfindingBehaviorComponent;
 
 /**
  * Movement behaviour that restricts motion to the eight cardinal/intercardinal
@@ -37,12 +38,26 @@ public:
     float getRotationStopThreshold() const { return rotationStopThresholdDegrees; }
 
 private:
+    struct MovementInputSample;
     void resolveDependencies();
-    bool acquireInputDirection(float& outHorizontal, float& outVertical);
+    bool acquireInputDirection(float& outHorizontal, float& outVertical, const MovementInputSample& inputSample);
+    struct MovementInputSample {
+        float moveUp = 0.0f;
+        float moveDown = 0.0f;
+        float moveLeft = 0.0f;
+        float moveRight = 0.0f;
+        float walk = 0.0f;
+        bool active = false;
+        bool fromPathfinder = false;
+    };
+    MovementInputSample gatherMovementInput();
     void updateMovement(float desiredHorizontal, float desiredVertical, float deltaTime);
     void updateRotation(float desiredHorizontal, float desiredVertical);
+    void applyPathfindingBias();
+    bool applyPathfindingCourtesy(const MovementInputSample& sample, float& desiredHorizontal, float& desiredVertical, bool hasDirection);
 
     InputComponent* input;
+    PathfindingBehaviorComponent* pathInput;
     BodyComponent* body;
     SoundComponent* sound;
 
@@ -52,6 +67,13 @@ private:
     float rotationResponsiveness;
     float maxAngularVelocity;
     float rotationStopThresholdDegrees;
+    float pathfindingCardinalCostScale;
+    float pathfindingDiagonalCostScale;
+    float pathfindingTurnPenalty;
+    int pathfindingCourtesyTurnThreshold;
+    int pathfindingPendingDirectionChanges = 0;
+    std::pair<float, float> pathfindingLastDirection{0.0f, 0.0f};
+    bool pathfindingHasLastDirection = false;
     bool wasMoving = false;
 };
 

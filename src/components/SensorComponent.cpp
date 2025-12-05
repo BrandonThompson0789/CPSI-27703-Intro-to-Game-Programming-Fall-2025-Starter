@@ -1266,5 +1266,66 @@ std::vector<Object*> SensorComponent::getTargetObjects(const std::vector<std::un
     return targets;
 }
 
+std::vector<Object*> SensorComponent::getSatisfiedObjects() const {
+    std::vector<Object*> satisfied;
+    std::vector<Object*> candidates = gatherCandidates();
+
+    bool inputActivityOk = verifyInputActivityCondition();
+    bool globalValueOk = verifyGlobalValueCondition();
+
+    for (Object* candidate : candidates) {
+        if (!candidate || (candidate == &parent() && !allowSelfTrigger) || !Object::isAlive(candidate)) {
+            continue;
+        }
+
+        if (!isInstigatorEligible(*candidate)) {
+            continue;
+        }
+
+        auto* interact = candidate->getComponent<InteractComponent>();
+        if (!interact && requireInteractInput && allowedInstigatorNames.empty()) {
+            continue;
+        }
+
+        const bool collisionOk = verifyCollisionCondition(*candidate);
+        const bool distanceOk = verifyDistanceCondition(*candidate);
+        const bool interactOk = interact ? verifyInteractCondition(*interact) : (!requireInteractInput);
+        const bool boxZoneOk = verifyBoxZoneCondition(*candidate);
+
+        const bool allConditionsMet = collisionOk && distanceOk && interactOk && boxZoneOk &&
+                                      inputActivityOk && globalValueOk;
+        if (allConditionsMet) {
+            satisfied.push_back(candidate);
+        }
+    }
+
+    return satisfied;
+}
+
+std::vector<Object*> SensorComponent::getSatisfiedInstigators() const {
+    std::vector<Object*> instigators;
+    instigators.reserve(triggeredInstigators.size());
+    for (Object* instigator : triggeredInstigators) {
+        if (!instigator) {
+            continue;
+        }
+        if (instigator == &parent()) {
+            continue;
+        }
+        if (!Object::isAlive(instigator)) {
+            continue;
+        }
+        instigators.push_back(instigator);
+    }
+    return instigators;
+}
+
+bool SensorComponent::isInstigatorSatisfied(const Object* object) const {
+    if (!object || object == &parent()) {
+        return false;
+    }
+    return triggeredInstigators.find(const_cast<Object*>(object)) != triggeredInstigators.end();
+}
+
 static ComponentRegistrar<SensorComponent> registrar("SensorComponent");
 

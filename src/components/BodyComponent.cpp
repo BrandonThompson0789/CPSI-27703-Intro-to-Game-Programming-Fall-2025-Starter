@@ -4,6 +4,7 @@
 #include "../Object.h"
 #include "../PhysicsMaterial.h"
 #include <iostream>
+#include <vector>
 
 BodyComponent::BodyComponent(Object& parent) : Component(parent), bodyId(b2_nullBodyId) {
     createDefaultBody();
@@ -186,6 +187,44 @@ std::tuple<float, float, float> BodyComponent::getVelocity() {
         vel.y * Engine::METERS_TO_PIXELS, 
         Engine::radiansToDegrees(b2Body_GetAngularVelocity(bodyId))
     );
+}
+
+b2BodyType BodyComponent::getBodyType() const {
+    if (B2_IS_NULL(bodyId)) {
+        return b2_staticBody;
+    }
+    return b2Body_GetType(bodyId);
+}
+
+bool BodyComponent::isStaticBody() const {
+    return getBodyType() == b2_staticBody;
+}
+
+bool BodyComponent::hasOnlySensorFixtures() const {
+    if (B2_IS_NULL(bodyId)) {
+        return false;
+    }
+
+    int shapeCount = b2Body_GetShapeCount(bodyId);
+    if (shapeCount <= 0) {
+        return false;
+    }
+
+    std::vector<b2ShapeId> shapes(shapeCount);
+    b2Body_GetShapes(bodyId, shapes.data(), shapeCount);
+
+    bool hasAnyShape = false;
+    for (const b2ShapeId& shapeId : shapes) {
+        if (B2_IS_NULL(shapeId)) {
+            continue;
+        }
+        hasAnyShape = true;
+        if (!b2Shape_IsSensor(shapeId)) {
+            return false;
+        }
+    }
+
+    return hasAnyShape;
 }
 
 void BodyComponent::update(float deltaTime) {

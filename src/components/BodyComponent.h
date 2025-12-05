@@ -36,6 +36,9 @@ public:
     
     // Box2D access (v3.x uses handles/IDs)
     b2BodyId getBodyId() const { return bodyId; }
+    b2BodyType getBodyType() const;
+    bool isStaticBody() const;
+    bool hasOnlySensorFixtures() const;
 
 private:
     b2BodyId bodyId;

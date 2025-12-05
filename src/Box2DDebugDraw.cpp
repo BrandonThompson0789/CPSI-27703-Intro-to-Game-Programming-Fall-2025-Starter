@@ -8,6 +8,7 @@
 #include "components/RailComponent.h"
 #include "components/ObjectSpawnerComponent.h"
 #include "components/AdjustableComponent.h"
+#include "components/behaviors/PathfindingBehaviorComponent.h"
 #include "GlobalValueManager.h"
 
 #include <algorithm>
@@ -491,6 +492,73 @@ void Box2DDebugDraw::renderLabels(const std::vector<std::unique_ptr<Object>>& ob
                 // Draw a larger circle at current target (radius of 0.15 meters = 15 pixels)
                 // Cyan color: 0x00FFFF (RGB: 0, 255, 255)
                 drawCircleImpl(targetPos, 0.15f, static_cast<b2HexColor>(0x00FFFF));
+            }
+        }
+    }
+
+    // Draw pathfinding component debug lines
+    for (const auto& objectPtr : objects) {
+        if (!objectPtr) {
+            continue;
+        }
+
+        auto* pathfinder = objectPtr->getComponent<PathfindingBehaviorComponent>();
+        if (!pathfinder || !pathfinder->hasDestination()) {
+            continue;
+        }
+
+        BodyComponent* body = objectPtr->getComponent<BodyComponent>();
+        b2Vec2 objectPos{0.0f, 0.0f};
+        bool hasObjectPos = false;
+        if (body) {
+            auto [posX, posY, _angle] = body->getPosition();
+            objectPos = {posX * Engine::PIXELS_TO_METERS, posY * Engine::PIXELS_TO_METERS};
+            hasObjectPos = true;
+        }
+
+        const auto& pathPoints = pathfinder->getCurrentPath();
+        if (pathPoints.size() >= 2) {
+            b2HexColor pathColor = static_cast<b2HexColor>(0x5AD4FF); // light blue
+            for (size_t i = 0; i + 1 < pathPoints.size(); ++i) {
+                b2Vec2 start{pathPoints[i].x * Engine::PIXELS_TO_METERS,
+                             pathPoints[i].y * Engine::PIXELS_TO_METERS};
+                b2Vec2 end{pathPoints[i + 1].x * Engine::PIXELS_TO_METERS,
+                           pathPoints[i + 1].y * Engine::PIXELS_TO_METERS};
+                drawSegmentImpl(start, end, pathColor);
+            }
+        }
+
+        auto activeWaypoint = pathfinder->getActiveWaypoint();
+        if (activeWaypoint.has_value()) {
+            b2Vec2 waypointPos{activeWaypoint->x * Engine::PIXELS_TO_METERS,
+                               activeWaypoint->y * Engine::PIXELS_TO_METERS};
+            b2HexColor waypointColor = static_cast<b2HexColor>(0xFFA533); // orange
+            drawCircleImpl(waypointPos, 0.12f, waypointColor);
+            if (hasObjectPos) {
+                drawSegmentImpl(objectPos, waypointPos, waypointColor);
+            }
+        }
+
+        auto destination = pathfinder->getDestinationPoint();
+        if (destination.has_value()) {
+            b2Vec2 destPos{destination->x * Engine::PIXELS_TO_METERS,
+                           destination->y * Engine::PIXELS_TO_METERS};
+            b2HexColor destinationColor = static_cast<b2HexColor>(0xFF4D94); // pink
+            drawCircleImpl(destPos, 0.16f, destinationColor);
+
+            // Draw crosshair
+            const float crossSize = 0.12f;
+            b2Vec2 left{destPos.x - crossSize, destPos.y};
+            b2Vec2 right{destPos.x + crossSize, destPos.y};
+            b2Vec2 top{destPos.x, destPos.y - crossSize};
+            b2Vec2 bottom{destPos.x, destPos.y + crossSize};
+            drawSegmentImpl(left, right, destinationColor);
+            drawSegmentImpl(top, bottom, destinationColor);
+
+            if (!pathPoints.empty()) {
+                b2Vec2 lastPathPos{pathPoints.back().x * Engine::PIXELS_TO_METERS,
+                                   pathPoints.back().y * Engine::PIXELS_TO_METERS};
+                drawSegmentImpl(lastPathPos, destPos, static_cast<b2HexColor>(0xFFB3DA));
             }
         }
     }

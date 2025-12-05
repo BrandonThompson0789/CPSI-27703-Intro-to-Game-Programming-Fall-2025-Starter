@@ -102,6 +102,99 @@
                 }
             ]
         },
+        "robot": {
+            "name": "robot",
+            "components": [
+                {
+                    "type": "SpriteComponent",
+                    "spriteName": "player_standing",
+                    "animating": false,
+                    "looping": true,
+                    "stillSpriteName": "player_standing",
+                    "movingSpriteName": "player_walking",
+                    "movementSpeedThreshold": 5.0,
+                    "scaleAnimationWithSpeed": true,
+                    "animationSpeed": 12.0,
+                    "animationSpeedScale": 0.02
+                },
+                {
+                    "type": "InteractComponent",
+                    "allowedSenses": [
+                        "collision",
+                        "distance",
+                        "interact"
+                    ],
+                    "interactThreshold": 0.5
+                },
+                {
+                    "type": "SoundComponent",
+                    "collections": {
+                        "move": {
+                            "collection": "player_move",
+                            "volume": 0.3
+                        },
+                        "move_stop": {
+                            "collection": "player_move_stop",
+                            "volume": 0.1
+                        },
+                        "grab": {
+                            "collection": "player_grab",
+                            "volume": 0.2
+                        },
+                        "grab_release": {
+                            "collection": "player_grab_release",
+                            "volume": 0.2
+                        },
+                        "throw": {
+                            "collection": "player_throw",
+                            "volume": 1.0
+                        },
+                        "explode": {
+                            "collection": "explode",
+                            "volume": 1.0
+                        }
+                    }
+                },
+                {
+                    "type": "BodyComponent",
+                    "posX": 0.0,
+                    "posY": 0.0,
+                    "bodyType": "dynamic",
+                    "fixedRotation": false,
+                    "linearDamping": 6.0,
+                    "angularDamping": 8.0,
+                    "fixture": {
+                        "shape": "circle",
+                        "radius": 15.0,
+                        "density": 5.0,
+                        "material": "metal"
+                    }
+                },
+                {
+                    "type": "StandardMovementBehaviorComponent",
+                    "moveSpeed": 120.0,
+                    "rotationSpeed": 180.0,
+                    "moveSoundRateScale": 0.02
+                },
+                {
+                    "type": "GrabBehaviorComponent",
+                    "grabDistance": 32.0,
+                    "grabForce": 200.0,
+                    "breakForce": 500.0
+                },
+                {
+                    "type": "ThrowBehaviorComponent",
+                    "maxThrowCharge": 1.0,
+                    "throwForceMultiplier": 1000.0,
+                    "minThrowForceRatio": 0.3
+                },
+                {
+                    "type": "CollisionDamageComponent",
+                    "baseDamage": 1.0,
+                    "kineticScale": 6.0
+                }
+            ]
+        },
         "player_vaccumba": {
             "name": "player_vaccumba",
             "components": [

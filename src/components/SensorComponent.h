@@ -39,6 +39,9 @@ public:
     int getSatisfiedConditionCount(const std::vector<Object*>& allObjects) const;
     int getSatisfyingObjectCount(const std::vector<Object*>& allObjects) const;  // Count objects currently satisfying all conditions
     std::vector<Object*> getTargetObjects(const std::vector<std::unique_ptr<Object>>& allObjects) const;
+    std::vector<Object*> getSatisfiedObjects() const;
+    std::vector<Object*> getSatisfiedInstigators() const;
+    bool isInstigatorSatisfied(const Object* object) const;
     
     // Getters for new sensor types (for debug drawing)
     bool requiresGlobalValue() const { return requireGlobalValue; }
