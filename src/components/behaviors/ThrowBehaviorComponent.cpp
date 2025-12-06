@@ -2,6 +2,7 @@
 #include "GrabBehaviorComponent.h"
 #include "../ComponentLibrary.h"
 #include "../SoundComponent.h"
+#include "../UnthrowableComponent.h"
 #include "../../Engine.h"
 #include "../../Object.h"
 #include <cmath>
@@ -119,6 +120,13 @@ void ThrowBehaviorComponent::updateChargeState(float deltaTime) {
 
 void ThrowBehaviorComponent::executeThrow(float chargeRatio) {
     if (!grabBehavior || !body) {
+        return;
+    }
+
+    // Check if the grabbed object has UnthrowableComponent
+    Object* grabbedObject = grabBehavior->getGrabbedObject();
+    if (grabbedObject && grabbedObject->getComponent<UnthrowableComponent>()) {
+        // Object is unthrowable, don't throw it
         return;
     }
 

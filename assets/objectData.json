@@ -689,6 +689,63 @@
                     ]
                 }
             ]
+        },
+        "gun": {
+            "name": "gun",
+            "components": [
+                {
+                    "type": "SpriteComponent",
+                    "spriteName": "gun",
+                    "animating": false,
+                    "looping": false
+                },
+                {
+                    "type": "BodyComponent",
+                    "posX": 0.0,
+                    "posY": 0.0,
+                    "bodyType": "dynamic",
+                    "fixedRotation": false,
+                    "linearDamping": 5.0,
+                    "angularDamping": 5.0,
+                    "fixture": {
+                        "shape": "box",
+                        "width": 48.0,
+                        "height": 32.0,
+                        "density": 0.1,
+                        "friction": 0.5,
+                        "material": "metal"
+                    }
+                },
+                {
+                    "type": "UnthrowableComponent"
+                },
+                {
+                    "type": "UsableWhileCarriedComponent",
+                    "triggerAction": "action_throw"
+                },
+                {
+                    "type": "ProjectileWeaponComponent",
+                    "range": 800.0,
+                    "accuracy": 2.0,
+                    "piercingCount": 0,
+                    "canPierceStatic": false,
+                    "damage": 25.0,
+                    "hitSprite": "explosion",
+                    "hitSpriteWidth": 24.0,
+                    "hitSpriteHeight": 24.0,
+                    "hitSpriteDuration": 0.1,
+                    "offsetX": 16.0,
+                    "offsetY": 0.0,
+                    "offsetAngle": 90.0,
+                    "trailDuration": 0.15,
+                    "trailColor": {
+                        "r": 255,
+                        "g": 200,
+                        "b": 100,
+                        "a": 255
+                    }
+                }
+            ]
         }
     }
 }

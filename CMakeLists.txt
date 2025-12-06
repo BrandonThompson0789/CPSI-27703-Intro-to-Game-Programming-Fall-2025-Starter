@@ -103,6 +103,12 @@ add_executable(demo
     src/GlobalValueManager.cpp
     src/components/AdjustableComponent.h
     src/components/AdjustableComponent.cpp
+    src/components/UnthrowableComponent.h
+    src/components/UnthrowableComponent.cpp
+    src/components/UsableWhileCarriedComponent.h
+    src/components/UsableWhileCarriedComponent.cpp
+    src/components/ProjectileWeaponComponent.h
+    src/components/ProjectileWeaponComponent.cpp
     src/components/LevelWinComponent.h
     src/components/LevelWinComponent.cpp
     src/server_manager/NetworkUtils.h

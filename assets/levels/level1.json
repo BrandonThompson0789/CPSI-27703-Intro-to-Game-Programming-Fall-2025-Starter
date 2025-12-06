@@ -205,12 +205,26 @@
             "template": "brick_rail_circular"
         },
         {
-            "name": "test crate",
+            "name": "test crate - not throwable",
             "template": "crate_basic",
             "components": [
                 {
                     "type": "BodyComponent",
                     "posX": 650.0,
+                    "posY": 450.0
+                },
+                {
+                    "type": "UnthrowableComponent"
+                }
+            ]
+        },
+        {
+            "name": "gun",
+            "template": "gun",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 700.0,
                     "posY": 450.0
                 }
             ]
