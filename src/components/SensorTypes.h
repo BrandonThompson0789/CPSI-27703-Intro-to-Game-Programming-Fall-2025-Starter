@@ -12,6 +12,7 @@ enum class SenseType : uint8_t {
     InputActivity = 1 << 3,
     BoxZone = 1 << 4,
     GlobalValue = 1 << 5,
+    InstigatorDeath = 1 << 6,
 };
 
 using SenseTypeMask = uint8_t;

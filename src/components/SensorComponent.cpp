@@ -99,6 +99,10 @@ SensorComponent::SensorComponent(Object& parent, const nlohmann::json& data)
             globalValueThreshold = gv.value("threshold", 0.0f);
         }
     }
+    
+    if (data.contains("requireInstigatorDeath")) {
+        requireInstigatorDeath = data["requireInstigatorDeath"].get<bool>();
+    }
 
     updateSenseMask();
 }
@@ -133,6 +137,11 @@ void SensorComponent::initializeDefaults() {
     globalValueName = "";
     globalValueComparison = "==";
     globalValueThreshold = 0.0f;
+    requireInstigatorDeath = false;
+    previouslyAliveInstigators.clear();
+    instigatorNames.clear();
+    triggeredDeaths.clear();
+    instigatorDeathTrackingInitialized = false;
 }
 
 void SensorComponent::updateSenseMask() {
@@ -154,6 +163,9 @@ void SensorComponent::updateSenseMask() {
     }
     if (requireGlobalValue) {
         mask = addSenseToMask(mask, SenseType::GlobalValue);
+    }
+    if (requireInstigatorDeath) {
+        mask = addSenseToMask(mask, SenseType::InstigatorDeath);
     }
     requiredSenses = mask;
 }
@@ -721,6 +733,191 @@ bool SensorComponent::verifyGlobalValueCondition() const {
     return false;
 }
 
+void SensorComponent::checkInstigatorDeaths() {
+    // Get all eligible instigators from the engine (not filtered by distance/collision)
+    std::unordered_set<Object*> currentlyAliveInstigators;
+    
+    Engine* engine = Object::getEngine();
+    if (engine) {
+        for (const auto& objectPtr : engine->getObjects()) {
+            Object* obj = objectPtr.get();
+            if (!obj || (obj == &parent() && !allowSelfTrigger)) {
+                continue;
+            }
+            if (!Object::isAlive(obj)) {
+                continue;
+            }
+            
+            // Check if this object is an eligible instigator
+            if (isInstigatorEligible(*obj)) {
+                currentlyAliveInstigators.insert(obj);
+            }
+        }
+    }
+    
+    // On the first frame, just initialize the tracking set without triggering
+    // This prevents false triggers when the sensor is first created or when instigators spawn
+    if (!instigatorDeathTrackingInitialized) {
+        previouslyAliveInstigators = currentlyAliveInstigators;
+        // Cache names for all tracked instigators (safe to access even after they die)
+        for (Object* instigator : currentlyAliveInstigators) {
+            if (instigator) {
+                instigatorNames[instigator] = instigator->getName();
+            }
+        }
+        instigatorDeathTrackingInitialized = true;
+        std::cout << "[SensorComponent] InstigatorDeath sensor initialized with " 
+                  << previouslyAliveInstigators.size() << " instigators" << std::endl;
+        return;  // Don't trigger on initialization
+    }
+    
+    // Check for instigators that were alive before but are now dead
+    // IMPORTANT: Only iterate over previouslyAliveInstigators - this ensures we only
+    // check instigators that existed in the previous frame, not newly spawned ones
+    for (Object* previouslyAlive : previouslyAliveInstigators) {
+        // Only trigger if the object was actually alive and eligible in the previous frame
+        // and is now dead (not just ineligible)
+        if (!previouslyAlive) {
+            // Null pointer - skip (shouldn't happen, but be safe)
+            continue;
+        }
+        
+        // Check if object is still alive according to Object::isAlive()
+        // This is the definitive check - if Object::isAlive() returns false, the object is dead
+        bool isStillAlive = Object::isAlive(previouslyAlive);
+        
+        // Only trigger if the object is actually dead (not just ineligible)
+        // This ensures we don't trigger when objects become ineligible for other reasons
+        // and we definitely don't trigger for newly spawned objects
+        if (!isStillAlive) {
+            // Check if we've already triggered for this death
+            // This prevents multiple triggers for the same death
+            if (triggeredDeaths.find(previouslyAlive) == triggeredDeaths.end()) {
+                // Object died - trigger death once
+                // Use cached name to avoid accessing destroyed object
+                std::string objName = "<unnamed>";
+                auto nameIt = instigatorNames.find(previouslyAlive);
+                if (nameIt != instigatorNames.end()) {
+                    objName = nameIt->second.empty() ? "<unnamed>" : nameIt->second;
+                }
+                std::cout << "[SensorComponent] InstigatorDeath: Detected death of '" << objName 
+                          << "' (was in previous set, now dead)" << std::endl;
+                trigger(parent());
+                triggeredDeaths.insert(previouslyAlive);
+            }
+        } else {
+            // Object is still alive - update cached name if needed and verify it's in the current set
+            // Update name cache in case it changed
+            if (previouslyAlive) {
+                instigatorNames[previouslyAlive] = previouslyAlive->getName();
+            }
+            
+            // If it's not, it might have become ineligible, but we don't trigger for that
+            bool isInCurrentSet = currentlyAliveInstigators.find(previouslyAlive) != currentlyAliveInstigators.end();
+            if (!isInCurrentSet) {
+                // Object is alive but no longer eligible - this is not a death, don't trigger
+                // (This can happen if eligibility criteria change, but we only care about actual deaths)
+            }
+        }
+    }
+    
+    // IMPORTANT: Add new instigators BEFORE removing dead ones
+    // This ensures that if an object dies and a new one spawns at the same address in the same frame,
+    // we properly track the new one
+    
+    // First, add all currently eligible instigators to tracking
+    // This includes both existing tracked ones and newly spawned ones
+    for (Object* instigator : currentlyAliveInstigators) {
+        if (instigator && Object::isAlive(instigator)) {
+            // Check if this is a newly added instigator (not in tracking yet)
+            bool isNewlyAdded = previouslyAliveInstigators.find(instigator) == previouslyAliveInstigators.end();
+            
+            // Always update name cache for alive instigators (in case name changed or object was recreated)
+            // This is important: if an object dies and a new one spawns at the same address,
+            // we need to update the name cache even if the pointer is the same
+            std::string currentName = instigator->getName();
+            bool nameChanged = false;
+            std::string oldName;
+            if (instigatorNames.find(instigator) != instigatorNames.end()) {
+                oldName = instigatorNames[instigator];
+                nameChanged = (oldName != currentName);
+            }
+            instigatorNames[instigator] = currentName;
+            
+            // Add to tracking if not already there
+            if (isNewlyAdded) {
+                previouslyAliveInstigators.insert(instigator);
+                
+                // Log when an instigator is first added to tracking
+                std::string objName = currentName.empty() ? "<unnamed>" : currentName;
+                std::cout << "[SensorComponent] InstigatorDeath: Added '" << objName 
+                          << "' to tracking list (now tracking " << previouslyAliveInstigators.size() 
+                          << " instigators)" << std::endl;
+            } else if (nameChanged) {
+                // Log if name changed (might indicate object was recreated at same address)
+                std::string oldNameDisplay = oldName.empty() ? "<unnamed>" : oldName;
+                std::string newNameDisplay = currentName.empty() ? "<unnamed>" : currentName;
+                std::cout << "[SensorComponent] InstigatorDeath: Name changed for tracked instigator at " 
+                          << static_cast<void*>(instigator) << " (old: '" << oldNameDisplay 
+                          << "', new: '" << newNameDisplay << "')" << std::endl;
+            }
+        }
+    }
+    
+    // Now remove objects from tracking only if they're actually dead AND not in current set
+    // This ensures we continue tracking objects that become ineligible, so we can detect their death later
+    // We do this AFTER adding new ones to handle the case where an object dies and a new one spawns at the same address
+    for (auto it = previouslyAliveInstigators.begin(); it != previouslyAliveInstigators.end();) {
+        Object* trackedObj = *it;
+        
+        // Check if object is dead
+        if (!trackedObj || !Object::isAlive(trackedObj)) {
+            // Object is dead - check if there's a replacement in the current set
+            // (This handles the case where memory is reused and a new object spawns at the same address)
+            bool hasReplacement = currentlyAliveInstigators.find(trackedObj) != currentlyAliveInstigators.end();
+            
+            if (!hasReplacement) {
+                // Object is dead and no replacement - remove from tracking
+                // But keep in triggeredDeaths if we've already triggered for it
+                it = previouslyAliveInstigators.erase(it);
+            } else {
+                // There's a new object at this address (or the object became alive again)
+                // Keep tracking it - we already updated the name cache above
+                ++it;
+            }
+        } else {
+            ++it;
+        }
+    }
+    
+    // Clean up triggered deaths and name cache for objects that are fully destroyed
+    // (no longer in engine's object list and not alive)
+    for (auto it = triggeredDeaths.begin(); it != triggeredDeaths.end();) {
+        Object* deadObj = *it;
+        // If the object is no longer alive, check if it's still in the engine's object list
+        if (!deadObj || !Object::isAlive(deadObj)) {
+            bool stillInEngine = false;
+            if (engine) {
+                for (const auto& objectPtr : engine->getObjects()) {
+                    if (objectPtr.get() == deadObj) {
+                        stillInEngine = true;
+                        break;
+                    }
+                }
+            }
+            // If not in engine and not alive, it's fully destroyed - clean up
+            if (!stillInEngine) {
+                instigatorNames.erase(deadObj);  // Clean up name cache
+                it = triggeredDeaths.erase(it);
+            } else {
+                ++it;
+            }
+        } else {
+            ++it;
+        }
+    }
+}
+
 void SensorComponent::cleanExpiredTimers(const std::unordered_set<Object*>& processed) {
     for (auto it = conditionTimers.begin(); it != conditionTimers.end();) {
         Object* instigator = it->first;
@@ -833,9 +1030,22 @@ void SensorComponent::advanceTimersForCandidates(const std::vector<Object*>& can
         if (hasSystemConditions) {
             // System conditions must be met AND not already triggered
             if (!systemConditionsMet || systemConditionsTriggered) {
-                // System conditions not met or already triggered, skip this candidate
+                // System conditions not met or already triggered
+                // But we still need to check if object conditions were previously satisfied
+                // (e.g., object was in distance range but system condition failed)
+                bool wasPreviouslySatisfied = previouslySatisfiedInstigators.find(candidate) != previouslySatisfiedInstigators.end();
+                
+                // Reset timer and allow retrigger for this instigator
                 conditionTimers[candidate] = 0.0f;
                 triggeredInstigators.erase(candidate);
+                previouslySatisfiedInstigators.erase(candidate);
+                
+                // If instigator was previously satisfied (due to object conditions) and now isn't,
+                // trigger unsatisfied targets (even if system conditions failed)
+                if (wasPreviouslySatisfied && !unsatisfiedTargetNames.empty()) {
+                    triggerUnsatisfied(*candidate);
+                }
+                
                 continue;
             }
         }
@@ -979,6 +1189,26 @@ void SensorComponent::update(float deltaTime) {
         return;
     }
 
+    // Check for instigator deaths first (before gathering candidates)
+    if (requireInstigatorDeath) {
+        checkInstigatorDeaths();
+        
+        // If InstigatorDeath is the ONLY condition, skip normal sensor processing
+        // This ensures we only trigger on deaths, not on spawns or other conditions
+        bool hasOnlyInstigatorDeath = requireInstigatorDeath && 
+                                      !requireCollision && 
+                                      maxDistance <= 0.0f && 
+                                      !requireInteractInput && 
+                                      !requireInputActivity && 
+                                      !requireBoxZone && 
+                                      !requireGlobalValue;
+        
+        if (hasOnlyInstigatorDeath) {
+            // This sensor only tracks deaths - don't process normal conditions
+            return;
+        }
+    }
+
     const auto candidates = gatherCandidates();
     advanceTimersForCandidates(candidates, deltaTime);
 }
@@ -1048,6 +1278,10 @@ nlohmann::json SensorComponent::toJson() const {
         data["globalValue"] = gv;
     }
     
+    if (requireInstigatorDeath) {
+        data["requireInstigatorDeath"] = requireInstigatorDeath;
+    }
+    
     return data;
 }
 
@@ -1071,6 +1305,9 @@ int SensorComponent::getConditionCount() const {
     if (requireGlobalValue) {
         ++count;
     }
+    if (requireInstigatorDeath) {
+        ++count;
+    }
     return count;
 }
 
@@ -1090,6 +1327,7 @@ int SensorComponent::getSatisfiedConditionCount(const std::vector<Object*>& allO
     // Check non-object-based conditions
     bool inputActivitySatisfied = verifyInputActivityCondition();
     bool globalValueSatisfied = verifyGlobalValueCondition();
+    // Note: InstigatorDeath is handled separately in checkInstigatorDeaths()
     
     // Check each candidate to see if it satisfies conditions
     for (Object* candidate : candidates) {
@@ -1163,6 +1401,8 @@ int SensorComponent::getSatisfiedConditionCount(const std::vector<Object*>& allO
     if (requireGlobalValue && globalValueSatisfied) {
         ++satisfied;
     }
+    // Note: InstigatorDeath doesn't have a "satisfied" state in the traditional sense
+    // It triggers on events (deaths), not on continuous conditions
     
     return satisfied;
 }

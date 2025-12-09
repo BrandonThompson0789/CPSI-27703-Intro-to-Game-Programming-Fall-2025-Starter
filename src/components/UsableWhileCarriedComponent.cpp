@@ -9,13 +9,19 @@
 UsableWhileCarriedComponent::UsableWhileCarriedComponent(Object& parent)
     : Component(parent)
     , triggerAction(static_cast<int>(GameAction::ACTION_INTERACT))
-    , wasActionPressed(false) {
+    , wasActionPressed(false)
+    , autoUse(false)
+    , useRate(0.0f)
+    , timeSinceLastUse(0.0f) {
 }
 
 UsableWhileCarriedComponent::UsableWhileCarriedComponent(Object& parent, const nlohmann::json& data)
     : Component(parent)
     , triggerAction(static_cast<int>(GameAction::ACTION_INTERACT))
-    , wasActionPressed(false) {
+    , wasActionPressed(false)
+    , autoUse(false)
+    , useRate(0.0f)
+    , timeSinceLastUse(0.0f) {
     // Support both int (enum value) and string (action name) for triggerAction
     if (data.contains("triggerAction")) {
         if (data["triggerAction"].is_number()) {
@@ -27,6 +33,16 @@ UsableWhileCarriedComponent::UsableWhileCarriedComponent(Object& parent, const n
                 triggerAction = static_cast<int>(action);
             }
         }
+    }
+    
+    // Load autoUse setting
+    if (data.contains("autoUse")) {
+        autoUse = data["autoUse"].get<bool>();
+    }
+    
+    // Load useRate setting
+    if (data.contains("useRate")) {
+        useRate = data["useRate"].get<float>();
     }
 }
 
@@ -40,15 +56,23 @@ nlohmann::json UsableWhileCarriedComponent::toJson() const {
     } else {
         j["triggerAction"] = triggerAction; // Fallback to int if invalid
     }
+    
+    // Serialize autoUse and useRate
+    if (autoUse) {
+        j["autoUse"] = autoUse;
+    }
+    if (useRate > 0.0f) {
+        j["useRate"] = useRate;
+    }
+    
     return j;
 }
 
 void UsableWhileCarriedComponent::update(float deltaTime) {
-    (void)deltaTime; // Not used, but required by interface
-    
     Object* grabbingObject = findGrabbingObject();
     if (!grabbingObject) {
         wasActionPressed = false;
+        timeSinceLastUse = 0.0f;
         return;
     }
 
@@ -56,16 +80,35 @@ void UsableWhileCarriedComponent::update(float deltaTime) {
     InputComponent* input = grabbingObject->getComponent<InputComponent>();
     if (!input) {
         wasActionPressed = false;
+        timeSinceLastUse = 0.0f;
         return;
     }
+
+    // Update rate limiting timer
+    timeSinceLastUse += deltaTime;
 
     // Check if the trigger action is pressed
     GameAction action = static_cast<GameAction>(triggerAction);
     bool actionPressed = input->isPressed(action);
 
-    // If action was just pressed (not held), trigger use
-    if (actionPressed && !wasActionPressed) {
+    // Determine if we should trigger use
+    bool shouldUse = false;
+    if (autoUse) {
+        // In autoUse mode, use continuously while action is held (respecting useRate)
+        if (actionPressed && (useRate <= 0.0f || timeSinceLastUse >= useRate)) {
+            shouldUse = true;
+        }
+    } else {
+        // In normal mode, only use when action is first pressed (respecting useRate)
+        if (actionPressed && !wasActionPressed && (useRate <= 0.0f || timeSinceLastUse >= useRate)) {
+            shouldUse = true;
+        }
+    }
+
+    // Trigger use if conditions are met
+    if (shouldUse) {
         parent().use(*grabbingObject);
+        timeSinceLastUse = 0.0f; // Reset rate limiting timer
     }
 
     wasActionPressed = actionPressed;

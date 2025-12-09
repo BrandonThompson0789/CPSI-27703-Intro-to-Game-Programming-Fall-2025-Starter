@@ -71,6 +71,7 @@ private:
     std::string globalValueName;
     std::string globalValueComparison;  // ">", ">=", "==", "<=", "<", "!="
     float globalValueThreshold;
+    bool requireInstigatorDeath;  // Track instigator deaths
 
     std::vector<std::string> targetNames;
     std::vector<std::regex> targetRegexes;  // Compiled regex patterns
@@ -100,6 +101,12 @@ private:
     std::unordered_map<Object*, float> conditionTimers;
     std::unordered_set<Object*> triggeredInstigators;  // Track which instigators have triggered (per-instigator satisfaction)
     std::unordered_set<Object*> previouslySatisfiedInstigators;  // Track which instigators were previously satisfied (for unsatisfied triggers)
+    
+    // Instigator death tracking
+    std::unordered_set<Object*> previouslyAliveInstigators;  // Track which instigators were alive in the previous frame
+    std::unordered_map<Object*, std::string> instigatorNames;  // Cache names for dead objects (safe to access after death)
+    std::unordered_set<Object*> triggeredDeaths;  // Track which instigators we've already triggered death for
+    bool instigatorDeathTrackingInitialized;  // Track if we've done the initial population (skip triggers on first frame)
 
     void initializeDefaults();
     void refreshBodyCache();
@@ -118,6 +125,7 @@ private:
     bool verifyInputActivityCondition() const;
     bool verifyBoxZoneCondition(Object& instigator) const;
     bool verifyGlobalValueCondition() const;
+    void checkInstigatorDeaths();  // Check for instigators that have died
 
     void advanceTimersForCandidates(const std::vector<Object*>& candidates, float deltaTime);
     void trigger(Object& instigator);

@@ -192,6 +192,14 @@
                     "type": "CollisionDamageComponent",
                     "baseDamage": 1.0,
                     "kineticScale": 6.0
+                },
+                {
+                    "type": "ExplodeOnDeathComponent",
+                    "explosionSprite": "explosion",
+                    "explosionWidth": 64.0,
+                    "explosionHeight": 64.0,
+                    "loopsBeforeDeath": 2,
+                    "randomizeAngleEachFrame": true
                 }
             ]
         },
@@ -721,7 +729,9 @@
                 },
                 {
                     "type": "UsableWhileCarriedComponent",
-                    "triggerAction": "action_throw"
+                    "triggerAction": "action_throw",
+                    "autoUse": true,
+                    "useRate": 0.25
                 },
                 {
                     "type": "ProjectileWeaponComponent",

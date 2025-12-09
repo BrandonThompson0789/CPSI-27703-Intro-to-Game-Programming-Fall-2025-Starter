@@ -3,6 +3,7 @@
 #include "SpriteComponent.h"
 #include "BodyComponent.h"
 #include "SoundComponent.h"
+#include "../menus/MenuManager.h"
 #include "../Object.h"
 #include "../Engine.h"
 #include <random>
@@ -93,7 +94,9 @@ void ExplodeOnDeathComponent::onParentDeath() {
     triggered = true;
     
     auto* sound = parent().getComponent<SoundComponent>();
-    if(sound)sound->playActionSound("explode");
+    auto* MenuManager = Object::getEngine()->getMenuManager();
+    if(!MenuManager->isMenuActive())
+        if(sound)sound->playActionSound("explode");
 
     spawnExplosion();
 }

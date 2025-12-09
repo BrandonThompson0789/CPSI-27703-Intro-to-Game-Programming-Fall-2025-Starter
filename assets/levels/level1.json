@@ -58,67 +58,6 @@
             ]
         },
         {
-            "name": "player3",
-            "template": "player_default",
-            "components": [
-                {
-                    "type": "BodyComponent",
-                    "posX": 650.0,
-                    "posY": 1050.0
-                },
-                {
-                    "type": "InputComponent",
-                    "playerId": 3,
-                    "configName": "default"
-                }
-            ]
-        },
-        {
-            "name": "player4",
-            "template": "player_default",
-            "components": [
-                {
-                    "type": "BodyComponent",
-                    "posX": 650.0,
-                    "posY": 1050.0
-                },
-                {
-                    "type": "InputComponent",
-                    "playerId": 4,
-                    "configName": "default"
-                }
-            ]
-        },
-        {
-            "template": "robot",
-            "components": [
-                {
-                    "type": "BodyComponent",
-                    "posX": 440.0,
-                    "posY": 0.0
-                },
-                {
-                    "type": "PathfindingBehaviorComponent",
-                    "gridCellSize": 8.0,
-                    "searchPadding": 1.0,
-                    "targetAcceptanceDistance": 32.0,
-                    "waypointAcceptanceDistance": 32.0,
-                    "waypointAcceptanceDistance - iftank": 4.0
-                },
-                {
-                    "type": "SeekBehaviorComponent"
-                },
-                {
-                    "type": "SensorComponent",
-                    "maxDistance": 1500.0,
-                    "holdDuration": 0.0,
-                    "allowedInstigators": ["player\\d+"],
-                    "useRegexForInstigators": true,
-                    "includeInteractComponent": false
-                }
-            ]
-        },
-        {
             "template": "player_vaccumba",
             "components": [
                 {
@@ -657,6 +596,186 @@
                     "type": "LevelWinComponent",
                     "updateProgression": true,
                     "progressionIncrement": 10
+                }
+            ]
+        },
+        {
+            "template": "robot",
+            "name": "enemy_robot",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 500.0,
+                    "posY": 850.0
+                },
+                {
+                    "type": "HealthComponent",
+                    "maxHP": 10.0,
+                    "currentHP": 10.0
+                },
+                {
+                    "type": "PathfindingBehaviorComponent",
+                    "gridCellSize": 8.0,
+                    "searchPadding": 1.0,
+                    "targetAcceptanceDistance": 32.0,
+                    "waypointAcceptanceDistance": 32.0,
+                    "waypointAcceptanceDistance - iftank": 4.0
+                },
+                {
+                    "type": "SeekBehaviorComponent"
+                },
+                {
+                    "type": "SensorComponent",
+                    "maxDistance": 1500.0,
+                    "holdDuration": 0.0,
+                    "allowedInstigators": ["player\\d+"],
+                    "useRegexForInstigators": true,
+                    "includeInteractComponent": false
+                }
+            ]
+        },
+        {
+            "name": "enemy_spawner",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 600.0,
+                    "posY": 1050.0,
+                    "bodyType": "static",
+                    "fixture": {
+                        "isSensor": true
+                    }
+                },
+                {
+                    "type": "ObjectSpawnerComponent",
+                    "spawnInOrder": false,
+                    "useNextPosition": true,
+                    "spawnableObjects": [
+                        {
+                            "template": "robot",
+                            "name": "enemy_robot",
+                            "components": [
+                                {
+                                    "type": "BodyComponent",
+                                    "posX": 440.0,
+                                    "posY": 0.0
+                                },
+                                {
+                                    "type": "HealthComponent",
+                                    "maxHP": 10.0,
+                                    "currentHP": 10.0
+                                },
+                                {
+                                    "type": "PathfindingBehaviorComponent",
+                                    "gridCellSize": 8.0,
+                                    "searchPadding": 1.0,
+                                    "targetAcceptanceDistance": 32.0,
+                                    "waypointAcceptanceDistance": 32.0,
+                                    "waypointAcceptanceDistance - iftank": 4.0
+                                },
+                                {
+                                    "type": "SeekBehaviorComponent"
+                                },
+                                {
+                                    "type": "SensorComponent",
+                                    "maxDistance": 1500.0,
+                                    "holdDuration": 0.0,
+                                    "allowedInstigators": ["player\\d+"],
+                                    "useRegexForInstigators": true,
+                                    "includeInteractComponent": false
+                                }
+                            ]
+                        }
+                    ],
+                    "spawnLocations": [
+                        {"x": 500.0, "y": 850.0},
+                        {"x": 550.0, "y": 850.0},
+                        {"x": 600.0, "y": 850.0},
+                        {"x": 650.0, "y": 850.0},
+                        {"x": 700.0, "y": 850.0}
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "kill_counter_adjuster_positive",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 700.0,
+                    "posY": 1050.0,
+                    "bodyType": "static",
+                    "fixture": {
+                        "width": 32.0,
+                        "height": 32.0,
+                        "isSensor": true
+                    }
+                },
+                {
+                    "type": "AdjustableComponent",
+                    "globalValueName": "kill_count",
+                    "operation": "add",
+                    "value": 1.0,
+                    "createIfNotExists": true
+                }
+            ]
+        },
+        {
+            "name": "enemy_spawn_and_kill_count_trigger",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 650.0,
+                    "posY": 1050.0,
+                    "bodyType": "static",
+                    "fixture": {
+                        "width": 32.0,
+                        "height": 32.0,
+                        "isSensor": true
+                    }
+                },
+                {
+                    "type": "SpriteComponent",
+                    "spriteName": "square",
+                    "alpha": 100,
+                    "colorR": 0,
+                    "colorG": 255,
+                    "colorB": 0
+                },
+                {
+                    "type": "SensorComponent",
+                    "requireInstigatorDeath": true,
+                    "allowedInstigators": ["enemy_robot.*(?<!_explosion)$"],
+                    "useRegexForInstigators": true,
+                    "includeInteractComponent": false, 
+                    "targetObjects": ["kill_counter_adjuster_positive","enemy_spawner"]
+                }
+            ]
+        },
+        {
+            "name": "kill_count_sensor",
+            "components": [
+                {
+                    "type": "BodyComponent",
+                    "posX": 750.0,
+                    "posY": 1050.0,
+                    "bodyType": "static",
+                    "fixture": {
+                        "shape": "box",
+                        "width": 32.0,
+                        "height": 32.0,
+                        "isSensor": true
+                    }
+                },
+                {
+                    "type": "SensorComponent",
+                    "requireGlobalValue": true,
+                    "globalValue": {
+                        "name": "kill_count",
+                        "comparison": ">=",
+                        "threshold": 50.0
+                    },
+                    "targetObjects": ["level_win_trigger"]
                 }
             ]
         }

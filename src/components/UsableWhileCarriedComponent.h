@@ -31,10 +31,21 @@ public:
     int getTriggerAction() const { return triggerAction; }
     void setTriggerAction(int action) { triggerAction = action; }
 
+    // Get/set autofire/autouse mode
+    bool getAutoUse() const { return autoUse; }
+    void setAutoUse(bool enabled) { autoUse = enabled; }
+
+    // Get/set use rate (time in seconds between uses, 0 = no rate limiting)
+    float getUseRate() const { return useRate; }
+    void setUseRate(float rate) { useRate = rate; }
+
 private:
     Object* findGrabbingObject() const;
     
     int triggerAction; // GameAction enum value (as int for JSON serialization)
     bool wasActionPressed; // Track previous frame's state to detect press events
+    bool autoUse; // If true, continuously use while action is held; if false, only on press
+    float useRate; // Minimum time in seconds between uses (0 = no rate limiting)
+    float timeSinceLastUse; // Timer to track rate limiting
 };
 

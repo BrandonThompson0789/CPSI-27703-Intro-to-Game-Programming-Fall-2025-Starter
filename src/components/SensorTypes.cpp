@@ -46,6 +46,9 @@ SenseType parseSenseType(const std::string& value) {
     if (lowered == "globalvalue" || lowered == "global_value") {
         return SenseType::GlobalValue;
     }
+    if (lowered == "instigatordeath" || lowered == "instigator_death" || lowered == "deathtracking" || lowered == "death_tracking") {
+        return SenseType::InstigatorDeath;
+    }
     return SenseType::None;
 }
 
@@ -74,6 +77,8 @@ std::string senseTypeToString(SenseType type) {
             return "boxzone";
         case SenseType::GlobalValue:
             return "globalvalue";
+        case SenseType::InstigatorDeath:
+            return "instigatordeath";
         case SenseType::None:
         default:
             return "none";
@@ -99,6 +104,9 @@ std::vector<std::string> senseMaskToStrings(SenseTypeMask mask) {
     }
     if (senseMaskHas(mask, SenseType::GlobalValue)) {
         values.push_back(senseTypeToString(SenseType::GlobalValue));
+    }
+    if (senseMaskHas(mask, SenseType::InstigatorDeath)) {
+        values.push_back(senseTypeToString(SenseType::InstigatorDeath));
     }
     if (values.empty()) {
         values.push_back(senseTypeToString(SenseType::None));
